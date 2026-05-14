@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, shallowRef, watch, useTemplateRef } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
 import DocsSearchPanel from '@/components/docs/DocsSearchPanel.vue'
-import type { ThemeMode } from '@/composables/useTheme'
+import type { ResolvedTheme, ThemeAccent, ThemeAccentId, ThemeMode } from '@/composables/useTheme'
 import type { SearchResult } from '@/types/docs'
 
 const query = defineModel<string>({ default: '' })
@@ -9,9 +9,12 @@ const query = defineModel<string>({ default: '' })
 const props = defineProps<{
   isSearchOpen: boolean
   pageLabel: string
+  resolvedTheme: ResolvedTheme
   results: SearchResult[]
   selectedIndex: number
-  theme: ThemeMode
+  themeAccent: ThemeAccentId
+  themeAccents: ThemeAccent[]
+  themeMode: ThemeMode
   totalDocs: number
   totalSections: number
 }>()
@@ -20,15 +23,28 @@ const emit = defineEmits<{
   closeSearch: []
   moveSelection: [direction: 1 | -1]
   openSearch: []
+  selectThemeAccent: [accent: ThemeAccentId]
+  selectThemeMode: [mode: ThemeMode]
   submitSearch: [routePath?: string]
-  toggleTheme: []
   toggleSidebar: []
 }>()
 
 const searchPanelRef = useTemplateRef<InstanceType<typeof DocsSearchPanel>>('searchPanel')
+const themeMenuRef = useTemplateRef<HTMLElement>('themeMenu')
+
 const isMobileSearchExpanded = shallowRef(false)
+const isThemeMenuOpen = shallowRef(false)
 
 const shouldShowMobileSearch = computed(() => isMobileSearchExpanded.value)
+const activeAccentLabel = computed(
+  () => props.themeAccents.find((accent) => accent.id === props.themeAccent)?.label ?? '星图蓝',
+)
+
+const themeModeOptions: Array<{ id: ThemeMode; label: string }> = [
+  { id: 'system', label: '系统' },
+  { id: 'light', label: '浅色' },
+  { id: 'dark', label: '暗色' },
+]
 
 watch(
   [() => query.value, () => props.isSearchOpen],
@@ -38,6 +54,26 @@ watch(
     }
   },
 )
+
+onMounted(() => {
+  document.addEventListener('pointerdown', onPointerDown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('pointerdown', onPointerDown)
+})
+
+function onPointerDown(event: PointerEvent) {
+  const target = event.target
+
+  if (!(target instanceof Node)) {
+    return
+  }
+
+  if (!themeMenuRef.value?.contains(target)) {
+    isThemeMenuOpen.value = false
+  }
+}
 
 function closeSearch() {
   emit('closeSearch')
@@ -65,6 +101,20 @@ function toggleMobileSearch() {
 
   openMobileSearch()
 }
+
+function toggleThemeMenu() {
+  isThemeMenuOpen.value = !isThemeMenuOpen.value
+}
+
+function selectThemeMode(mode: ThemeMode) {
+  emit('selectThemeMode', mode)
+  isThemeMenuOpen.value = false
+}
+
+function selectThemeAccent(accent: ThemeAccentId) {
+  emit('selectThemeAccent', accent)
+  isThemeMenuOpen.value = false
+}
 </script>
 
 <template>
@@ -73,12 +123,12 @@ function toggleMobileSearch() {
       <div class="site-header__toolbar">
         <div class="site-header__brand">
           <button
-            class="site-header__menu"
             aria-label="打开目录"
+            class="site-header__menu"
             type="button"
             @click="emit('toggleSidebar')"
           >
-            导航
+            目录
           </button>
 
           <RouterLink
@@ -94,11 +144,23 @@ function toggleMobileSearch() {
           </p>
         </div>
 
-        <div class="site-header__actions">
-          <div class="site-header__meta">
-            <span>{{ props.totalSections }} 个专题</span>
-            <span>{{ props.totalDocs }} 篇教程</span>
-          </div>
+        <DocsSearchPanel
+          :class="['site-header__search', { 'site-header__search--collapsed': !shouldShowMobileSearch }]"
+          ref="searchPanel"
+          :is-open="props.isSearchOpen"
+          :results="props.results"
+          :selected-index="props.selectedIndex"
+          v-model="query"
+          @close="closeSearch"
+          @move-selection="emit('moveSelection', $event)"
+          @open="emit('openSearch')"
+          @submit="emit('submitSearch', $event)"
+        />
+
+        <div
+          ref="themeMenu"
+          class="site-header__controls"
+        >
           <button
             :aria-label="shouldShowMobileSearch ? '收起搜索' : '打开搜索'"
             class="site-header__search-trigger"
@@ -109,8 +171,8 @@ function toggleMobileSearch() {
               v-if="!shouldShowMobileSearch"
               aria-hidden="true"
               class="site-header__search-icon"
-              viewBox="0 0 24 24"
               fill="none"
+              viewBox="0 0 24 24"
             >
               <circle
                 cx="11"
@@ -131,8 +193,8 @@ function toggleMobileSearch() {
               v-else
               aria-hidden="true"
               class="site-header__search-icon"
-              viewBox="0 0 24 24"
               fill="none"
+              viewBox="0 0 24 24"
             >
               <path
                 d="M7 7L17 17"
@@ -148,30 +210,71 @@ function toggleMobileSearch() {
               />
             </svg>
           </button>
+
           <button
-            :aria-label="props.theme === 'dark' ? '切换到浅色主题' : '切换到暗色主题'"
-            class="site-header__theme"
+            :aria-expanded="isThemeMenuOpen"
+            aria-label="打开主题设置"
+            class="site-header__theme-trigger"
             type="button"
-            @click="emit('toggleTheme')"
+            @click="toggleThemeMenu"
           >
-            <span class="site-header__theme-mark" />
-            <span class="site-header__theme-text">{{ props.theme === 'dark' ? '暗色' : '浅色' }}</span>
+            <span
+              :class="[
+                'site-header__theme-mark',
+                { 'site-header__theme-mark--dark': props.resolvedTheme === 'dark' },
+              ]"
+            />
+            <span class="site-header__theme-label">{{ activeAccentLabel }}</span>
           </button>
+
+          <div
+            v-if="isThemeMenuOpen"
+            class="site-header__theme-popover"
+          >
+            <div class="site-header__theme-section">
+              <p class="site-header__theme-heading">外观</p>
+              <div class="site-header__mode-list">
+                <button
+                  v-for="option in themeModeOptions"
+                  :key="option.id"
+                  :class="[
+                    'site-header__mode-button',
+                    { 'site-header__mode-button--active': option.id === props.themeMode },
+                  ]"
+                  type="button"
+                  @click="selectThemeMode(option.id)"
+                >
+                  {{ option.label }}
+                </button>
+              </div>
+            </div>
+
+            <div class="site-header__theme-section">
+              <div class="site-header__theme-heading-row">
+                <p class="site-header__theme-heading">主题色</p>
+                <span class="site-header__theme-current">{{ activeAccentLabel }}</span>
+              </div>
+              <div class="site-header__palette-grid">
+                <button
+                  v-for="accent in props.themeAccents"
+                  :key="accent.id"
+                  :aria-label="`切换到${accent.label}`"
+                  :class="[
+                    'site-header__palette-option',
+                    { 'site-header__palette-option--active': accent.id === props.themeAccent },
+                  ]"
+                  :style="{ '--theme-swatch': accent.color }"
+                  type="button"
+                  @click="selectThemeAccent(accent.id)"
+                >
+                  <span class="site-header__palette-swatch" />
+                  <span class="site-header__palette-name">{{ accent.label }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-
-      <DocsSearchPanel
-        :class="['site-header__search', { 'site-header__search--collapsed': !shouldShowMobileSearch }]"
-        ref="searchPanel"
-        :is-open="props.isSearchOpen"
-        :results="props.results"
-        :selected-index="props.selectedIndex"
-        v-model="query"
-        @close="closeSearch"
-        @move-selection="emit('moveSelection', $event)"
-        @open="emit('openSearch')"
-        @submit="emit('submitSearch', $event)"
-      />
     </div>
   </header>
 </template>
@@ -185,35 +288,28 @@ function toggleMobileSearch() {
 }
 
 .site-header__inner {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
-  gap: 1rem;
-  align-items: center;
-  padding: 0.95rem 1.2rem;
+  padding: 0.9rem 1.1rem;
   margin: 0 auto;
   max-width: 1560px;
   border: 1px solid var(--color-line);
-  border-radius: 26px;
+  border-radius: 24px;
   backdrop-filter: blur(22px);
   background: var(--surface-panel-alt);
   box-shadow: var(--shadow-panel);
 }
 
 .site-header__toolbar {
-  min-width: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px) auto;
+  gap: 0.9rem;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
 }
 
 .site-header__brand {
   display: flex;
   align-items: center;
-  gap: 0.875rem;
+  gap: 0.85rem;
   min-width: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
 }
 
 .site-header__menu {
@@ -222,7 +318,7 @@ function toggleMobileSearch() {
   border-radius: 999px;
   min-height: 44px;
   padding: 0.65rem 0.95rem;
-  background: rgba(var(--color-accent-rgb), 0.1);
+  background: rgba(var(--color-accent-rgb), 0.12);
   color: var(--color-ink);
   font: inherit;
   cursor: pointer;
@@ -233,94 +329,59 @@ function toggleMobileSearch() {
   align-items: center;
   gap: 0.7rem;
   min-width: 0;
-  font-family: var(--font-display);
-  font-size: 1.45rem;
-  font-weight: 700;
   color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
   text-decoration: none;
-  letter-spacing: 0.03em;
-}
-
-.site-header__title-text {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  letter-spacing: 0.02em;
 }
 
 .site-header__title-mark {
-  width: 0.9rem;
-  height: 0.9rem;
+  width: 0.88rem;
+  height: 0.88rem;
   border-radius: 999px;
   background:
     radial-gradient(circle at 30% 30%, #ffffff, var(--color-accent) 58%, var(--color-accent-deep) 100%);
   box-shadow: 0 0 0 6px rgba(var(--color-accent-rgb), 0.12);
 }
 
+.site-header__title-text,
 .site-header__subtitle {
-  margin: 0 0 0 0.1rem;
-  padding-left: 0.9rem;
   min-width: 0;
-  border-left: 1px solid var(--color-line);
-  color: var(--color-muted);
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.site-header__meta {
-  display: flex;
-  gap: 0.75rem;
-  color: var(--color-soft);
-  font-size: 0.9rem;
+.site-header__subtitle {
+  margin: 0;
+  padding-left: 0.85rem;
+  border-left: 1px solid var(--color-line);
+  color: var(--color-muted);
 }
 
-.site-header__actions {
+.site-header__search {
+  min-width: 0;
+}
+
+.site-header__controls {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.75rem;
-  flex-shrink: 0;
-}
-
-.site-header__meta span {
-  min-height: 36px;
-  display: inline-flex;
-  align-items: center;
-  padding: 0.35rem 0.7rem;
-  border-radius: 999px;
-  background: var(--surface-chip);
-}
-
-.site-header__theme {
-  min-width: 40px;
-  min-height: 40px;
-  display: inline-flex;
-  align-items: center;
   gap: 0.55rem;
-  padding: 0.45rem 0.8rem;
-  border: 1px solid var(--color-line);
-  border-radius: 999px;
-  background: var(--surface-chip);
-  color: var(--color-ink);
-  cursor: pointer;
 }
 
-.site-header__theme-mark {
-  width: 0.8rem;
-  height: 0.8rem;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--color-accent), rgba(var(--color-accent-rgb), 0.35));
-  box-shadow: 0 0 0 4px rgba(var(--color-accent-rgb), 0.14);
-}
-
-.site-header__search-trigger {
-  display: none;
-  min-width: 40px;
-  min-height: 40px;
+.site-header__search-trigger,
+.site-header__theme-trigger {
+  min-width: 42px;
+  min-height: 42px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  gap: 0.55rem;
+  padding: 0.45rem 0.8rem;
   border: 1px solid var(--color-line);
   border-radius: 999px;
   background: var(--surface-chip);
@@ -332,9 +393,17 @@ function toggleMobileSearch() {
     transform 0.18s ease;
 }
 
-.site-header__search-trigger:hover {
+.site-header__search-trigger {
+  display: none;
+  padding: 0;
+}
+
+.site-header__search-trigger:hover,
+.site-header__theme-trigger:hover,
+.site-header__mode-button:hover,
+.site-header__palette-option:hover {
   background: rgba(var(--color-accent-rgb), 0.1);
-  border-color: rgba(var(--color-accent-rgb), 0.3);
+  border-color: rgba(var(--color-accent-rgb), 0.28);
   transform: translateY(-1px);
 }
 
@@ -343,14 +412,127 @@ function toggleMobileSearch() {
   height: 1.05rem;
 }
 
-@media (max-width: 1180px) {
-  .site-header__inner {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.8rem;
-  }
+.site-header__theme-mark {
+  width: 0.82rem;
+  height: 0.82rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fff4ba, #f2c145);
+  box-shadow: 0 0 0 4px rgba(var(--color-accent-rgb), 0.14);
+}
 
-  .site-header__meta {
-    display: none;
+.site-header__theme-mark--dark {
+  background: linear-gradient(135deg, #d7e4ff, #6d82c9 65%, #293969 100%);
+}
+
+.site-header__theme-label {
+  max-width: 6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.site-header__theme-popover {
+  position: absolute;
+  top: calc(100% + 0.7rem);
+  right: 0;
+  width: min(21rem, calc(100vw - 2rem));
+  display: grid;
+  gap: 0.9rem;
+  padding: 0.95rem;
+  border: 1px solid var(--color-line);
+  border-radius: 22px;
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-panel);
+}
+
+.site-header__theme-section {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.site-header__theme-heading,
+.site-header__theme-current {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-soft);
+}
+
+.site-header__theme-heading {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.site-header__theme-heading-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.site-header__mode-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.site-header__mode-button,
+.site-header__palette-option {
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  background: var(--surface-card);
+  color: var(--color-ink);
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.site-header__mode-button {
+  min-height: 40px;
+  padding: 0.65rem 0.7rem;
+}
+
+.site-header__mode-button--active,
+.site-header__palette-option--active {
+  border-color: rgba(var(--color-accent-rgb), 0.38);
+  background: rgba(var(--color-accent-rgb), 0.12);
+}
+
+.site-header__palette-grid {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.site-header__palette-option {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 44px;
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+}
+
+.site-header__palette-swatch {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--theme-swatch);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.56),
+    0 0 0 1px rgba(9, 18, 40, 0.08);
+}
+
+.site-header__palette-name {
+  color: var(--color-muted);
+}
+
+@media (max-width: 1180px) {
+  .site-header__toolbar {
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 360px) auto;
   }
 }
 
@@ -361,26 +543,18 @@ function toggleMobileSearch() {
   }
 
   .site-header__inner {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.7rem;
     padding: 0.75rem 0.8rem 0.85rem;
     max-width: none;
     border-radius: 0;
     border-top: 0;
     border-right: 0;
     border-left: 0;
-    box-shadow: 0 10px 24px rgba(19, 42, 92, 0.08);
+    box-shadow: 0 10px 24px rgba(var(--color-accent-rgb), 0.12);
   }
 
   .site-header__toolbar {
-    display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.75rem;
-    align-items: start;
-  }
-
-  .site-header__brand {
-    gap: 0.65rem;
+    gap: 0.7rem;
   }
 
   .site-header__menu {
@@ -391,51 +565,18 @@ function toggleMobileSearch() {
     padding: 0.65rem 0.85rem;
   }
 
-  .site-header__title {
-    gap: 0.55rem;
-    font-size: 1.2rem;
-  }
-
-  .site-header__actions {
-    align-self: center;
-    justify-content: flex-end;
-  }
-
-  .site-header__search-trigger {
-    display: inline-flex;
-  }
-
+  .site-header__subtitle,
   .site-header__search--collapsed {
     display: none;
   }
 
-  .site-header__theme {
-    min-height: 44px;
-    padding-inline: 0.9rem;
-  }
-
-  .site-header__subtitle {
-    display: none;
-  }
-}
-
-@media (max-width: 720px) {
   .site-header__search {
-    width: 100%;
-  }
-}
-
-@media (max-width: 640px) {
-  .site-header__inner {
-    padding-inline: 0.8rem;
+    grid-column: 1 / -1;
+    order: 3;
   }
 
-  .site-header__toolbar {
-    gap: 0.65rem;
-  }
-
-  .site-header__title {
-    font-size: 1.08rem;
+  .site-header__search-trigger {
+    display: inline-flex;
   }
 }
 
@@ -446,17 +587,24 @@ function toggleMobileSearch() {
   }
 
   .site-header__brand {
-    min-width: 0;
+    gap: 0.6rem;
   }
 
-  .site-header__actions {
-    gap: 0.5rem;
+  .site-header__title {
+    font-size: 1.06rem;
+  }
+
+  .site-header__theme-label {
+    display: none;
+  }
+
+  .site-header__theme-trigger {
+    padding-inline: 0;
   }
 }
 
 @media (max-width: 520px) {
   .site-header__inner {
-    gap: 0.6rem;
     padding: 0.65rem 0.7rem 0.8rem;
   }
 
@@ -464,35 +612,25 @@ function toggleMobileSearch() {
     gap: 0.55rem;
   }
 
-  .site-header__brand {
-    gap: 0.5rem;
-  }
-
-  .site-header__menu {
+  .site-header__menu,
+  .site-header__search-trigger,
+  .site-header__theme-trigger {
     min-width: 40px;
     min-height: 40px;
-    padding: 0.55rem 0.7rem;
   }
 
   .site-header__title {
-    gap: 0.45rem;
     font-size: 0.98rem;
   }
 
-  .site-header__theme {
-    min-width: 40px;
-    min-height: 40px;
-    justify-content: center;
-    padding: 0;
+  .site-header__theme-popover {
+    width: min(19rem, calc(100vw - 1rem));
+    right: -0.15rem;
+    padding: 0.8rem;
   }
 
-  .site-header__search-trigger {
-    min-width: 40px;
-    min-height: 40px;
-  }
-
-  .site-header__theme-text {
-    display: none;
+  .site-header__palette-option {
+    min-height: 42px;
   }
 }
 </style>

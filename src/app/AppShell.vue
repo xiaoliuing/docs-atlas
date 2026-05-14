@@ -23,7 +23,15 @@ const {
   selectedIndex,
   setQuery,
 } = useDocsSearch()
-const { initializeTheme, theme, toggleTheme } = useTheme()
+const {
+  initializeTheme,
+  resolvedTheme,
+  setThemeAccent,
+  setThemeMode,
+  themeAccent,
+  themeAccents,
+  themeMode,
+} = useTheme()
 const isSidebarOpen = shallowRef(false)
 initializeTheme()
 
@@ -76,15 +84,19 @@ function navigateToResult(routePath?: string) {
       :is-search-open="isOpen"
       :page-label="pageLabel"
       :results="results"
+      :resolved-theme="resolvedTheme"
       :selected-index="selectedIndex"
-      :theme="theme"
+      :theme-accent="themeAccent"
+      :theme-accents="themeAccents"
+      :theme-mode="themeMode"
       :total-sections="sections.length"
       :total-docs="totalTutorials"
       @close-search="closeSearch"
       @move-selection="moveSelection"
       @open-search="openSearch"
+      @select-theme-accent="setThemeAccent"
+      @select-theme-mode="setThemeMode"
       @submit-search="navigateToResult"
-      @toggle-theme="toggleTheme"
       @toggle-sidebar="toggleSidebar"
     />
 

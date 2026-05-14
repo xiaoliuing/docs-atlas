@@ -260,9 +260,17 @@ function getSectionToggleLabel(sectionTitle: string, isOpen: boolean) {
 .docs-sidebar__source-toggle {
   padding: 0.75rem 0.95rem;
   border-radius: 22px;
-  background: var(--surface-contrast);
-  color: var(--text-on-contrast);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--color-accent-rgb), 0.18),
+    rgba(var(--color-accent-rgb), 0.1) 52%,
+    var(--surface-card-strong) 100%
+  );
+  color: var(--color-ink);
   cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 10px 24px rgba(var(--color-accent-rgb), 0.12);
 }
 
 .docs-sidebar__source-toggle:hover,
@@ -271,10 +279,20 @@ function getSectionToggleLabel(sectionTitle: string, isOpen: boolean) {
   box-shadow: var(--shadow-emphasis);
 }
 
+.docs-sidebar__source-toggle--active {
+  background: linear-gradient(
+    135deg,
+    rgba(var(--color-accent-rgb), 0.26),
+    rgba(var(--color-accent-rgb), 0.14) 56%,
+    var(--surface-card-strong) 100%
+  );
+}
+
 .docs-sidebar__source-name {
   font-size: 1rem;
   font-weight: 700;
   text-align: left;
+  color: var(--color-accent-deep);
 }
 
 .docs-sidebar__section-link {
@@ -313,6 +331,10 @@ function getSectionToggleLabel(sectionTitle: string, isOpen: boolean) {
   border-bottom: 2px solid currentColor;
   transform: rotate(45deg) translateY(-1px);
   transition: transform 0.18s ease;
+}
+
+.docs-sidebar__source-toggle-icon {
+  color: var(--color-accent-deep);
 }
 
 .docs-sidebar__source-toggle-icon--open,

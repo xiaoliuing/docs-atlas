@@ -1,12 +1,36 @@
 import { shallowRef } from 'vue'
 
-export type ThemeMode = 'light' | 'dark'
+export type ResolvedTheme = 'light' | 'dark'
+export type ThemeMode = 'system' | 'light' | 'dark'
+export type ThemeAccentId =
+  | 'atlas-blue'
+  | 'ocean-teal'
+  | 'forest-green'
+  | 'sunset-amber'
+  | 'dusty-rose'
 
-const STORAGE_KEY = 'docs-atlas-theme'
-const theme = shallowRef<ThemeMode>('light')
+export type ThemeAccent = {
+  id: ThemeAccentId
+  label: string
+  color: string
+}
+
+const MODE_STORAGE_KEY = 'docs-atlas-theme-mode'
+const ACCENT_STORAGE_KEY = 'docs-atlas-theme-accent'
+
+const themeMode = shallowRef<ThemeMode>('system')
+const resolvedTheme = shallowRef<ResolvedTheme>('light')
+const themeAccent = shallowRef<ThemeAccentId>('atlas-blue')
+
+const themeAccents: ThemeAccent[] = [
+  { id: 'atlas-blue', label: '星图蓝', color: '#1F54D9' },
+  { id: 'ocean-teal', label: '海雾青', color: '#0F8C95' },
+  { id: 'forest-green', label: '森林绿', color: '#1F8F63' },
+  { id: 'sunset-amber', label: '落日金', color: '#C28A1A' },
+  { id: 'dusty-rose', label: '雾玫瑰', color: '#C05F7F' },
+]
 
 let initialized = false
-let hasStoredPreference = false
 let cleanupSystemListener: (() => void) | null = null
 
 export function useTheme() {
@@ -17,29 +41,50 @@ export function useTheme() {
 
     initialized = true
 
-    const savedTheme = window.localStorage.getItem(STORAGE_KEY)
-    hasStoredPreference = savedTheme === 'light' || savedTheme === 'dark'
+    const savedMode = window.localStorage.getItem(MODE_STORAGE_KEY)
+    const savedAccent = window.localStorage.getItem(ACCENT_STORAGE_KEY)
 
-    if (hasStoredPreference) {
-      applyTheme(savedTheme as ThemeMode)
-    } else {
-      applyTheme(getSystemTheme())
-    }
+    themeMode.value = isThemeMode(savedMode) ? savedMode : 'system'
+    themeAccent.value = isThemeAccent(savedAccent) ? savedAccent : 'atlas-blue'
 
+    applyTheme()
     bindSystemThemeListener()
   }
 
-  function toggleTheme() {
-    const nextTheme: ThemeMode = theme.value === 'dark' ? 'light' : 'dark'
-    hasStoredPreference = true
-    window.localStorage.setItem(STORAGE_KEY, nextTheme)
-    applyTheme(nextTheme)
+  function cycleThemeMode() {
+    const nextMode = getNextThemeMode(themeMode.value)
+    setThemeMode(nextMode)
+  }
+
+  function setThemeMode(nextMode: ThemeMode) {
+    themeMode.value = nextMode
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(MODE_STORAGE_KEY, nextMode)
+    }
+
+    applyTheme()
+  }
+
+  function setThemeAccent(nextAccent: ThemeAccentId) {
+    themeAccent.value = nextAccent
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(ACCENT_STORAGE_KEY, nextAccent)
+    }
+
+    applyTheme()
   }
 
   return {
+    cycleThemeMode,
     initializeTheme,
-    theme,
-    toggleTheme,
+    resolvedTheme,
+    setThemeAccent,
+    setThemeMode,
+    themeAccent,
+    themeAccents,
+    themeMode,
   }
 }
 
@@ -49,9 +94,9 @@ function bindSystemThemeListener() {
   }
 
   const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-  const listener = (event: MediaQueryListEvent) => {
-    if (!hasStoredPreference) {
-      applyTheme(event.matches ? 'dark' : 'light')
+  const listener = () => {
+    if (themeMode.value === 'system') {
+      applyTheme()
     }
   }
 
@@ -61,7 +106,7 @@ function bindSystemThemeListener() {
   }
 }
 
-function getSystemTheme(): ThemeMode {
+function getSystemTheme(): ResolvedTheme {
   if (typeof window === 'undefined') {
     return 'light'
   }
@@ -69,13 +114,35 @@ function getSystemTheme(): ThemeMode {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
-function applyTheme(nextTheme: ThemeMode) {
-  theme.value = nextTheme
+function applyTheme() {
+  resolvedTheme.value = themeMode.value === 'system' ? getSystemTheme() : themeMode.value
 
   if (typeof document === 'undefined') {
     return
   }
 
-  document.documentElement.dataset.theme = nextTheme
-  document.documentElement.style.colorScheme = nextTheme
+  document.documentElement.dataset.theme = resolvedTheme.value
+  document.documentElement.dataset.themeMode = themeMode.value
+  document.documentElement.dataset.accent = themeAccent.value
+  document.documentElement.style.colorScheme = resolvedTheme.value
+}
+
+function getNextThemeMode(currentMode: ThemeMode): ThemeMode {
+  if (currentMode === 'system') {
+    return 'light'
+  }
+
+  if (currentMode === 'light') {
+    return 'dark'
+  }
+
+  return 'system'
+}
+
+function isThemeMode(value: string | null): value is ThemeMode {
+  return value === 'system' || value === 'light' || value === 'dark'
+}
+
+function isThemeAccent(value: string | null): value is ThemeAccentId {
+  return themeAccents.some((accent) => accent.id === value)
 }

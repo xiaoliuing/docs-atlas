@@ -80,10 +80,18 @@ defineProps<{
 
   .doc-content__body {
     min-width: 0;
+    width: 100%;
+    max-width: min(100%, 76ch);
+    margin-inline: auto;
   }
 
   .doc-content__body-shell {
     min-width: 0;
+    padding: clamp(1rem, 2vw, 1.85rem) clamp(1rem, 2.5vw, 2.2rem);
+    border: 1px solid var(--color-line);
+    border-radius: 32px;
+    background: var(--surface-markdown);
+    box-shadow: var(--shadow-panel);
   }
 
   .doc-content__source {
@@ -109,7 +117,8 @@ defineProps<{
     }
 
     .doc-content__body-shell {
-      padding-inline: 0.9rem;
+      padding: 0.95rem;
+      border-radius: 22px;
     }
 
     .doc-content__body {
