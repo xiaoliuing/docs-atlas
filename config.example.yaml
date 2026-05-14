@@ -1,0 +1,8 @@
+docs:
+  sources:
+    - path: ./docs
+      name: local
+    - path: ../another-project/docs
+      name: another-project
+    - path: /Users/lx/ai-agent-server/docs
+      name: AI-Agent

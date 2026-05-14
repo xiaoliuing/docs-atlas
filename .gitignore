@@ -1,0 +1,9 @@
+node_modules
+dist
+.DS_Store
+.pnpm-store
+.env.local
+.env.*.local
+config.yaml
+docs-atlas.config.yaml
+docs-cms.config.yaml
