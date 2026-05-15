@@ -48,6 +48,14 @@
 - 视图组件保持薄，复杂逻辑放到 composables
 - 不手改 `dist/` 和 `node_modules/`
 
+## Release
+
+- 默认每次完成改动后自动 `commit` 并 `push`
+- 版本号按范围递增：
+- `patch`：文档、样式、修复、小改动
+- `minor`：新增功能，且没有破坏兼容
+- `major`：破坏性变更、路由或配置不兼容调整
+
 ## Verify
 
 - 开发：`pnpm dev`
