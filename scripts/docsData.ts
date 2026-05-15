@@ -74,6 +74,7 @@ type DocsData = {
 }
 
 type BuildContext = {
+  appBase: string
   docsSources: DocsSource[]
 }
 
@@ -99,6 +100,7 @@ type RawDoc = {
 
 type StaticAsset = {
   absolutePath: string
+  outputPath: string
   publicPath: string
 }
 
@@ -112,11 +114,11 @@ const CONTENT_PREFIX = '/__docs/content/'
 const SEARCH_INDEX_PATH = '/__docs/search-index.json'
 const markdownExtensionPattern = /\.md$/i
 
-export function createDocsDataPlugin({ docsSources }: BuildContext): Plugin {
+export function createDocsDataPlugin({ appBase, docsSources }: BuildContext): Plugin {
   let cachedData: DocsData | null = null
 
   const readData = () => {
-    cachedData ??= buildDocsData({ docsSources })
+    cachedData ??= buildDocsData({ appBase, docsSources })
     return cachedData
   }
 
@@ -161,7 +163,7 @@ export function createDocsDataPlugin({ docsSources }: BuildContext): Plugin {
     },
     configureServer(server) {
       server.watcher.add(docsSources.map((source) => source.root))
-      server.middlewares.use(createDocsMiddleware(readData))
+      server.middlewares.use(createDocsMiddleware(readData, appBase))
     },
     handleHotUpdate(context) {
       const isDocsFile = docsSources.some((source) => context.file.startsWith(source.root))
@@ -204,7 +206,7 @@ export function createDocsDataPlugin({ docsSources }: BuildContext): Plugin {
       for (const asset of data.staticAssets) {
         this.emitFile({
           type: 'asset',
-          fileName: asset.publicPath.slice(1),
+          fileName: asset.outputPath.slice(1),
           source: fs.readFileSync(asset.absolutePath),
         })
       }
@@ -212,9 +214,9 @@ export function createDocsDataPlugin({ docsSources }: BuildContext): Plugin {
   }
 }
 
-export function buildDocsData({ docsSources }: BuildContext): DocsData {
+export function buildDocsData({ appBase, docsSources }: BuildContext): DocsData {
   const rawDocs = docsSources.flatMap((source) =>
-    collectMarkdownFiles(source.root).map((absolutePath) => buildRawDoc(absolutePath, source)),
+    collectMarkdownFiles(source.root).map((absolutePath) => buildRawDoc(absolutePath, source, appBase)),
   )
   assertNoDuplicateDocSlugs(rawDocs)
   const grouped = new Map<string, SectionState>()
@@ -235,7 +237,7 @@ export function buildDocsData({ docsSources }: BuildContext): DocsData {
 
   for (const rawDoc of rawDocs) {
     for (const asset of rawDoc.assets) {
-      staticAssets.set(asset.publicPath, asset.absolutePath)
+      staticAssets.set(asset.outputPath, asset.absolutePath)
     }
 
     if (rawDoc.detail.sectionId) {
@@ -335,14 +337,18 @@ export function buildDocsData({ docsSources }: BuildContext): DocsData {
     searchIndex,
     sections,
     staticAssets: Array.from(staticAssets.entries())
-      .map(([publicPath, absolutePath]) => ({ absolutePath, publicPath }))
-      .sort((left, right) => comparePathSegments(left.publicPath, right.publicPath)),
+      .map(([outputPath, absolutePath]) => ({
+        absolutePath,
+        outputPath,
+        publicPath: resolvePublicPath(appBase, outputPath),
+      }))
+      .sort((left, right) => comparePathSegments(left.outputPath, right.outputPath)),
     staticAssetsByPath: Object.fromEntries(staticAssets.entries()),
     sourceGroups: orderedSourceGroups,
   }
 }
 
-function createDocsMiddleware(readData: () => DocsData): Connect.NextHandleFunction {
+function createDocsMiddleware(readData: () => DocsData, appBase: string): Connect.NextHandleFunction {
   return (request, response, next) => {
     const pathname = request.url?.split('?')[0]
 
@@ -351,13 +357,15 @@ function createDocsMiddleware(readData: () => DocsData): Connect.NextHandleFunct
       return
     }
 
-    if (pathname === SEARCH_INDEX_PATH) {
+    const normalizedPathname = stripBasePath(pathname, appBase)
+
+    if (normalizedPathname === SEARCH_INDEX_PATH) {
       writeJson(response, readData().searchIndex)
       return
     }
 
-    if (pathname.startsWith(CONTENT_PREFIX) && pathname.endsWith('.json')) {
-      const slug = decodeDocSlugFromPath(pathname)
+    if (normalizedPathname.startsWith(CONTENT_PREFIX) && normalizedPathname.endsWith('.json')) {
+      const slug = decodeDocSlugFromPath(normalizedPathname)
       const detail = slug ? readData().docDetailsBySlug[slug] ?? null : null
 
       if (!detail) {
@@ -370,8 +378,8 @@ function createDocsMiddleware(readData: () => DocsData): Connect.NextHandleFunct
       return
     }
 
-    if (pathname.startsWith(ASSET_PREFIX)) {
-      const absolutePath = readData().staticAssetsByPath[pathname]
+    if (normalizedPathname.startsWith(ASSET_PREFIX)) {
+      const absolutePath = readData().staticAssetsByPath[normalizedPathname]
 
       if (!absolutePath || !fs.existsSync(absolutePath)) {
         response.statusCode = 404
@@ -412,7 +420,7 @@ function assertNoDuplicateDocSlugs(rawDocs: RawDoc[]) {
   }
 }
 
-function buildRawDoc(absolutePath: string, docsSource: DocsSource): RawDoc {
+function buildRawDoc(absolutePath: string, docsSource: DocsSource, appBase: string): RawDoc {
   const source = fs.readFileSync(absolutePath, 'utf8')
   const relativePath = normalizePath(path.relative(docsSource.root, absolutePath))
   const pathSegments = relativePath.split('/')
@@ -429,6 +437,7 @@ function buildRawDoc(absolutePath: string, docsSource: DocsSource): RawDoc {
   const routePath = isSectionIndex && sectionId ? `/section/${sectionId}` : `/docs/${slug}`
   const parsed = renderMarkdown(source, {
     absolutePath,
+    appBase,
     docsRoot: docsSource.root,
     sourceMountPath: docsSource.mountPath,
   })
@@ -466,6 +475,7 @@ function renderMarkdown(
   source: string,
   context: {
     absolutePath: string
+    appBase: string
     docsRoot: string
     sourceMountPath: string
   },
@@ -531,7 +541,13 @@ function renderMarkdown(
     const href = token.attrGet('href')
 
     if (href) {
-      const rewritten = rewriteHref(href, context.absolutePath, context.docsRoot, context.sourceMountPath)
+      const rewritten = rewriteHref(
+        href,
+        context.absolutePath,
+        context.docsRoot,
+        context.sourceMountPath,
+        context.appBase,
+      )
       token.attrSet('href', rewritten)
 
       if (/^https?:\/\//i.test(rewritten)) {
@@ -548,11 +564,17 @@ function renderMarkdown(
     const src = token.attrGet('src')
 
     if (src) {
-      const rewritten = rewriteImageSource(src, context.absolutePath, context.docsRoot, context.sourceMountPath)
+      const rewritten = rewriteImageSource(
+        src,
+        context.absolutePath,
+        context.docsRoot,
+        context.sourceMountPath,
+        context.appBase,
+      )
       token.attrSet('src', rewritten.src)
 
       if (rewritten.asset) {
-        assetMap.set(rewritten.asset.publicPath, rewritten.asset)
+        assetMap.set(rewritten.asset.outputPath, rewritten.asset)
       }
     }
 
@@ -628,6 +650,7 @@ function rewriteHref(
   absolutePath: string,
   docsRoot: string,
   sourceMountPath: string,
+  appBase: string,
 ): string {
   if (href.startsWith('#') || /^mailto:/i.test(href)) {
     return href
@@ -660,7 +683,8 @@ function rewriteHref(
     ? `/section/${buildScopedPath(sourceMountPath, relativeSlug)}`
     : `/docs/${buildScopedPath(sourceMountPath, relativeSlug)}`
 
-  return hash ? `${route}#${hash}` : route
+  const publicRoute = resolvePublicPath(appBase, route)
+  return hash ? `${publicRoute}#${hash}` : publicRoute
 }
 
 function rewriteImageSource(
@@ -668,6 +692,7 @@ function rewriteImageSource(
   absolutePath: string,
   docsRoot: string,
   sourceMountPath: string,
+  appBase: string,
 ): {
   asset: StaticAsset | null
   src: string
@@ -695,10 +720,12 @@ function rewriteImageSource(
     return { asset: null, src }
   }
 
-  const publicPath = getDocAssetPublicPath(sourceMountPath, relativeTarget)
+  const outputPath = getDocAssetOutputPath(sourceMountPath, relativeTarget)
+  const publicPath = resolvePublicPath(appBase, outputPath)
   return {
     asset: {
       absolutePath: resolved,
+      outputPath,
       publicPath,
     },
     src: `${publicPath}${search}${hash}`,
@@ -831,7 +858,7 @@ function getDocContentAssetPath(slug: string): string {
   return `${CONTENT_PREFIX}${segments.join('/')}.json`
 }
 
-function getDocAssetPublicPath(sourceMountPath: string, relativeAssetPath: string): string {
+function getDocAssetOutputPath(sourceMountPath: string, relativeAssetPath: string): string {
   const encodedPath = [sourceMountPath, ...relativeAssetPath.split('/')]
     .filter(Boolean)
     .map((segment) => encodeURIComponent(segment))
@@ -856,6 +883,29 @@ function buildScopedPath(sourceMountPath: string, relativePath: string): string 
   return normalizePath([sourceMountPath, relativePath].filter(Boolean).join('/'))
 }
 
+function resolvePublicPath(appBase: string, pathname: string): string {
+  const normalizedBase = normalizeBasePath(appBase)
+  const normalizedPathname = pathname.startsWith('/') ? pathname : `/${pathname}`
+  const trimmedBase = normalizedBase === '/' ? '' : normalizedBase.replace(/\/$/, '')
+
+  return `${trimmedBase}${normalizedPathname}` || normalizedPathname
+}
+
+function stripBasePath(pathname: string, appBase: string): string {
+  const normalizedBase = normalizeBasePath(appBase)
+
+  if (normalizedBase === '/' || pathname === normalizedBase.slice(0, -1)) {
+    return pathname
+  }
+
+  if (pathname.startsWith(normalizedBase)) {
+    const stripped = pathname.slice(normalizedBase.length - 1)
+    return stripped.startsWith('/') ? stripped : `/${stripped}`
+  }
+
+  return pathname
+}
+
 function humanizeSegment(segment: string): string {
   return segment
     .replace(/[-_]+/g, ' ')
@@ -864,6 +914,17 @@ function humanizeSegment(segment: string): string {
 
 function normalizePath(value: string): string {
   return value.split(path.sep).join('/')
+}
+
+function normalizeBasePath(value: string): string {
+  const trimmed = value.trim()
+
+  if (!trimmed || trimmed === '/') {
+    return '/'
+  }
+
+  const normalized = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+  return normalized.endsWith('/') ? normalized : `${normalized}/`
 }
 
 function getContentType(absolutePath: string): string {

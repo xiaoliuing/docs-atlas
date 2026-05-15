@@ -8,6 +8,7 @@ import './assets/main.css'
 export const createApp = ViteSSG(
   App,
   {
+    base: import.meta.env.BASE_URL,
     routes,
     scrollBehavior,
   },
