@@ -141,14 +141,22 @@ function getDocContentPath(slug: string): string {
 
 function normalizeRouteParam(value: string | string[] | undefined): string | null {
   if (typeof value === 'string') {
-    return value
+    return trimTrailingSlash(value)
   }
 
   if (Array.isArray(value)) {
-    return value.join('/')
+    return trimTrailingSlash(value.join('/'))
   }
 
   return null
+}
+
+function trimTrailingSlash(value: string): string {
+  if (value === '/') {
+    return value
+  }
+
+  return value.replace(/\/+$/g, '')
 }
 
 function resolveAssetUrl(assetPath: string): string {

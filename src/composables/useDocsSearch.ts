@@ -28,7 +28,7 @@ export function useDocsSearch() {
 
         return {
           ...record,
-          routePath: docsBySlug[record.slug]?.routePath ?? `/docs/${record.slug}`,
+          routePath: docsBySlug[record.slug]?.routePath ?? `/docs/${record.slug}/`,
           score,
         }
       })

@@ -279,7 +279,7 @@ export function buildDocsData({ appBase, docsSources }: BuildContext): DocsData 
         sourceName: state.sourceName,
         sourceMountPath: state.sourceMountPath,
         title: sectionTitle,
-        routePath: `/section/${sectionId}`,
+        routePath: createDirectoryRoutePath(`/section/${sectionId}`),
         docs: docs.map((rawDoc) => toDocMeta(rawDoc.detail)),
       }
     })
@@ -434,7 +434,9 @@ function buildRawDoc(absolutePath: string, docsSource: DocsSource, appBase: stri
     : relativePath.replace(markdownExtensionPattern, '')
   const slug = buildScopedPath(docsSource.mountPath, relativeSlug)
   const sectionId = relativeSectionId ? buildScopedPath(docsSource.mountPath, relativeSectionId) : null
-  const routePath = isSectionIndex && sectionId ? `/section/${sectionId}` : `/docs/${slug}`
+  const routePath = createDirectoryRoutePath(
+    isSectionIndex && sectionId ? `/section/${sectionId}` : `/docs/${slug}`,
+  )
   const parsed = renderMarkdown(source, {
     absolutePath,
     appBase,
@@ -680,8 +682,8 @@ function rewriteHref(
     : relativeTarget.replace(markdownExtensionPattern, '')
 
   const route = isSectionReadme
-    ? `/section/${buildScopedPath(sourceMountPath, relativeSlug)}`
-    : `/docs/${buildScopedPath(sourceMountPath, relativeSlug)}`
+    ? createDirectoryRoutePath(`/section/${buildScopedPath(sourceMountPath, relativeSlug)}`)
+    : createDirectoryRoutePath(`/docs/${buildScopedPath(sourceMountPath, relativeSlug)}`)
 
   const publicRoute = resolvePublicPath(appBase, route)
   return hash ? `${publicRoute}#${hash}` : publicRoute
@@ -881,6 +883,14 @@ function decodeDocSlugFromPath(pathname: string): string | null {
 
 function buildScopedPath(sourceMountPath: string, relativePath: string): string {
   return normalizePath([sourceMountPath, relativePath].filter(Boolean).join('/'))
+}
+
+function createDirectoryRoutePath(routePath: string): string {
+  if (!routePath || routePath === '/') {
+    return '/'
+  }
+
+  return routePath.endsWith('/') ? routePath : `${routePath}/`
 }
 
 function resolvePublicPath(appBase: string, pathname: string): string {
