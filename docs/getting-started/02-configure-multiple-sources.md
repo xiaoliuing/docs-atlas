@@ -4,7 +4,9 @@
 
 ## 使用 config.yaml
 
-你可以在项目根目录创建 `config.yaml`：
+你可以在项目根目录创建 `config.yaml`。
+
+最简单的平铺写法：
 
 ```yaml
 docs:
@@ -13,8 +15,25 @@ docs:
       name: local
     - path: ../backend-docs
       name: backend
-    - path: ../mobile-docs
-      name: mobile
+```
+
+如果你想把多个来源再分层组织，可以继续嵌套：
+
+```yaml
+docs:
+  groups:
+    - name: Workspace
+      sources:
+        - path: ./docs
+          name: local
+        - path: ../backend-docs
+          name: backend
+    - name: Client
+      groups:
+        - name: Mobile
+          sources:
+            - path: ../mobile-docs
+              name: mobile
 ```
 
 ## 字段说明
@@ -32,6 +51,7 @@ docs:
 
 - 作为左侧导航中的模块名称
 - 作为打包后路由和静态资源的命名空间
+- 在嵌套配置里，完整路径也会参与最终命名空间生成
 
 例如：
 
@@ -55,6 +75,14 @@ docs:
 
 - 给每个来源使用不同的 `name`
 - 在各自目录里保持清晰的主题划分
+
+## 目录排序
+
+目录默认按接近 VS Code Explorer 的方式排序：
+
+- 目录优先
+- `README.md` 优先
+- 文件名自然数字排序，例如 `01-`、`02-`、`10-`
 
 ## 下一步
 

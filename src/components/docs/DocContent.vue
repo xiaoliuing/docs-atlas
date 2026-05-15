@@ -75,7 +75,7 @@ watch(previewImage, (image) => {
     <header class="doc-content__header">
       <div class="doc-content__header-top">
         <p class="doc-content__section">
-          {{ doc.sectionTitle ?? doc.sourceName }}
+          {{ doc.sectionTitle ? `${doc.sourceLabel} / ${doc.sectionTitle}` : doc.sourceLabel }}
         </p>
         <code class="doc-content__source">{{ doc.sourcePath }}</code>
       </div>

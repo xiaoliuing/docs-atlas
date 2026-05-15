@@ -11,6 +11,7 @@
 ## 能做什么
 
 - 聚合多个本地文档目录
+- 支持按分组嵌套多个文档源
 - 按模块分组显示，不同目录来源清晰区分
 - 把 `README.md` 作为目录入口页
 - 展示 Markdown 正文、右侧目录、上一篇/下一篇
@@ -49,7 +50,9 @@ pnpm install
 
 默认读取 `./docs`。
 
-如果要聚合多个目录，使用 [config.yaml](./config.yaml)：
+如果要聚合多个目录，使用 [config.yaml](./config.yaml)。
+
+简单平铺写法：
 
 ```yaml
 docs:
@@ -58,14 +61,32 @@ docs:
       name: local
     - path: ../backend-docs
       name: backend
-    - path: /absolute/path/to/another-docs
-      name: another
+```
+
+嵌套分组写法：
+
+```yaml
+docs:
+  groups:
+    - name: 工作区
+      sources:
+        - path: ./docs
+          name: Docs Atlas
+        - path: ../backend-docs
+          name: Backend
+    - name: AI
+      groups:
+        - name: Agents
+          sources:
+            - path: /absolute/path/to/another-docs
+              name: Agent Server
 ```
 
 说明：
 
 - `name` 是左侧目录模块名，也是打包后路由和静态资源的来源目录名
 - `path` 支持相对路径和绝对路径
+- `groups` 和 `sources` 可以递归嵌套
 - `config.yaml` 优先级高于环境变量 `DOCS_CMS_DOCS_DIR`
 - 如果多个目录里生成了重复 slug，构建时会直接报错
 
@@ -105,10 +126,12 @@ docs/
 规则很简单：
 
 - 一个 `source` 对应左侧一个模块
+- `groups` 会在左侧形成可展开的上层目录
 - 模块下的一级目录视为一个专题
 - 专题里的 `README.md` 是入口页
 - 其他 Markdown 是教程或正文
 - 如果某个目录根下直接就是 Markdown 文件，没有子目录，则直接显示文档标题，不再包一层目录
+- 目录排序默认采用接近 VS Code Explorer 的方式：目录优先、`README.md` 优先、文件名自然数字排序
 - Markdown 里的相对图片会按文档所在目录解析，并在构建时复制到站点静态资源目录
 - 相对图片建议放在对应 `source` 目录内部，这样开发态和打包态都能正常显示
 

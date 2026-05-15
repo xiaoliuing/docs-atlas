@@ -4,7 +4,7 @@ import hljs from 'highlight.js'
 import MarkdownIt from 'markdown-it'
 import sanitizeHtml from 'sanitize-html'
 import type { Connect, Plugin } from 'vite'
-import type { DocsSource } from './docsConfig'
+import type { DocsSource, DocsSourceTreeNode, ResolvedDocsConfig } from './docsConfig'
 
 type DocHeading = {
   id: string
@@ -16,6 +16,7 @@ type DocMeta = {
   id: string
   sourceId: string
   sourceName: string
+  sourceLabel: string
   sourceMountPath: string
   sectionId: string | null
   sectionTitle: string | null
@@ -39,6 +40,7 @@ type DocSection = {
   id: string
   sourceId: string
   sourceName: string
+  sourceLabel: string
   sourceMountPath: string
   title: string
   routePath: string
@@ -49,6 +51,10 @@ type DocsSourceGroup = {
   id: string
   name: string
   mountPath: string
+  isSource: boolean
+  sourceId: string | null
+  sourceLabel: string | null
+  children: DocsSourceGroup[]
   rootDocs: DocMeta[]
   sections: DocSection[]
 }
@@ -75,7 +81,7 @@ type DocsData = {
 
 type BuildContext = {
   appBase: string
-  docsSources: DocsSource[]
+  docsConfig: ResolvedDocsConfig
 }
 
 type HeadingMeta = {
@@ -88,6 +94,7 @@ type SectionState = {
   docs: RawDoc[]
   sourceId: string
   sourceName: string
+  sourceLabel: string
   sourceMountPath: string
   title: string
 }
@@ -114,11 +121,11 @@ const CONTENT_PREFIX = '/__docs/content/'
 const SEARCH_INDEX_PATH = '/__docs/search-index.json'
 const markdownExtensionPattern = /\.md$/i
 
-export function createDocsDataPlugin({ appBase, docsSources }: BuildContext): Plugin {
+export function createDocsDataPlugin({ appBase, docsConfig }: BuildContext): Plugin {
   let cachedData: DocsData | null = null
 
   const readData = () => {
-    cachedData ??= buildDocsData({ appBase, docsSources })
+    cachedData ??= buildDocsData({ appBase, docsConfig })
     return cachedData
   }
 
@@ -162,11 +169,11 @@ export function createDocsDataPlugin({ appBase, docsSources }: BuildContext): Pl
       return null
     },
     configureServer(server) {
-      server.watcher.add(docsSources.map((source) => source.root))
+      server.watcher.add(docsConfig.sources.map((source) => source.root))
       server.middlewares.use(createDocsMiddleware(readData, appBase))
     },
     handleHotUpdate(context) {
-      const isDocsFile = docsSources.some((source) => context.file.startsWith(source.root))
+      const isDocsFile = docsConfig.sources.some((source) => context.file.startsWith(source.root))
       if (!isDocsFile || !context.file.endsWith('.md')) {
         return
       }
@@ -214,24 +221,18 @@ export function createDocsDataPlugin({ appBase, docsSources }: BuildContext): Pl
   }
 }
 
-export function buildDocsData({ appBase, docsSources }: BuildContext): DocsData {
-  const rawDocs = docsSources.flatMap((source) =>
+export function buildDocsData({ appBase, docsConfig }: BuildContext): DocsData {
+  const rawDocs = docsConfig.sources.flatMap((source) =>
     collectMarkdownFiles(source.root).map((absolutePath) => buildRawDoc(absolutePath, source, appBase)),
   )
   assertNoDuplicateDocSlugs(rawDocs)
   const grouped = new Map<string, SectionState>()
-  const sourceGroups = new Map<string, DocsSourceGroup>()
+  const sourceNodes = new Map<string, DocsSourceGroup>()
   const rootDocsBySource = new Map<string, RawDoc[]>()
   const staticAssets = new Map<string, string>()
+  const sourceGroups = docsConfig.sourceGroups.map((node) => cloneSourceTreeNode(node, sourceNodes))
 
-  for (const source of docsSources) {
-    sourceGroups.set(source.id, {
-      id: source.id,
-      name: source.displayName,
-      mountPath: source.mountPath,
-      rootDocs: [],
-      sections: [],
-    })
+  for (const source of docsConfig.sources) {
     rootDocsBySource.set(source.id, [])
   }
 
@@ -245,6 +246,7 @@ export function buildDocsData({ appBase, docsSources }: BuildContext): DocsData 
         docs: [],
         sourceId: rawDoc.detail.sourceId,
         sourceName: rawDoc.detail.sourceName,
+        sourceLabel: rawDoc.detail.sourceLabel,
         sourceMountPath: rawDoc.detail.sourceMountPath,
         title: rawDoc.detail.sectionTitle ?? humanizeSegment(rawDoc.detail.sectionId),
       }
@@ -277,6 +279,7 @@ export function buildDocsData({ appBase, docsSources }: BuildContext): DocsData 
         id: sectionId,
         sourceId: state.sourceId,
         sourceName: state.sourceName,
+        sourceLabel: state.sourceLabel,
         sourceMountPath: state.sourceMountPath,
         title: sectionTitle,
         routePath: createDirectoryRoutePath(`/section/${sectionId}`),
@@ -285,21 +288,14 @@ export function buildDocsData({ appBase, docsSources }: BuildContext): DocsData 
     })
 
   for (const section of sections) {
-    sourceGroups.get(section.sourceId)?.sections.push(section)
+    sourceNodes.get(section.sourceId)?.sections.push(section)
   }
 
-  const orderedSourceGroups = docsSources.map((source) => {
-    const sourceGroup = sourceGroups.get(source.id)
-    if (!sourceGroup) {
-      return {
-        id: source.id,
-        name: source.displayName,
-        mountPath: source.mountPath,
-        rootDocs: [],
-        sections: [],
-      }
+  for (const source of docsConfig.sources) {
+    const sourceNode = sourceNodes.get(source.id)
+    if (!sourceNode) {
+      continue
     }
-
     const rootDocs = rootDocsBySource.get(source.id)?.sort((left, right) => compareDocMeta(left.detail, right.detail)) ?? []
 
     rootDocs.forEach((rawDoc, index) => {
@@ -308,23 +304,19 @@ export function buildDocsData({ appBase, docsSources }: BuildContext): DocsData 
       rawDoc.detail.nextSlug = rootDocs[index + 1]?.detail.slug ?? null
     })
 
-    sourceGroup.rootDocs = rootDocs.map((rawDoc) => toDocMeta(rawDoc.detail))
-    sourceGroup.sections.sort((left, right) => comparePathSegments(left.id, right.id))
-    return sourceGroup
-  })
+    sourceNode.rootDocs = rootDocs.map((rawDoc) => toDocMeta(rawDoc.detail))
+    sourceNode.sections.sort((left, right) => comparePathSegments(left.id, right.id))
+  }
 
-  const docs = [
-    ...sections.flatMap((section) => section.docs),
-    ...orderedSourceGroups.flatMap((sourceGroup) => sourceGroup.rootDocs),
-  ].sort(compareDocMeta)
+  const docs = rawDocs.map((rawDoc) => toDocMeta(rawDoc.detail)).sort(compareDocMeta)
   const docsBySlug = Object.fromEntries(docs.map((doc) => [doc.slug, doc]))
-  const docDetailsBySlug = Object.fromEntries(
-    rawDocs.map((rawDoc) => [rawDoc.detail.slug, rawDoc.detail]),
-  )
+  const docDetailsBySlug = Object.fromEntries(rawDocs.map((rawDoc) => [rawDoc.detail.slug, rawDoc.detail]))
   const searchIndex = rawDocs.map((rawDoc) => ({
     slug: rawDoc.detail.slug,
     title: rawDoc.detail.title,
-    section: rawDoc.detail.sectionTitle ?? rawDoc.detail.sourceName,
+    section: rawDoc.detail.sectionTitle
+      ? `${rawDoc.detail.sourceLabel} / ${rawDoc.detail.sectionTitle}`
+      : rawDoc.detail.sourceLabel,
     summary: rawDoc.detail.summary,
     headings: rawDoc.detail.headings.map((heading) => heading.text),
     plainText: rawDoc.plainText,
@@ -344,8 +336,33 @@ export function buildDocsData({ appBase, docsSources }: BuildContext): DocsData 
       }))
       .sort((left, right) => comparePathSegments(left.outputPath, right.outputPath)),
     staticAssetsByPath: Object.fromEntries(staticAssets.entries()),
-    sourceGroups: orderedSourceGroups,
+    sourceGroups,
   }
+}
+
+function cloneSourceTreeNode(
+  node: DocsSourceTreeNode,
+  sourceNodes: Map<string, DocsSourceGroup>,
+): DocsSourceGroup {
+  const clonedNode: DocsSourceGroup = {
+    id: node.id,
+    name: node.name,
+    mountPath: node.mountPath,
+    isSource: node.isSource,
+    sourceId: node.sourceId,
+    sourceLabel: node.sourceLabel,
+    children: [],
+    rootDocs: [],
+    sections: [],
+  }
+
+  clonedNode.children = node.children.map((child) => cloneSourceTreeNode(child, sourceNodes))
+
+  if (node.sourceId) {
+    sourceNodes.set(node.sourceId, clonedNode)
+  }
+
+  return clonedNode
 }
 
 function createDocsMiddleware(readData: () => DocsData, appBase: string): Connect.NextHandleFunction {
@@ -449,6 +466,7 @@ function buildRawDoc(absolutePath: string, docsSource: DocsSource, appBase: stri
     id: slug,
     sourceId: docsSource.id,
     sourceName: docsSource.displayName,
+    sourceLabel: docsSource.sourceLabel,
     sourceMountPath: docsSource.mountPath,
     sectionId,
     sectionTitle: relativeSectionId ? humanizeSegment(relativeSectionId) : null,
@@ -456,7 +474,7 @@ function buildRawDoc(absolutePath: string, docsSource: DocsSource, appBase: stri
     slug,
     routePath,
     title,
-    sourcePath: normalizePath(path.join(docsSource.displayName, relativePath)),
+    sourcePath: normalizePath(`${docsSource.sourceLabel}/${relativePath}`),
     summary,
     html: parsed.html,
     headings: parsed.headings
@@ -840,6 +858,7 @@ function toDocMeta(detail: DocDetail): DocMeta {
     id: detail.id,
     sourceId: detail.sourceId,
     sourceName: detail.sourceName,
+    sourceLabel: detail.sourceLabel,
     sourceMountPath: detail.sourceMountPath,
     sectionId: detail.sectionId,
     sectionTitle: detail.sectionTitle,
@@ -982,8 +1001,47 @@ function compareDocMeta(left: DocMeta, right: DocMeta): number {
 }
 
 function comparePathSegments(left: string, right: string): number {
-  return left.localeCompare(right, 'zh-Hans-CN', {
+  const leftSegments = normalizePath(left).split('/').filter(Boolean)
+  const rightSegments = normalizePath(right).split('/').filter(Boolean)
+  const sharedLength = Math.min(leftSegments.length, rightSegments.length)
+
+  for (let index = 0; index < sharedLength; index += 1) {
+    const result = compareSinglePathSegment(leftSegments[index] ?? '', rightSegments[index] ?? '')
+    if (result !== 0) {
+      return result
+    }
+  }
+
+  return leftSegments.length - rightSegments.length
+}
+
+function compareSinglePathSegment(left: string, right: string): number {
+  const leftInfo = getSegmentInfo(left)
+  const rightInfo = getSegmentInfo(right)
+
+  if (leftInfo.isReadme && !rightInfo.isReadme) {
+    return -1
+  }
+
+  if (rightInfo.isReadme && !leftInfo.isReadme) {
+    return 1
+  }
+
+  return leftInfo.sortValue.localeCompare(rightInfo.sortValue, 'zh-Hans-CN', {
     numeric: true,
     sensitivity: 'base',
   })
+}
+
+function getSegmentInfo(segment: string): {
+  isReadme: boolean
+  sortValue: string
+} {
+  const decodedSegment = decodeURIComponent(segment)
+  const basename = decodedSegment.replace(markdownExtensionPattern, '')
+
+  return {
+    isReadme: basename.toLowerCase() === 'readme',
+    sortValue: basename,
+  }
 }

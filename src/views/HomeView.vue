@@ -12,6 +12,7 @@ const sectionCards = computed(() =>
   sections.map((section) => ({
     id: section.id,
     routePath: section.routePath,
+    sourceLabel: section.sourceLabel,
     title: section.title,
     count: section.docs.filter((doc) => !doc.isSectionIndex).length,
     intro: section.docs[0]?.summary ?? '该专题下暂时还没有摘要内容。',
@@ -72,6 +73,7 @@ const recentDocs = computed(() =>
             class="section-card"
             :to="section.routePath"
           >
+            <span class="section-card__source">{{ section.sourceLabel }}</span>
             <span class="section-card__count">{{ section.count }} 篇教程</span>
             <strong class="section-card__title">{{ section.title }}</strong>
             <span class="section-card__intro">{{ section.intro }}</span>
@@ -96,7 +98,7 @@ const recentDocs = computed(() =>
             class="recent-list__item"
             :to="doc.routePath"
           >
-            <span class="recent-list__section">{{ doc.sectionTitle ?? doc.sourceName }}</span>
+            <span class="recent-list__section">{{ doc.sectionTitle ? `${doc.sourceLabel} / ${doc.sectionTitle}` : doc.sourceLabel }}</span>
             <strong>{{ doc.title }}</strong>
             <span class="recent-list__summary">{{ doc.summary }}</span>
           </RouterLink>
@@ -233,6 +235,14 @@ const recentDocs = computed(() =>
     box-shadow 0.18s ease;
 }
 
+.section-card__source,
+.recent-list__section {
+  color: var(--color-soft);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .section-card:hover,
 .recent-list__item:hover {
   transform: translateY(-2px);
@@ -241,8 +251,7 @@ const recentDocs = computed(() =>
   box-shadow: var(--shadow-panel);
 }
 
-.section-card__count,
-.recent-list__section {
+.section-card__count {
   color: var(--color-soft);
   font-size: 0.84rem;
 }

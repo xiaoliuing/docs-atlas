@@ -32,7 +32,7 @@ const sectionDocs = computed(() => {
     <header class="section-view__hero">
       <div class="section-view__hero-copy">
         <p class="section-view__eyebrow">
-          README / 专题导读
+          {{ currentSection.sourceLabel }} / README
         </p>
         <h1 class="section-view__title">
           {{ currentSection.title }}
@@ -78,7 +78,7 @@ const sectionDocs = computed(() => {
       <div class="section-view__list-head">
         <div class="panel-heading">
           <p class="panel-heading__eyebrow">
-            Tutorials
+            {{ currentSection.sourceLabel }}
           </p>
           <h2 class="panel-heading__title">
             子目录教程

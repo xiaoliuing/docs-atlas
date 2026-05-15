@@ -8,6 +8,7 @@ export type DocMeta = {
   id: string
   sourceId: string
   sourceName: string
+  sourceLabel: string
   sourceMountPath: string
   sectionId: string | null
   sectionTitle: string | null
@@ -31,6 +32,7 @@ export type DocSection = {
   id: string
   sourceId: string
   sourceName: string
+  sourceLabel: string
   sourceMountPath: string
   title: string
   routePath: string
@@ -41,6 +43,10 @@ export type DocsSourceGroup = {
   id: string
   name: string
   mountPath: string
+  isSource: boolean
+  sourceId: string | null
+  sourceLabel: string | null
+  children: DocsSourceGroup[]
   rootDocs: DocMeta[]
   sections: DocSection[]
 }

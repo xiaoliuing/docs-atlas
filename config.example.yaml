@@ -1,8 +1,14 @@
 docs:
-  sources:
-    - path: ./docs
-      name: local
-    - path: ../another-project/docs
-      name: another-project
-    - path: /Users/lx/ai-agent-server/docs
-      name: AI-Agent
+  groups:
+    - name: Local Workspace
+      sources:
+        - path: ./docs
+          name: Docs Atlas
+        - path: ../another-project/docs
+          name: Another Project
+    - name: AI
+      groups:
+        - name: Services
+          sources:
+            - path: /Users/lx/ai-agent-server/docs
+              name: AI-Agent

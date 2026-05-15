@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
+import DocsSidebarNode from '@/components/docs/DocsSidebarNode.vue'
 import type { DocsSourceGroup } from '@/types/docs'
 
 const props = defineProps<{
@@ -14,60 +15,43 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const openSourceId = shallowRef<string | null>(null)
+const openBranchIds = shallowRef<string[]>([])
 const openSectionId = shallowRef<string | null>(null)
 const sidebarInnerRef = useTemplateRef<HTMLElement>('sidebarInner')
-
-const navigationGroups = computed(() =>
-  props.sourceGroups.map((sourceGroup) => ({
-    ...sourceGroup,
-    sections: sourceGroup.sections.map((section) => ({
-      ...section,
-      tutorials: section.docs.filter((doc) => !doc.isSectionIndex),
-    })),
-  })),
-)
 
 const activePath = computed(() => ({
   sectionId: props.currentSectionId,
   sourceId: props.currentSourceId,
 }))
 
-function toggleSource(sourceId: string) {
-  if (openSourceId.value === sourceId) {
-    openSourceId.value = null
+function toggleNode(id: string, depth: number) {
+  const currentId = openBranchIds.value[depth] ?? null
+
+  if (currentId === id) {
+    openBranchIds.value = openBranchIds.value.slice(0, depth)
     openSectionId.value = null
     return
   }
 
-  openSourceId.value = sourceId
+  const nextBranch = openBranchIds.value.slice(0, depth)
+  nextBranch[depth] = id
+  openBranchIds.value = nextBranch
   openSectionId.value = null
 }
 
-function toggleSection(sourceId: string, sectionId: string) {
-  if (openSourceId.value !== sourceId) {
-    openSourceId.value = sourceId
-  }
-
+function toggleSection(sectionId: string) {
   openSectionId.value = openSectionId.value === sectionId ? null : sectionId
-}
-
-function getSourceToggleLabel(sourceName: string, isOpen: boolean) {
-  return isOpen ? `收起 ${sourceName} 模块` : `展开 ${sourceName} 模块`
-}
-
-function getSectionToggleLabel(sectionTitle: string, isOpen: boolean) {
-  return isOpen ? `收起 ${sectionTitle} 目录` : `展开 ${sectionTitle} 目录`
 }
 
 function syncOpenState() {
   if (!activePath.value.sourceId) {
-    openSourceId.value = null
+    openBranchIds.value = []
     openSectionId.value = null
     return
   }
 
-  openSourceId.value = activePath.value.sourceId
+  const nodePath = findNodePathBySourceId(props.sourceGroups, activePath.value.sourceId)
+  openBranchIds.value = nodePath
   openSectionId.value = activePath.value.sectionId
 }
 
@@ -78,9 +62,9 @@ function scrollToActiveItem() {
   }
 
   const activeItem =
-    container.querySelector<HTMLElement>('.docs-sidebar__doc-link--active') ||
-    container.querySelector<HTMLElement>('.docs-sidebar__section-link--active') ||
-    container.querySelector<HTMLElement>('.docs-sidebar__source-toggle--active')
+    container.querySelector<HTMLElement>('.docs-sidebar-node__doc-link--active') ||
+    container.querySelector<HTMLElement>('.docs-sidebar-node__section-link--active') ||
+    container.querySelector<HTMLElement>('.docs-sidebar-node__toggle--active')
 
   activeItem?.scrollIntoView({
     block: 'nearest',
@@ -110,6 +94,21 @@ watch(
     scrollToActiveItem()
   },
 )
+
+function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): string[] {
+  for (const node of nodes) {
+    if (node.sourceId === sourceId) {
+      return [node.id]
+    }
+
+    const childPath = findNodePathBySourceId(node.children, sourceId)
+    if (childPath.length > 0) {
+      return [node.id, ...childPath]
+    }
+  }
+
+  return []
+}
 </script>
 
 <template>
@@ -128,108 +127,20 @@ watch(
       </div>
 
       <nav class="docs-sidebar__nav">
-        <section
-          v-for="sourceGroup in navigationGroups"
-          :key="sourceGroup.id"
-          class="docs-sidebar__source"
-        >
-          <button
-            :aria-expanded="openSourceId === sourceGroup.id"
-            :aria-label="getSourceToggleLabel(sourceGroup.name, openSourceId === sourceGroup.id)"
-            :class="[
-              'docs-sidebar__source-toggle',
-              {
-                'docs-sidebar__source-toggle--active':
-                  currentSourceId === sourceGroup.id || openSourceId === sourceGroup.id,
-              },
-            ]"
-            type="button"
-            @click="toggleSource(sourceGroup.id)"
-          >
-            <span class="docs-sidebar__source-name">{{ sourceGroup.name }}</span>
-            <span
-              :class="[
-                'docs-sidebar__source-toggle-icon',
-                { 'docs-sidebar__source-toggle-icon--open': openSourceId === sourceGroup.id },
-              ]"
-            />
-          </button>
-
-          <div
-            v-if="openSourceId === sourceGroup.id"
-            class="docs-sidebar__source-body"
-          >
-            <RouterLink
-              v-for="doc in sourceGroup.rootDocs"
-              :key="doc.slug"
-              :class="[
-                'docs-sidebar__doc-link',
-                { 'docs-sidebar__doc-link--active': doc.slug === currentDocSlug },
-              ]"
-              :to="doc.routePath"
-              @click="emit('close')"
-            >
-              <span class="docs-sidebar__doc-title">{{ doc.title }}</span>
-            </RouterLink>
-
-            <section
-              v-for="section in sourceGroup.sections"
-              :key="section.id"
-              class="docs-sidebar__section"
-            >
-              <div
-                :class="[
-                  'docs-sidebar__section-link',
-                  {
-                    'docs-sidebar__section-link--active':
-                      section.id === currentSectionId || openSectionId === section.id,
-                  },
-                ]"
-              >
-                <RouterLink
-                  class="docs-sidebar__section-title-link"
-                  :to="section.routePath"
-                  @click="emit('close')"
-                >
-                  <strong class="docs-sidebar__section-name">{{ section.title }}</strong>
-                </RouterLink>
-
-                <button
-                  v-if="section.tutorials.length > 0"
-                  :aria-label="getSectionToggleLabel(section.title, openSectionId === section.id)"
-                  class="docs-sidebar__section-toggle"
-                  type="button"
-                  @click="toggleSection(sourceGroup.id, section.id)"
-                >
-                  <span
-                    :class="[
-                      'docs-sidebar__section-toggle-icon',
-                      { 'docs-sidebar__section-toggle-icon--open': openSectionId === section.id },
-                    ]"
-                  />
-                </button>
-              </div>
-
-              <div
-                v-if="openSectionId === section.id && section.tutorials.length > 0"
-                class="docs-sidebar__docs"
-              >
-                <RouterLink
-                  v-for="doc in section.tutorials"
-                  :key="doc.slug"
-                  :class="[
-                    'docs-sidebar__doc-link',
-                    { 'docs-sidebar__doc-link--active': doc.slug === currentDocSlug },
-                  ]"
-                  :to="doc.routePath"
-                  @click="emit('close')"
-                >
-                  <span class="docs-sidebar__doc-title">{{ doc.title }}</span>
-                </RouterLink>
-              </div>
-            </section>
-          </div>
-        </section>
+        <DocsSidebarNode
+          v-for="node in sourceGroups"
+          :key="node.id"
+          :current-doc-slug="currentDocSlug"
+          :current-section-id="currentSectionId"
+          :current-source-id="currentSourceId"
+          :depth="0"
+          :node="node"
+          :open-branch-ids="openBranchIds"
+          :open-section-id="openSectionId"
+          @close="emit('close')"
+          @toggle-node="toggleNode"
+          @toggle-section="toggleSection"
+        />
       </nav>
     </div>
   </aside>
@@ -273,183 +184,9 @@ watch(
   font-size: 1.35rem;
 }
 
-.docs-sidebar__nav,
-.docs-sidebar__source-body {
-  display: grid;
-}
-
 .docs-sidebar__nav {
-  gap: 1rem;
-}
-
-.docs-sidebar__source,
-.docs-sidebar__section {
   display: grid;
-  gap: 0.65rem;
-}
-
-.docs-sidebar__source-body {
-  gap: 0.45rem;
-  padding: 0.2rem 0 0 0.4rem;
-  animation: sidebarReveal 0.18s ease;
-}
-
-.docs-sidebar__source-toggle,
-.docs-sidebar__section-link,
-.docs-sidebar__doc-link {
-  text-decoration: none;
-  transition:
-    background-color 0.18s ease,
-    border-color 0.18s ease,
-    transform 0.18s ease,
-    box-shadow 0.18s ease;
-}
-
-.docs-sidebar__source-toggle,
-.docs-sidebar__section-link {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  width: 100%;
-  min-height: 48px;
-  border: 1px solid var(--color-line);
-  color: var(--color-ink);
-}
-
-.docs-sidebar__source-toggle {
-  padding: 0.75rem 0.95rem;
-  border-radius: 22px;
-  background: linear-gradient(
-    135deg,
-    rgba(var(--color-accent-rgb), 0.18),
-    rgba(var(--color-accent-rgb), 0.1) 52%,
-    var(--surface-card-strong) 100%
-  );
-  color: var(--color-ink);
-  cursor: pointer;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.32),
-    0 10px 24px rgba(var(--color-accent-rgb), 0.12);
-}
-
-.docs-sidebar__source-toggle:hover,
-.docs-sidebar__source-toggle--active {
-  border-color: rgba(var(--color-accent-rgb), 0.42);
-  box-shadow: var(--shadow-emphasis);
-}
-
-.docs-sidebar__source-toggle--active {
-  background: linear-gradient(
-    135deg,
-    rgba(var(--color-accent-rgb), 0.26),
-    rgba(var(--color-accent-rgb), 0.14) 56%,
-    var(--surface-card-strong) 100%
-  );
-}
-
-.docs-sidebar__source-name {
-  font-size: 1rem;
-  font-weight: 700;
-  text-align: left;
-  color: var(--color-accent-deep);
-}
-
-.docs-sidebar__section-link {
-  min-height: 46px;
-  padding: 0.55rem 0.65rem 0.55rem 1rem;
-  border-radius: 18px;
-  background: var(--surface-card-strong);
-}
-
-.docs-sidebar__section-link:hover,
-.docs-sidebar__section-link--active {
-  border-color: rgba(var(--color-accent-rgb), 0.34);
-  background: rgba(var(--color-accent-rgb), 0.1);
-  transform: translateY(-1px);
-}
-
-.docs-sidebar__section-name {
-  font-size: 0.97rem;
-  line-height: 1.2;
-  font-weight: 700;
-}
-
-.docs-sidebar__section-title-link {
-  flex: 1;
-  min-width: 0;
-  color: inherit;
-  text-decoration: none;
-}
-
-.docs-sidebar__source-toggle-icon,
-.docs-sidebar__section-toggle-icon {
-  width: 0.65rem;
-  height: 0.65rem;
-  display: inline-block;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  transform: rotate(45deg) translateY(-1px);
-  transition: transform 0.18s ease;
-}
-
-.docs-sidebar__source-toggle-icon {
-  color: var(--color-accent-deep);
-}
-
-.docs-sidebar__source-toggle-icon--open,
-.docs-sidebar__section-toggle-icon--open {
-  transform: rotate(225deg) translateY(-1px);
-}
-
-.docs-sidebar__section-toggle {
-  width: 2rem;
-  height: 2rem;
-  flex: none;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(var(--color-accent-rgb), 0.08);
-  color: var(--color-ink);
-  cursor: pointer;
-}
-
-.docs-sidebar__docs {
-  display: grid;
-  gap: 0.35rem;
-  padding-left: 0.45rem;
-  animation: sidebarReveal 0.18s ease;
-}
-
-.docs-sidebar__doc-link {
-  display: block;
-  min-height: 44px;
-  padding: 0.75rem 0.9rem;
-  border-radius: 14px;
-  color: var(--color-ink);
-  background: transparent;
-}
-
-.docs-sidebar__doc-link:hover,
-.docs-sidebar__doc-link--active {
-  background: rgba(var(--color-accent-rgb), 0.1);
-  transform: translateX(2px);
-}
-
-.docs-sidebar__doc-title {
-  color: var(--color-ink);
-  font-size: 0.93rem;
-}
-
-@keyframes sidebarReveal {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  gap: 0.9rem;
 }
 
 @media (max-width: 960px) {
@@ -457,13 +194,12 @@ watch(
     position: fixed;
     top: 0;
     left: 0;
-    bottom: 0;
-    width: min(92vw, 360px);
-    height: auto;
-    padding: 0.65rem;
-    transform: translateX(-110%);
-    transition: transform 0.2s ease;
     z-index: 50;
+    width: min(88vw, 360px);
+    height: 100vh;
+    padding: 0.8rem;
+    transform: translateX(-108%);
+    transition: transform 0.22s ease;
   }
 
   .docs-sidebar--open {
@@ -471,32 +207,7 @@ watch(
   }
 
   .docs-sidebar__inner {
-    padding: 0.85rem;
-    border-radius: 24px;
-  }
-
-  .docs-sidebar__heading {
-    margin-bottom: 1rem;
-    padding-bottom: 0.65rem;
-  }
-}
-
-@media (max-width: 640px) {
-  .docs-sidebar {
-    width: calc(100vw - 0.7rem);
-    padding: 0.35rem;
-  }
-
-  .docs-sidebar__source-toggle {
-    padding-inline: 0.8rem;
-  }
-
-  .docs-sidebar__section-link {
-    padding: 0.5rem 0.55rem 0.5rem 0.8rem;
-  }
-
-  .docs-sidebar__doc-link {
-    padding-inline: 0.8rem;
+    border-radius: 28px;
   }
 }
 </style>
