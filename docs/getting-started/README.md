@@ -16,6 +16,7 @@
 1. [准备你的文档目录](./01-prepare-your-docs.md)
 2. [配置多个文档来源](./02-configure-multiple-sources.md)
 3. [用 AI 生成可直接接入的文档](./03-ai-docs-workflow.md)
+4. [相对图片与预览](./04-images-and-preview.md)
 
 ## 这组示例的目的
 
@@ -27,3 +28,4 @@
 - 教程文档
 - 接入说明
 - AI 生成文档
+- 带相对路径图片的说明文档

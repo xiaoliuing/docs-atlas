@@ -459,6 +459,16 @@ pre {
   height: auto;
   margin: 1.3rem auto;
   border-radius: 16px;
+  border: 1px solid var(--color-line);
+  box-shadow: 0 18px 34px rgba(var(--theme-shadow-rgb), 0.14);
+  cursor: zoom-in;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.prose img:hover {
+  transform: translateY(-2px);
+  border-color: rgba(var(--color-accent-rgb), 0.24);
+  box-shadow: 0 22px 40px rgba(var(--theme-shadow-rgb), 0.18);
 }
 
 .prose .hljs {

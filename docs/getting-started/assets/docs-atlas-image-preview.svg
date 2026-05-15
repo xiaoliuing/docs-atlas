@@ -1,0 +1,54 @@
+<svg width="1280" height="760" viewBox="0 0 1280 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="80" y1="60" x2="1200" y2="700" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F4F8FF"/>
+      <stop offset="1" stop-color="#DCE8FF"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="220" y1="160" x2="960" y2="620" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#EEF4FF"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#1F54D9"/>
+      <stop offset="1" stop-color="#4B7CF0"/>
+    </linearGradient>
+    <filter id="shadow" x="120" y="100" width="1040" height="560" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="24"/>
+      <feGaussianBlur stdDeviation="30"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.121569 0 0 0 0 0.329412 0 0 0 0 0.85098 0 0 0 0.16 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_2"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_2" result="shape"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="760" rx="36" fill="url(#bg)"/>
+  <circle cx="1092" cy="126" r="164" fill="#1F54D9" fill-opacity="0.08"/>
+  <circle cx="170" cy="628" r="196" fill="#1F54D9" fill-opacity="0.08"/>
+  <g filter="url(#shadow)">
+    <rect x="180" y="136" width="920" height="440" rx="30" fill="url(#panel)"/>
+  </g>
+  <rect x="240" y="186" width="800" height="68" rx="22" fill="#0F1B34"/>
+  <rect x="272" y="210" width="154" height="20" rx="10" fill="#EEF4FF"/>
+  <rect x="760" y="204" width="232" height="32" rx="16" fill="#233A70"/>
+  <rect x="272" y="290" width="180" height="208" rx="24" fill="#F7FAFF" stroke="#D6E3FF"/>
+  <rect x="304" y="326" width="112" height="16" rx="8" fill="#1F54D9" fill-opacity="0.18"/>
+  <rect x="304" y="364" width="132" height="14" rx="7" fill="#AABFEF"/>
+  <rect x="304" y="396" width="96" height="14" rx="7" fill="#AABFEF"/>
+  <rect x="304" y="440" width="124" height="34" rx="17" fill="url(#accent)"/>
+  <rect x="492" y="290" width="500" height="208" rx="24" fill="#FFFFFF" stroke="#D6E3FF"/>
+  <rect x="528" y="322" width="154" height="20" rx="10" fill="#163A96"/>
+  <rect x="528" y="362" width="244" height="14" rx="7" fill="#AABFEF"/>
+  <rect x="528" y="392" width="332" height="14" rx="7" fill="#AABFEF"/>
+  <rect x="528" y="430" width="408" height="30" rx="15" fill="#EEF4FF"/>
+  <path d="M744 448C744 438.059 752.059 430 762 430H920C929.941 430 938 438.059 938 448V448C938 457.941 929.941 466 920 466H762C752.059 466 744 457.941 744 448V448Z" fill="#DCE8FF"/>
+  <rect x="528" y="530" width="212" height="18" rx="9" fill="#AABFEF"/>
+  <rect x="764" y="530" width="140" height="18" rx="9" fill="#1F54D9" fill-opacity="0.22"/>
+  <path d="M579 453L626 406L668 444L716 390L816 466H579V453Z" fill="url(#accent)" fill-opacity="0.9"/>
+  <circle cx="694" cy="354" r="21" fill="#DCE8FF"/>
+  <rect x="508" y="594" width="262" height="88" rx="26" fill="#0F1B34"/>
+  <rect x="544" y="622" width="122" height="16" rx="8" fill="#EEF4FF"/>
+  <rect x="544" y="650" width="188" height="12" rx="6" fill="#6C86C4"/>
+  <text x="240" y="108" fill="#153EA5" font-family="Segoe UI, PingFang SC, sans-serif" font-size="34" font-weight="700">Docs Atlas Preview</text>
+  <text x="240" y="642" fill="#EDF3FF" font-family="Segoe UI, PingFang SC, sans-serif" font-size="24" font-weight="600">Click image to open fullscreen preview</text>
+</svg>

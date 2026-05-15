@@ -1,9 +1,73 @@
 <script setup lang="ts">
+import { onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
+import DocImagePreview from '@/components/docs/DocImagePreview.vue'
 import type { DocDetail } from '@/types/docs'
 
-defineProps<{
+const props = defineProps<{
   doc: DocDetail
 }>()
+
+type PreviewImage = {
+  alt: string
+  src: string
+  title: string
+}
+
+const previewImage = shallowRef<PreviewImage | null>(null)
+
+function closePreview() {
+  previewImage.value = null
+}
+
+function handleBodyClick(event: MouseEvent) {
+  const target = event.target
+  if (!(target instanceof Element)) {
+    return
+  }
+
+  const image = target.closest('img')
+  if (!(image instanceof HTMLImageElement)) {
+    return
+  }
+
+  if (!event.currentTarget || !(event.currentTarget instanceof HTMLElement)) {
+    return
+  }
+
+  if (!event.currentTarget.contains(image)) {
+    return
+  }
+
+  event.preventDefault()
+  if (!image.currentSrc && !image.getAttribute('src')) {
+    return
+  }
+
+  previewImage.value = {
+    alt: image.getAttribute('alt') ?? '',
+    src: image.currentSrc || image.getAttribute('src') || '',
+    title: image.getAttribute('title') ?? '',
+  }
+}
+
+function handleWindowKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && previewImage.value) {
+    closePreview()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleWindowKeydown)
+})
+
+onBeforeUnmount(() => {
+  document.body.style.overflow = ''
+  window.removeEventListener('keydown', handleWindowKeydown)
+})
+
+watch(previewImage, (image) => {
+  document.body.style.overflow = image ? 'hidden' : ''
+})
 </script>
 
 <template>
@@ -21,9 +85,11 @@ defineProps<{
     </header>
 
     <div class="doc-content__body-shell">
-      <div class="doc-content__body prose" v-html="doc.html" />
+      <div class="doc-content__body prose" v-html="doc.html" @click="handleBodyClick" />
     </div>
   </article>
+
+  <DocImagePreview :image="previewImage" @close="closePreview" />
 </template>
 
 <style scoped>
