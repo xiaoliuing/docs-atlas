@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef } from 'vue'
+import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
 import type { DocsSourceGroup } from '@/types/docs'
 
 const props = defineProps<{
@@ -16,6 +16,7 @@ const emit = defineEmits<{
 
 const openSourceId = shallowRef<string | null>(null)
 const openSectionId = shallowRef<string | null>(null)
+const sidebarInnerRef = useTemplateRef<HTMLElement>('sidebarInner')
 
 const navigationGroups = computed(() =>
   props.sourceGroups.map((sourceGroup) => ({
@@ -26,6 +27,11 @@ const navigationGroups = computed(() =>
     })),
   })),
 )
+
+const activePath = computed(() => ({
+  sectionId: props.currentSectionId,
+  sourceId: props.currentSourceId,
+}))
 
 function toggleSource(sourceId: string) {
   if (openSourceId.value === sourceId) {
@@ -53,11 +59,65 @@ function getSourceToggleLabel(sourceName: string, isOpen: boolean) {
 function getSectionToggleLabel(sectionTitle: string, isOpen: boolean) {
   return isOpen ? `收起 ${sectionTitle} 目录` : `展开 ${sectionTitle} 目录`
 }
+
+function syncOpenState() {
+  if (!activePath.value.sourceId) {
+    openSourceId.value = null
+    openSectionId.value = null
+    return
+  }
+
+  openSourceId.value = activePath.value.sourceId
+  openSectionId.value = activePath.value.sectionId
+}
+
+function scrollToActiveItem() {
+  const container = sidebarInnerRef.value
+  if (!container) {
+    return
+  }
+
+  const activeItem =
+    container.querySelector<HTMLElement>('.docs-sidebar__doc-link--active') ||
+    container.querySelector<HTMLElement>('.docs-sidebar__section-link--active') ||
+    container.querySelector<HTMLElement>('.docs-sidebar__source-toggle--active')
+
+  activeItem?.scrollIntoView({
+    block: 'nearest',
+    inline: 'nearest',
+  })
+}
+
+watch(
+  activePath,
+  async () => {
+    syncOpenState()
+    await nextTick()
+    scrollToActiveItem()
+  },
+  { immediate: true },
+)
+
+watch(
+  () => props.isOpen,
+  async (isOpen) => {
+    if (!isOpen) {
+      return
+    }
+
+    syncOpenState()
+    await nextTick()
+    scrollToActiveItem()
+  },
+)
 </script>
 
 <template>
   <aside :class="['docs-sidebar', { 'docs-sidebar--open': isOpen }]">
-    <div class="docs-sidebar__inner">
+    <div
+      ref="sidebarInner"
+      class="docs-sidebar__inner"
+    >
       <div class="docs-sidebar__heading">
         <p class="docs-sidebar__eyebrow">
           Navigation
