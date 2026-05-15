@@ -68,6 +68,8 @@ type DocsData = {
   docsBySlug: Record<string, DocMeta>
   searchIndex: SearchRecord[]
   sections: DocSection[]
+  staticAssets: StaticAsset[]
+  staticAssetsByPath: Record<string, string>
   sourceGroups: DocsSourceGroup[]
 }
 
@@ -90,8 +92,14 @@ type SectionState = {
 }
 
 type RawDoc = {
+  assets: StaticAsset[]
   detail: DocDetail
   plainText: string
+}
+
+type StaticAsset = {
+  absolutePath: string
+  publicPath: string
 }
 
 const VIRTUAL_DOCS_DATA_ID = 'virtual:docs-data'
@@ -99,6 +107,7 @@ const RESOLVED_DOCS_DATA_ID = '\0virtual:docs-data'
 const VIRTUAL_DOCS_SSR_DATA_ID = 'virtual:docs-ssr-data'
 const RESOLVED_DOCS_SSR_DATA_ID = '\0virtual:docs-ssr-data'
 
+const ASSET_PREFIX = '/__docs/assets/'
 const CONTENT_PREFIX = '/__docs/content/'
 const SEARCH_INDEX_PATH = '/__docs/search-index.json'
 const markdownExtensionPattern = /\.md$/i
@@ -191,6 +200,14 @@ export function createDocsDataPlugin({ docsSources }: BuildContext): Plugin {
           source: JSON.stringify(detail),
         })
       }
+
+      for (const asset of data.staticAssets) {
+        this.emitFile({
+          type: 'asset',
+          fileName: asset.publicPath.slice(1),
+          source: fs.readFileSync(asset.absolutePath),
+        })
+      }
     },
   }
 }
@@ -203,6 +220,7 @@ export function buildDocsData({ docsSources }: BuildContext): DocsData {
   const grouped = new Map<string, SectionState>()
   const sourceGroups = new Map<string, DocsSourceGroup>()
   const rootDocsBySource = new Map<string, RawDoc[]>()
+  const staticAssets = new Map<string, string>()
 
   for (const source of docsSources) {
     sourceGroups.set(source.id, {
@@ -216,6 +234,10 @@ export function buildDocsData({ docsSources }: BuildContext): DocsData {
   }
 
   for (const rawDoc of rawDocs) {
+    for (const asset of rawDoc.assets) {
+      staticAssets.set(asset.publicPath, asset.absolutePath)
+    }
+
     if (rawDoc.detail.sectionId) {
       const state = grouped.get(rawDoc.detail.sectionId) ?? {
         docs: [],
@@ -312,6 +334,10 @@ export function buildDocsData({ docsSources }: BuildContext): DocsData {
     docsBySlug,
     searchIndex,
     sections,
+    staticAssets: Array.from(staticAssets.entries())
+      .map(([publicPath, absolutePath]) => ({ absolutePath, publicPath }))
+      .sort((left, right) => comparePathSegments(left.publicPath, right.publicPath)),
+    staticAssetsByPath: Object.fromEntries(staticAssets.entries()),
     sourceGroups: orderedSourceGroups,
   }
 }
@@ -341,6 +367,21 @@ function createDocsMiddleware(readData: () => DocsData): Connect.NextHandleFunct
       }
 
       writeJson(response, detail)
+      return
+    }
+
+    if (pathname.startsWith(ASSET_PREFIX)) {
+      const absolutePath = readData().staticAssetsByPath[pathname]
+
+      if (!absolutePath || !fs.existsSync(absolutePath)) {
+        response.statusCode = 404
+        response.end('Not Found')
+        return
+      }
+
+      response.statusCode = 200
+      response.setHeader('Content-Type', getContentType(absolutePath))
+      response.end(fs.readFileSync(absolutePath))
       return
     }
 
@@ -415,6 +456,7 @@ function buildRawDoc(absolutePath: string, docsSource: DocsSource): RawDoc {
   }
 
   return {
+    assets: parsed.assets,
     detail,
     plainText: extractPlainText(source),
   }
@@ -428,11 +470,13 @@ function renderMarkdown(
     sourceMountPath: string
   },
 ): {
+  assets: StaticAsset[]
   headings: HeadingMeta[]
   html: string
   summary: string
   title: string
 } {
+  const assetMap = new Map<string, StaticAsset>()
   const headingCount = new Map<string, number>()
   const headings: HeadingMeta[] = []
   const markdown = new MarkdownIt({
@@ -456,6 +500,9 @@ function renderMarkdown(
     ((tokens, index, options, env, self) => self.renderToken(tokens, index, options))
   const defaultLinkOpen =
     markdown.renderer.rules.link_open ??
+    ((tokens, index, options, env, self) => self.renderToken(tokens, index, options))
+  const defaultImage =
+    markdown.renderer.rules.image ??
     ((tokens, index, options, env, self) => self.renderToken(tokens, index, options))
 
   markdown.renderer.rules.heading_open = (tokens, index, options, env, self) => {
@@ -496,6 +543,23 @@ function renderMarkdown(
     return defaultLinkOpen(tokens, index, options, env, self)
   }
 
+  markdown.renderer.rules.image = (tokens, index, options, env, self) => {
+    const token = tokens[index]
+    const src = token.attrGet('src')
+
+    if (src) {
+      const rewritten = rewriteImageSource(src, context.absolutePath, context.docsRoot, context.sourceMountPath)
+      token.attrSet('src', rewritten.src)
+
+      if (rewritten.asset) {
+        assetMap.set(rewritten.asset.publicPath, rewritten.asset)
+      }
+    }
+
+    token.attrSet('loading', 'lazy')
+    return defaultImage(tokens, index, options, env, self)
+  }
+
   const html = markdown.render(source)
   const sanitized = sanitizeHtml(html, {
     allowedTags: [
@@ -511,6 +575,7 @@ function renderMarkdown(
       'h5',
       'h6',
       'hr',
+      'img',
       'li',
       'ol',
       'p',
@@ -534,6 +599,7 @@ function renderMarkdown(
       h4: ['id'],
       h5: ['id'],
       h6: ['id'],
+      img: ['alt', 'loading', 'src', 'title'],
       pre: ['class'],
       span: ['class'],
       td: ['colspan', 'rowspan'],
@@ -545,6 +611,7 @@ function renderMarkdown(
   const summary = createSummary(findFirstParagraph(source) || extractPlainText(source))
 
   return {
+    assets: Array.from(assetMap.values()),
     headings,
     html: stripLeadingTitleHeading(sanitized),
     summary,
@@ -594,6 +661,72 @@ function rewriteHref(
     : `/docs/${buildScopedPath(sourceMountPath, relativeSlug)}`
 
   return hash ? `${route}#${hash}` : route
+}
+
+function rewriteImageSource(
+  src: string,
+  absolutePath: string,
+  docsRoot: string,
+  sourceMountPath: string,
+): {
+  asset: StaticAsset | null
+  src: string
+} {
+  if (
+    src.startsWith('#') ||
+    src.startsWith('/') ||
+    /^data:/i.test(src) ||
+    /^https?:\/\//i.test(src) ||
+    /^\/\//.test(src)
+  ) {
+    return { asset: null, src }
+  }
+
+  const { hash, pathname, search } = splitUrlReference(src)
+  if (!pathname) {
+    return { asset: null, src }
+  }
+
+  const decoded = decodeURIComponent(pathname)
+  const resolved = path.resolve(path.dirname(absolutePath), decoded)
+  const relativeTarget = normalizePath(path.relative(docsRoot, resolved))
+
+  if (relativeTarget.startsWith('..') || !fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
+    return { asset: null, src }
+  }
+
+  const publicPath = getDocAssetPublicPath(sourceMountPath, relativeTarget)
+  return {
+    asset: {
+      absolutePath: resolved,
+      publicPath,
+    },
+    src: `${publicPath}${search}${hash}`,
+  }
+}
+
+function splitUrlReference(value: string): {
+  hash: string
+  pathname: string
+  search: string
+} {
+  const hashIndex = value.indexOf('#')
+  const queryIndex = value.indexOf('?')
+  const cutoffCandidates = [hashIndex, queryIndex].filter((index) => index >= 0)
+  const cutoff = cutoffCandidates.length > 0 ? Math.min(...cutoffCandidates) : value.length
+  const pathname = value.slice(0, cutoff)
+  const suffix = value.slice(cutoff)
+  const queryStart = suffix.indexOf('?')
+  const hashStart = suffix.indexOf('#')
+
+  return {
+    hash: hashStart >= 0 ? suffix.slice(hashStart) : '',
+    pathname,
+    search:
+      queryStart >= 0
+        ? suffix.slice(queryStart, hashStart >= 0 && hashStart > queryStart ? hashStart : undefined)
+        : '',
+  }
 }
 
 function createHeadingId(text: string, headingCount: Map<string, number>): string {
@@ -698,6 +831,15 @@ function getDocContentAssetPath(slug: string): string {
   return `${CONTENT_PREFIX}${segments.join('/')}.json`
 }
 
+function getDocAssetPublicPath(sourceMountPath: string, relativeAssetPath: string): string {
+  const encodedPath = [sourceMountPath, ...relativeAssetPath.split('/')]
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join('/')
+
+  return `${ASSET_PREFIX}${encodedPath}`
+}
+
 function decodeDocSlugFromPath(pathname: string): string | null {
   const relativePath = pathname.slice(CONTENT_PREFIX.length, -'.json'.length)
   if (!relativePath) {
@@ -722,6 +864,34 @@ function humanizeSegment(segment: string): string {
 
 function normalizePath(value: string): string {
   return value.split(path.sep).join('/')
+}
+
+function getContentType(absolutePath: string): string {
+  const extension = path.extname(absolutePath).toLowerCase()
+
+  switch (extension) {
+    case '.apng':
+      return 'image/apng'
+    case '.avif':
+      return 'image/avif'
+    case '.bmp':
+      return 'image/bmp'
+    case '.gif':
+      return 'image/gif'
+    case '.ico':
+      return 'image/x-icon'
+    case '.jpeg':
+    case '.jpg':
+      return 'image/jpeg'
+    case '.png':
+      return 'image/png'
+    case '.svg':
+      return 'image/svg+xml'
+    case '.webp':
+      return 'image/webp'
+    default:
+      return 'application/octet-stream'
+  }
 }
 
 function compareAbsoluteDocPaths(left: string, right: string): number {
