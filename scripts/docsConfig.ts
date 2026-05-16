@@ -19,26 +19,30 @@ type DocsSourceInput =
       path: string
     }
 
-type DocsGroupInput = {
+type DocsNodeObjectInput = {
   name?: string
+  path?: string
+  items?: DocsTreeInput[]
   children?: DocsTreeInput[]
-  groups?: DocsGroupInput[]
-  sources?: DocsSourceInput[]
+  groups?: DocsNodeObjectInput[]
+  sources?: DocsTreeInput[]
 }
 
-type DocsTreeInput = DocsSourceInput | DocsGroupInput
+type DocsTreeInput = DocsSourceInput | DocsNodeObjectInput
 
 type DocsConfigScope = {
+  items?: DocsTreeInput[]
   children?: DocsTreeInput[]
-  groups?: DocsGroupInput[]
-  sources?: DocsSourceInput[]
+  groups?: DocsNodeObjectInput[]
+  sources?: DocsTreeInput[]
 }
 
 type DocsConfigFile = {
-  docs?: DocsConfigScope
+  docs?: DocsConfigScope | DocsTreeInput[]
+  items?: DocsTreeInput[]
   children?: DocsTreeInput[]
-  groups?: DocsGroupInput[]
-  sources?: DocsSourceInput[]
+  groups?: DocsNodeObjectInput[]
+  sources?: DocsTreeInput[]
 }
 
 type DocsTrailItem = {
@@ -154,7 +158,7 @@ function normalizeTreeEntry(
 }
 
 function normalizeGroupNode(
-  groupInput: DocsGroupInput,
+  groupInput: DocsNodeObjectInput,
   context: {
     parentMountPath: string
     projectRoot: string
@@ -260,9 +264,17 @@ function normalizeSourceNode(
   }
 }
 
-function extractScopeEntries(scope: DocsConfigScope | null | undefined): DocsTreeInput[] {
+function extractScopeEntries(scope: DocsConfigScope | DocsTreeInput[] | null | undefined): DocsTreeInput[] {
+  if (Array.isArray(scope)) {
+    return scope
+  }
+
   if (!scope || typeof scope !== 'object') {
     return []
+  }
+
+  if (Array.isArray(scope.items) && scope.items.length > 0) {
+    return scope.items
   }
 
   if (Array.isArray(scope.children) && scope.children.length > 0) {
@@ -279,7 +291,7 @@ function isSourceInput(entry: DocsTreeInput): entry is DocsSourceInput {
     return true
   }
 
-  return typeof entry === 'object' && entry !== null && 'path' in entry
+  return typeof entry === 'object' && entry !== null && typeof entry.path === 'string'
 }
 
 function inferDisplayName(rawPath: string, resolvedPath: string, index: number): string {

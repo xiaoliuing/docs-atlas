@@ -53,6 +53,9 @@
     monospace;
   --shadow-panel: 0 22px 46px rgba(var(--theme-shadow-rgb), 0.1);
   --shadow-emphasis: 0 18px 34px rgba(var(--theme-shadow-rgb), 0.18);
+  --scrollbar-thumb: rgba(var(--color-accent-rgb), 0.28);
+  --scrollbar-thumb-hover: rgba(var(--color-accent-rgb), 0.42);
+  --scrollbar-track: rgba(var(--theme-shadow-rgb), 0.08);
   --code-comment: #6e7781;
   --code-keyword: #cf222e;
   --code-string: #0a3069;
@@ -104,6 +107,9 @@
   --text-on-contrast-soft: rgba(237, 243, 255, 0.72);
   --shadow-panel: 0 24px 52px rgba(var(--theme-shadow-rgb), 0.36);
   --shadow-emphasis: 0 18px 34px rgba(var(--theme-shadow-rgb), 0.32);
+  --scrollbar-thumb: rgba(var(--color-accent-rgb), 0.34);
+  --scrollbar-thumb-hover: rgba(var(--color-accent-rgb), 0.5);
+  --scrollbar-track: rgba(255, 255, 255, 0.06);
   --code-comment: #8b949e;
   --code-keyword: #ff7b72;
   --code-string: #a5d6ff;
@@ -275,6 +281,34 @@ pre {
 #app {
   min-height: 100vh;
   overflow-x: clip;
+}
+
+.scroll-shell {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+.scroll-shell::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scroll-shell::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 999px;
+}
+
+.scroll-shell::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.scroll-shell::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 ::selection {

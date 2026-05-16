@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
+import { shallowRef } from 'vue'
 import DocImagePreview from '@/components/docs/DocImagePreview.vue'
 import type { DocDetail } from '@/types/docs'
 
@@ -13,10 +13,20 @@ type PreviewImage = {
   title: string
 }
 
-const previewImage = shallowRef<PreviewImage | null>(null)
+const previewImages = shallowRef<PreviewImage[]>([])
+const previewIndex = shallowRef(0)
 
 function closePreview() {
-  previewImage.value = null
+  previewImages.value = []
+  previewIndex.value = 0
+}
+
+function setPreviewIndex(nextIndex: number) {
+  if (nextIndex < 0 || nextIndex >= previewImages.value.length) {
+    return
+  }
+
+  previewIndex.value = nextIndex
 }
 
 function handleBodyClick(event: MouseEvent) {
@@ -43,31 +53,20 @@ function handleBodyClick(event: MouseEvent) {
     return
   }
 
-  previewImage.value = {
-    alt: image.getAttribute('alt') ?? '',
-    src: image.currentSrc || image.getAttribute('src') || '',
-    title: image.getAttribute('title') ?? '',
+  const imageElements = Array.from(event.currentTarget.querySelectorAll('img'))
+    .filter((item) => item.currentSrc || item.getAttribute('src'))
+
+  if (imageElements.length === 0) {
+    return
   }
+
+  previewImages.value = imageElements.map((item) => ({
+    alt: item.getAttribute('alt') ?? '',
+    src: item.currentSrc || item.getAttribute('src') || '',
+    title: item.getAttribute('title') ?? '',
+  }))
+  previewIndex.value = Math.max(imageElements.indexOf(image), 0)
 }
-
-function handleWindowKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && previewImage.value) {
-    closePreview()
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('keydown', handleWindowKeydown)
-})
-
-onBeforeUnmount(() => {
-  document.body.style.overflow = ''
-  window.removeEventListener('keydown', handleWindowKeydown)
-})
-
-watch(previewImage, (image) => {
-  document.body.style.overflow = image ? 'hidden' : ''
-})
 </script>
 
 <template>
@@ -89,7 +88,12 @@ watch(previewImage, (image) => {
     </div>
   </article>
 
-  <DocImagePreview :image="previewImage" @close="closePreview" />
+  <DocImagePreview
+    :active-index="previewIndex"
+    :images="previewImages"
+    @close="closePreview"
+    @update:active-index="setPreviewIndex"
+  />
 </template>
 
 <style scoped>

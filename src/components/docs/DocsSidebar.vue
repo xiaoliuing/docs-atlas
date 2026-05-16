@@ -115,7 +115,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   <aside :class="['docs-sidebar', { 'docs-sidebar--open': isOpen }]">
     <div
       ref="sidebarInner"
-      class="docs-sidebar__inner"
+      class="docs-sidebar__inner scroll-shell"
     >
       <div class="docs-sidebar__heading">
         <p class="docs-sidebar__eyebrow">

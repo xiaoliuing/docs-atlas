@@ -52,41 +52,31 @@ pnpm install
 
 如果要聚合多个目录，使用 [config.yaml](./config.yaml)。
 
-简单平铺写法：
+推荐写法是统一使用 `items`，`path` 表示文档源，`items` 表示分组：
 
 ```yaml
 docs:
-  sources:
+  items:
     - path: ./docs
       name: local
-    - path: ../backend-docs
-      name: backend
-```
-
-嵌套分组写法：
-
-```yaml
-docs:
-  groups:
     - name: 工作区
-      sources:
-        - path: ./docs
-          name: Docs Atlas
+      items:
         - path: ../backend-docs
           name: Backend
+        - path: ../mobile-docs
+          name: Mobile
     - name: AI
-      groups:
-        - name: Agents
-          sources:
-            - path: /absolute/path/to/another-docs
-              name: Agent Server
+      items:
+        - path: /absolute/path/to/another-docs
+          name: Agent Server
 ```
 
 说明：
 
 - `name` 是左侧目录模块名，也是打包后路由和静态资源的来源目录名
 - `path` 支持相对路径和绝对路径
-- `groups` 和 `sources` 可以递归嵌套
+- `items` 可以递归嵌套
+- 旧的 `sources / groups / children` 仍然兼容，但新配置推荐统一写成 `items`
 - `config.yaml` 优先级高于环境变量 `DOCS_CMS_DOCS_DIR`
 - 如果多个目录里生成了重复 slug，构建时会直接报错
 

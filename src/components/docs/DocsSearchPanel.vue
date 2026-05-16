@@ -87,7 +87,7 @@ defineExpose({
 
     <div
       v-if="isOpen && query"
-      class="search-panel__results"
+      class="search-panel__results scroll-shell"
     >
       <div
         v-if="!hasResults"

@@ -6,34 +6,21 @@
 
 你可以在项目根目录创建 `config.yaml`。
 
-最简单的平铺写法：
+推荐写法是统一使用 `items`：
 
 ```yaml
 docs:
-  sources:
+  items:
     - path: ./docs
       name: local
-    - path: ../backend-docs
-      name: backend
-```
-
-如果你想把多个来源再分层组织，可以继续嵌套：
-
-```yaml
-docs:
-  groups:
     - name: Workspace
-      sources:
-        - path: ./docs
-          name: local
+      items:
         - path: ../backend-docs
           name: backend
     - name: Client
-      groups:
-        - name: Mobile
-          sources:
-            - path: ../mobile-docs
-              name: mobile
+      items:
+        - path: ../mobile-docs
+          name: mobile
 ```
 
 ## 字段说明
@@ -52,6 +39,16 @@ docs:
 - 作为左侧导航中的模块名称
 - 作为打包后路由和静态资源的命名空间
 - 在嵌套配置里，完整路径也会参与最终命名空间生成
+
+### items
+
+`items` 是递归节点数组：
+
+- 节点有 `path` 时，表示一个文档源
+- 节点有 `items` 时，表示一个分组
+- 两者可以组合出任意层级
+
+旧的 `sources / groups / children` 还可以继续用，但现在推荐统一写成 `items`，更容易理解。
 
 例如：
 

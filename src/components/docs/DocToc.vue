@@ -16,7 +16,7 @@ const emit = defineEmits<{
     v-if="headings.length"
     class="doc-toc"
   >
-    <div class="doc-toc__inner">
+    <div class="doc-toc__inner scroll-shell">
       <p class="doc-toc__eyebrow">
         On This Page
       </p>
@@ -47,6 +47,8 @@ const emit = defineEmits<{
 .doc-toc__inner {
   display: grid;
   gap: 0.45rem;
+  max-height: calc(100vh - 124px);
+  overflow-y: auto;
   padding: 1rem;
   border: 1px solid var(--color-line);
   border-radius: 26px;
