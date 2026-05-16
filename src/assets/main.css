@@ -300,11 +300,12 @@ pre {
 .scroll-shell {
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  scrollbar-gutter: stable both-edges;
 }
 
 .scroll-shell::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 6px !important;
+  height: 6px !important;
 }
 
 .scroll-shell::-webkit-scrollbar-track {
@@ -323,6 +324,10 @@ pre {
   background: var(--scrollbar-thumb-hover);
   border: 2px solid transparent;
   background-clip: padding-box;
+}
+
+.scroll-shell::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 ::selection {

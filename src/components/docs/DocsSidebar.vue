@@ -113,10 +113,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 
 <template>
   <aside :class="['docs-sidebar', { 'docs-sidebar--open': isOpen }]">
-    <div
-      ref="sidebarInner"
-      class="docs-sidebar__inner scroll-shell"
-    >
+    <div class="docs-sidebar__inner">
       <div class="docs-sidebar__heading">
         <p class="docs-sidebar__eyebrow">
           Navigation
@@ -126,22 +123,27 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
         </h2>
       </div>
 
-      <nav class="docs-sidebar__nav">
-        <DocsSidebarNode
-          v-for="node in sourceGroups"
-          :key="node.id"
-          :current-doc-slug="currentDocSlug"
-          :current-section-id="currentSectionId"
-          :current-source-id="currentSourceId"
-          :depth="0"
-          :node="node"
-          :open-branch-ids="openBranchIds"
-          :open-section-id="openSectionId"
-          @close="emit('close')"
-          @toggle-node="toggleNode"
-          @toggle-section="toggleSection"
-        />
-      </nav>
+      <div
+        ref="sidebarInner"
+        class="docs-sidebar__scroll scroll-shell"
+      >
+        <nav class="docs-sidebar__nav">
+          <DocsSidebarNode
+            v-for="node in sourceGroups"
+            :key="node.id"
+            :current-doc-slug="currentDocSlug"
+            :current-section-id="currentSectionId"
+            :current-source-id="currentSourceId"
+            :depth="0"
+            :node="node"
+            :open-branch-ids="openBranchIds"
+            :open-section-id="openSectionId"
+            @close="emit('close')"
+            @toggle-node="toggleNode"
+            @toggle-section="toggleSection"
+          />
+        </nav>
+      </div>
     </div>
   </aside>
 </template>
@@ -156,8 +158,9 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 
 .docs-sidebar__inner {
   height: 100%;
-  overflow-y: auto;
-  padding: 0.8rem 0.75rem;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
   border: 1px solid var(--color-line);
   border-radius: 18px;
   background: var(--surface-panel);
@@ -165,9 +168,9 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 }
 
 .docs-sidebar__heading {
-  margin-bottom: 0.85rem;
-  padding: 0.2rem 0.35rem 0.55rem;
+  padding: 0.8rem 0.85rem 0.55rem;
   border-bottom: 1px solid var(--color-line);
+  background: var(--surface-panel);
 }
 
 .docs-sidebar__eyebrow {
@@ -183,6 +186,14 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   font-family: var(--font-display);
   font-size: 1rem;
   font-weight: 600;
+}
+
+.docs-sidebar__scroll {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.55rem 0.75rem 0.8rem;
+  scrollbar-gutter: stable both-edges;
+  overscroll-behavior: contain;
 }
 
 .docs-sidebar__nav {
