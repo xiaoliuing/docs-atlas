@@ -151,28 +151,28 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   position: sticky;
   top: 98px;
   height: calc(100vh - 98px);
-  padding: 0.5rem 0 1.5rem 1rem;
+  padding: 0.35rem 0 1.1rem 0.8rem;
 }
 
 .docs-sidebar__inner {
   height: 100%;
   overflow-y: auto;
-  padding: 1rem;
+  padding: 0.8rem 0.75rem;
   border: 1px solid var(--color-line);
-  border-radius: 32px;
+  border-radius: 18px;
   background: var(--surface-panel);
-  box-shadow: var(--shadow-panel);
+  box-shadow: 0 10px 24px rgba(var(--theme-shadow-rgb), 0.08);
 }
 
 .docs-sidebar__heading {
-  margin-bottom: 1.25rem;
-  padding: 0.35rem 0.35rem 0.75rem;
+  margin-bottom: 0.85rem;
+  padding: 0.2rem 0.35rem 0.55rem;
   border-bottom: 1px solid var(--color-line);
 }
 
 .docs-sidebar__eyebrow {
-  margin: 0 0 0.35rem;
-  font-size: 0.78rem;
+  margin: 0 0 0.22rem;
+  font-size: 0.7rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--color-soft);
@@ -181,12 +181,13 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 .docs-sidebar__title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.35rem;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .docs-sidebar__nav {
   display: grid;
-  gap: 0.9rem;
+  gap: 0.55rem;
 }
 
 @media (max-width: 960px) {
@@ -197,7 +198,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
     z-index: 50;
     width: min(88vw, 360px);
     height: 100vh;
-    padding: 0.8rem;
+    padding: 0.65rem;
     transform: translateX(-108%);
     transition: transform 0.22s ease;
   }
@@ -207,7 +208,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   }
 
   .docs-sidebar__inner {
-    border-radius: 28px;
+    border-radius: 16px;
   }
 }
 </style>

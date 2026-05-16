@@ -190,7 +190,7 @@ function getSectionToggleLabel(title: string, expanded: boolean) {
 <style scoped>
 .docs-sidebar-node {
   display: grid;
-  gap: 0.55rem;
+  gap: 0.35rem;
 }
 
 .docs-sidebar-node__toggle,
@@ -200,8 +200,6 @@ function getSectionToggleLabel(title: string, expanded: boolean) {
   transition:
     background-color 0.18s ease,
     border-color 0.18s ease,
-    transform 0.18s ease,
-    box-shadow 0.18s ease,
     color 0.18s ease;
 }
 
@@ -210,34 +208,33 @@ function getSectionToggleLabel(title: string, expanded: boolean) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.65rem;
   width: 100%;
-  min-height: 46px;
-  padding: 0.8rem 0.95rem;
+  min-height: 38px;
+  padding: 0.48rem 0.72rem;
   border: 1px solid var(--color-line);
-  border-radius: 20px;
-  background: var(--surface-card);
+  border-radius: 12px;
+  background: rgba(var(--theme-panel-rgb), 0.34);
   color: var(--color-ink);
+  font-size: 0.92rem;
 }
 
 .docs-sidebar-node__toggle {
-  padding-inline-start: calc(0.95rem + var(--sidebar-depth, 0) * 0.35rem);
+  padding-inline-start: calc(0.72rem + var(--sidebar-depth, 0) * 0.45rem);
 }
 
 .docs-sidebar-node__toggle--group {
-  background:
-    linear-gradient(135deg, rgba(var(--color-accent-rgb), 0.08), transparent 58%),
-    var(--surface-card);
+  background: rgba(var(--theme-panel-rgb), 0.22);
 }
 
 .docs-sidebar-node__toggle--source {
-  background: var(--surface-panel-alt);
+  background: rgba(var(--theme-panel-rgb), 0.4);
 }
 
 .docs-sidebar-node__toggle--active,
 .docs-sidebar-node__section-link--active {
   border-color: rgba(var(--color-accent-rgb), 0.28);
-  box-shadow: 0 18px 34px rgba(var(--color-accent-rgb), 0.12);
+  background: rgba(var(--color-accent-rgb), 0.08);
 }
 
 .docs-sidebar-node__toggle--active {
@@ -257,13 +254,14 @@ function getSectionToggleLabel(title: string, expanded: boolean) {
 
 .docs-sidebar-node__toggle-icon,
 .docs-sidebar-node__section-toggle-icon {
-  width: 0.72rem;
-  height: 0.72rem;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
+  width: 0.52rem;
+  height: 0.52rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
   transform: rotate(45deg);
   transition: transform 0.18s ease;
   flex: none;
+  opacity: 0.78;
 }
 
 .docs-sidebar-node__toggle-icon--open,
@@ -273,20 +271,23 @@ function getSectionToggleLabel(title: string, expanded: boolean) {
 
 .docs-sidebar-node__body {
   display: grid;
-  gap: 0.55rem;
-  padding-inline-start: 0.45rem;
+  gap: 0.3rem;
+  margin-left: 0.45rem;
+  padding-left: 0.6rem;
+  border-left: 1px solid rgba(var(--color-accent-rgb), 0.14);
   animation: sidebarReveal 0.18s ease;
 }
 
 .docs-sidebar-node__section {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.24rem;
+  padding-left: 0.1rem;
 }
 
 .docs-sidebar-node__section-link {
-  min-height: 44px;
-  padding-inline-start: 1rem;
-  background: var(--surface-panel);
+  min-height: 34px;
+  padding-inline-start: 0.72rem;
+  background: transparent;
 }
 
 .docs-sidebar-node__section-title-link {
@@ -295,38 +296,48 @@ function getSectionToggleLabel(title: string, expanded: boolean) {
   text-decoration: none;
 }
 
+.docs-sidebar-node__section-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
 .docs-sidebar-node__section-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 24px;
+  height: 24px;
   border: 0;
-  border-radius: 999px;
-  background: rgba(var(--color-accent-rgb), 0.1);
+  border-radius: 8px;
+  background: rgba(var(--color-accent-rgb), 0.08);
   color: var(--color-accent-deep);
   cursor: pointer;
 }
 
 .docs-sidebar-node__docs {
   display: grid;
-  gap: 0.42rem;
-  padding-inline-start: 0.8rem;
+  gap: 0.18rem;
+  margin-left: 0.32rem;
+  padding-left: 0.58rem;
+  border-left: 1px solid rgba(var(--color-accent-rgb), 0.12);
 }
 
 .docs-sidebar-node__docs--root {
-  padding-block-start: 0.15rem;
+  margin-left: 0.1rem;
+  padding-top: 0.12rem;
 }
 
 .docs-sidebar-node__doc-link {
   display: flex;
   align-items: center;
-  min-height: 42px;
-  padding: 0.75rem 0.95rem 0.75rem 1.05rem;
+  min-height: 30px;
+  padding: 0.38rem 0.62rem 0.38rem 0.72rem;
   border: 1px solid transparent;
-  border-radius: 18px;
+  border-radius: 10px;
   color: var(--color-muted);
   background: transparent;
+  font-size: 0.85rem;
+  line-height: 1.35;
 }
 
 .docs-sidebar-node__doc-link:hover,
@@ -334,12 +345,11 @@ function getSectionToggleLabel(title: string, expanded: boolean) {
 .docs-sidebar-node__section-link:hover {
   border-color: rgba(var(--color-accent-rgb), 0.22);
   background: var(--surface-card-hover);
-  transform: translateY(-1px);
 }
 
 .docs-sidebar-node__doc-link--active {
   border-color: rgba(var(--color-accent-rgb), 0.26);
-  background: rgba(var(--color-accent-rgb), 0.12);
+  background: rgba(var(--color-accent-rgb), 0.14);
   color: var(--color-accent-deep);
   box-shadow: inset 0 0 0 1px rgba(var(--color-accent-rgb), 0.08);
 }
@@ -351,7 +361,7 @@ function getSectionToggleLabel(title: string, expanded: boolean) {
 @keyframes sidebarReveal {
   from {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(-2px);
   }
 
   to {
