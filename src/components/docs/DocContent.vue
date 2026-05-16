@@ -151,7 +151,7 @@ function handleBodyClick(event: MouseEvent) {
   .doc-content__body {
     min-width: 0;
     width: 100%;
-    max-width: min(100%, 78ch);
+    max-width: min(100%, 88ch);
     margin-inline: auto;
   }
 
