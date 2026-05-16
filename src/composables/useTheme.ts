@@ -8,6 +8,11 @@ export type ThemeAccentId =
   | 'forest-green'
   | 'sunset-amber'
   | 'dusty-rose'
+  | 'slate-indigo'
+  | 'sage-olive'
+  | 'terracotta'
+  | 'plum-orchid'
+  | 'walnut-brown'
 
 export type ThemeAccent = {
   id: ThemeAccentId
@@ -28,6 +33,11 @@ const themeAccents: ThemeAccent[] = [
   { id: 'forest-green', label: '森林绿', color: '#1F8F63' },
   { id: 'sunset-amber', label: '落日金', color: '#C28A1A' },
   { id: 'dusty-rose', label: '雾玫瑰', color: '#C05F7F' },
+  { id: 'slate-indigo', label: '靛云蓝', color: '#5B6FD6' },
+  { id: 'sage-olive', label: '鼠尾草', color: '#6F9478' },
+  { id: 'terracotta', label: '赤陶橘', color: '#C97059' },
+  { id: 'plum-orchid', label: '晚梅紫', color: '#9A68B2' },
+  { id: 'walnut-brown', label: '榛木棕', color: '#9B7653' },
 ]
 
 let initialized = false
