@@ -99,17 +99,17 @@ function handleBodyClick(event: MouseEvent) {
 <style scoped>
   .doc-content {
     display: grid;
-    gap: 1.2rem;
+    gap: 0.95rem;
   }
 
   .doc-content__header {
     display: grid;
-    gap: 0.8rem;
-    padding: 1.85rem;
+    gap: 0.62rem;
+    padding: 1.3rem 1.4rem;
     border: 1px solid var(--color-line);
-    border-radius: 34px;
+    border-radius: 22px;
     background: var(--surface-panel-alt);
-    box-shadow: var(--shadow-panel);
+    box-shadow: 0 10px 24px rgba(var(--theme-shadow-rgb), 0.08);
   }
 
   .doc-content__header-top {
@@ -122,23 +122,23 @@ function handleBodyClick(event: MouseEvent) {
 
   .doc-content__section {
     margin: 0;
-    min-height: 32px;
+    min-height: 28px;
     display: inline-flex;
     align-items: center;
-    padding: 0.35rem 0.7rem;
+    padding: 0.28rem 0.58rem;
     border-radius: 999px;
     background: rgba(var(--color-accent-rgb), 0.12);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    letter-spacing: 0.08em;
     color: var(--color-accent-deep);
-    font-size: 0.8rem;
+    font-size: 0.74rem;
   }
 
   .doc-content__title {
     margin: 0;
     font-family: var(--font-display);
-    font-size: clamp(2.1rem, 4vw, 3.25rem);
-    line-height: 1.05;
+    font-size: clamp(1.72rem, 3.2vw, 2.45rem);
+    line-height: 1.14;
+    letter-spacing: -0.02em;
   }
 
   .doc-content__summary {
@@ -151,44 +151,45 @@ function handleBodyClick(event: MouseEvent) {
   .doc-content__body {
     min-width: 0;
     width: 100%;
-    max-width: min(100%, 76ch);
+    max-width: min(100%, 74ch);
     margin-inline: auto;
   }
 
   .doc-content__body-shell {
     min-width: 0;
-    padding: clamp(1rem, 2vw, 1.85rem) clamp(1rem, 2.5vw, 2.2rem);
+    padding: clamp(0.95rem, 1.5vw, 1.35rem) clamp(0.95rem, 1.8vw, 1.45rem);
     border: 1px solid var(--color-line);
-    border-radius: 32px;
+    border-radius: 22px;
     background: var(--surface-markdown);
-    box-shadow: var(--shadow-panel);
+    box-shadow: 0 12px 28px rgba(var(--theme-shadow-rgb), 0.08);
   }
 
   .doc-content__source {
     color: var(--color-soft);
-    font-size: 0.84rem;
+    font-size: 0.78rem;
   }
 
   @media (max-width: 960px) {
     .doc-content__header {
-      padding: 1.25rem;
-      border-radius: 24px;
+      padding: 1.05rem 1.1rem;
+      border-radius: 18px;
     }
 
     .doc-content__title {
-      font-size: clamp(1.9rem, 8vw, 2.8rem);
+      font-size: clamp(1.55rem, 6vw, 2.05rem);
     }
   }
 
   @media (max-width: 640px) {
     .doc-content__header {
-      padding: 1rem;
-      border-radius: 22px;
+      gap: 0.55rem;
+      padding: 0.95rem;
+      border-radius: 16px;
     }
 
     .doc-content__body-shell {
-      padding: 0.95rem;
-      border-radius: 22px;
+      padding: 0.82rem 0.88rem;
+      border-radius: 16px;
     }
 
     .doc-content__body {
