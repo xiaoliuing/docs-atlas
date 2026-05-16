@@ -56,6 +56,13 @@
   --scrollbar-thumb: rgba(var(--color-accent-rgb), 0.28);
   --scrollbar-thumb-hover: rgba(var(--color-accent-rgb), 0.42);
   --scrollbar-track: rgba(var(--theme-shadow-rgb), 0.08);
+  --preview-overlay: rgba(233, 237, 244, 0.78);
+  --preview-surface: rgba(247, 249, 253, 0.82);
+  --preview-surface-strong: rgba(255, 255, 255, 0.96);
+  --preview-button-bg: rgba(255, 255, 255, 0.92);
+  --preview-button-fg: #172033;
+  --preview-caption-bg: rgba(255, 255, 255, 0.88);
+  --preview-frame-shadow: 0 34px 84px rgba(var(--theme-shadow-rgb), 0.2);
   --code-comment: #6e7781;
   --code-keyword: #cf222e;
   --code-string: #0a3069;
@@ -110,6 +117,13 @@
   --scrollbar-thumb: rgba(var(--color-accent-rgb), 0.34);
   --scrollbar-thumb-hover: rgba(var(--color-accent-rgb), 0.5);
   --scrollbar-track: rgba(255, 255, 255, 0.06);
+  --preview-overlay: rgba(5, 10, 18, 0.84);
+  --preview-surface: rgba(13, 22, 41, 0.8);
+  --preview-surface-strong: rgba(18, 29, 53, 0.94);
+  --preview-button-bg: rgba(16, 26, 47, 0.92);
+  --preview-button-fg: #edf3ff;
+  --preview-caption-bg: rgba(12, 20, 38, 0.84);
+  --preview-frame-shadow: 0 32px 88px rgba(var(--theme-shadow-rgb), 0.48);
   --code-comment: #8b949e;
   --code-keyword: #ff7b72;
   --code-string: #a5d6ff;
