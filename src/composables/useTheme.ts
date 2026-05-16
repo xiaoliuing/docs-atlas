@@ -1,89 +1,89 @@
-import { shallowRef } from 'vue'
+import { shallowRef } from "vue";
 
-export type ResolvedTheme = 'light' | 'dark'
-export type ThemeMode = 'system' | 'light' | 'dark'
+export type ResolvedTheme = "light" | "dark";
+export type ThemeMode = "system" | "light" | "dark";
 export type ThemeAccentId =
-  | 'atlas-blue'
-  | 'ocean-teal'
-  | 'forest-green'
-  | 'sunset-amber'
-  | 'dusty-rose'
-  | 'slate-indigo'
-  | 'sage-olive'
-  | 'terracotta'
-  | 'plum-orchid'
-  | 'walnut-brown'
+  | "atlas-blue"
+  | "ocean-teal"
+  | "forest-green"
+  | "sunset-amber"
+  | "dusty-rose"
+  | "slate-indigo"
+  | "sage-olive"
+  | "terracotta"
+  | "plum-orchid"
+  | "walnut-brown";
 
 export type ThemeAccent = {
-  id: ThemeAccentId
-  label: string
-  color: string
-}
+  id: ThemeAccentId;
+  label: string;
+  color: string;
+};
 
-const MODE_STORAGE_KEY = 'docs-atlas-theme-mode'
-const ACCENT_STORAGE_KEY = 'docs-atlas-theme-accent'
+const MODE_STORAGE_KEY = "docs-atlas-theme-mode";
+const ACCENT_STORAGE_KEY = "docs-atlas-theme-accent";
 
-const themeMode = shallowRef<ThemeMode>('system')
-const resolvedTheme = shallowRef<ResolvedTheme>('light')
-const themeAccent = shallowRef<ThemeAccentId>('atlas-blue')
+const themeMode = shallowRef<ThemeMode>("system");
+const resolvedTheme = shallowRef<ResolvedTheme>("light");
+const themeAccent = shallowRef<ThemeAccentId>("atlas-blue");
 
 const themeAccents: ThemeAccent[] = [
-  { id: 'atlas-blue', label: '星图蓝', color: '#1F54D9' },
-  { id: 'ocean-teal', label: '海雾青', color: '#0F8C95' },
-  { id: 'forest-green', label: '森林绿', color: '#1F8F63' },
-  { id: 'sunset-amber', label: '落日金', color: '#C28A1A' },
-  { id: 'dusty-rose', label: '雾玫瑰', color: '#C05F7F' },
-  { id: 'slate-indigo', label: '靛云蓝', color: '#5B6FD6' },
-  { id: 'sage-olive', label: '鼠尾草', color: '#6F9478' },
-  { id: 'terracotta', label: '赤陶橘', color: '#C97059' },
-  { id: 'plum-orchid', label: '晚梅紫', color: '#9A68B2' },
-  { id: 'walnut-brown', label: '榛木棕', color: '#9B7653' },
-]
+  { id: "slate-indigo", label: "靛云蓝", color: "#5B6FD6" },
+  { id: "sage-olive", label: "鼠尾草", color: "#6F9478" },
+  { id: "terracotta", label: "赤陶橘", color: "#C97059" },
+  { id: "plum-orchid", label: "晚梅紫", color: "#9A68B2" },
+  { id: "walnut-brown", label: "榛木棕", color: "#9B7653" },
+  { id: "atlas-blue", label: "星图蓝", color: "#1F54D9" },
+  { id: "ocean-teal", label: "海雾青", color: "#0F8C95" },
+  { id: "forest-green", label: "森林绿", color: "#1F8F63" },
+  { id: "sunset-amber", label: "落日金", color: "#C28A1A" },
+  { id: "dusty-rose", label: "雾玫瑰", color: "#C05F7F" },
+];
 
-let initialized = false
-let cleanupSystemListener: (() => void) | null = null
+let initialized = false;
+let cleanupSystemListener: (() => void) | null = null;
 
 export function useTheme() {
   function initializeTheme() {
-    if (initialized || typeof window === 'undefined') {
-      return
+    if (initialized || typeof window === "undefined") {
+      return;
     }
 
-    initialized = true
+    initialized = true;
 
-    const savedMode = window.localStorage.getItem(MODE_STORAGE_KEY)
-    const savedAccent = window.localStorage.getItem(ACCENT_STORAGE_KEY)
+    const savedMode = window.localStorage.getItem(MODE_STORAGE_KEY);
+    const savedAccent = window.localStorage.getItem(ACCENT_STORAGE_KEY);
 
-    themeMode.value = isThemeMode(savedMode) ? savedMode : 'system'
-    themeAccent.value = isThemeAccent(savedAccent) ? savedAccent : 'atlas-blue'
+    themeMode.value = isThemeMode(savedMode) ? savedMode : "system";
+    themeAccent.value = isThemeAccent(savedAccent) ? savedAccent : "atlas-blue";
 
-    applyTheme()
-    bindSystemThemeListener()
+    applyTheme();
+    bindSystemThemeListener();
   }
 
   function cycleThemeMode() {
-    const nextMode = getNextThemeMode(themeMode.value)
-    setThemeMode(nextMode)
+    const nextMode = getNextThemeMode(themeMode.value);
+    setThemeMode(nextMode);
   }
 
   function setThemeMode(nextMode: ThemeMode) {
-    themeMode.value = nextMode
+    themeMode.value = nextMode;
 
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(MODE_STORAGE_KEY, nextMode)
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(MODE_STORAGE_KEY, nextMode);
     }
 
-    applyTheme()
+    applyTheme();
   }
 
   function setThemeAccent(nextAccent: ThemeAccentId) {
-    themeAccent.value = nextAccent
+    themeAccent.value = nextAccent;
 
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(ACCENT_STORAGE_KEY, nextAccent)
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(ACCENT_STORAGE_KEY, nextAccent);
     }
 
-    applyTheme()
+    applyTheme();
   }
 
   return {
@@ -95,64 +95,67 @@ export function useTheme() {
     themeAccent,
     themeAccents,
     themeMode,
-  }
+  };
 }
 
 function bindSystemThemeListener() {
-  if (cleanupSystemListener || typeof window === 'undefined') {
-    return
+  if (cleanupSystemListener || typeof window === "undefined") {
+    return;
   }
 
-  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
   const listener = () => {
-    if (themeMode.value === 'system') {
-      applyTheme()
+    if (themeMode.value === "system") {
+      applyTheme();
     }
-  }
+  };
 
-  mediaQuery.addEventListener('change', listener)
+  mediaQuery.addEventListener("change", listener);
   cleanupSystemListener = () => {
-    mediaQuery.removeEventListener('change', listener)
-  }
+    mediaQuery.removeEventListener("change", listener);
+  };
 }
 
 function getSystemTheme(): ResolvedTheme {
-  if (typeof window === 'undefined') {
-    return 'light'
+  if (typeof window === "undefined") {
+    return "light";
   }
 
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 }
 
 function applyTheme() {
-  resolvedTheme.value = themeMode.value === 'system' ? getSystemTheme() : themeMode.value
+  resolvedTheme.value =
+    themeMode.value === "system" ? getSystemTheme() : themeMode.value;
 
-  if (typeof document === 'undefined') {
-    return
+  if (typeof document === "undefined") {
+    return;
   }
 
-  document.documentElement.dataset.theme = resolvedTheme.value
-  document.documentElement.dataset.themeMode = themeMode.value
-  document.documentElement.dataset.accent = themeAccent.value
-  document.documentElement.style.colorScheme = resolvedTheme.value
+  document.documentElement.dataset.theme = resolvedTheme.value;
+  document.documentElement.dataset.themeMode = themeMode.value;
+  document.documentElement.dataset.accent = themeAccent.value;
+  document.documentElement.style.colorScheme = resolvedTheme.value;
 }
 
 function getNextThemeMode(currentMode: ThemeMode): ThemeMode {
-  if (currentMode === 'system') {
-    return 'light'
+  if (currentMode === "system") {
+    return "light";
   }
 
-  if (currentMode === 'light') {
-    return 'dark'
+  if (currentMode === "light") {
+    return "dark";
   }
 
-  return 'system'
+  return "system";
 }
 
 function isThemeMode(value: string | null): value is ThemeMode {
-  return value === 'system' || value === 'light' || value === 'dark'
+  return value === "system" || value === "light" || value === "dark";
 }
 
 function isThemeAccent(value: string | null): value is ThemeAccentId {
-  return themeAccents.some((accent) => accent.id === value)
+  return themeAccents.some((accent) => accent.id === value);
 }

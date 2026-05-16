@@ -1,120 +1,136 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
-import DocsSearchPanel from '@/components/docs/DocsSearchPanel.vue'
-import type { ResolvedTheme, ThemeAccent, ThemeAccentId, ThemeMode } from '@/composables/useTheme'
-import type { SearchResult } from '@/types/docs'
+  import {
+    computed,
+    nextTick,
+    onMounted,
+    onUnmounted,
+    shallowRef,
+    useTemplateRef,
+    watch,
+  } from "vue";
+  import DocsSearchPanel from "@/components/docs/DocsSearchPanel.vue";
+  import type {
+    ResolvedTheme,
+    ThemeAccent,
+    ThemeAccentId,
+    ThemeMode,
+  } from "@/composables/useTheme";
+  import type { SearchResult } from "@/types/docs";
 
-const query = defineModel<string>({ default: '' })
+  const query = defineModel<string>({ default: "" });
 
-const props = defineProps<{
-  isSearchOpen: boolean
-  pageLabel: string
-  resolvedTheme: ResolvedTheme
-  results: SearchResult[]
-  selectedIndex: number
-  themeAccent: ThemeAccentId
-  themeAccents: ThemeAccent[]
-  themeMode: ThemeMode
-  totalDocs: number
-  totalSections: number
-}>()
+  const props = defineProps<{
+    isSearchOpen: boolean;
+    pageLabel: string;
+    resolvedTheme: ResolvedTheme;
+    results: SearchResult[];
+    selectedIndex: number;
+    themeAccent: ThemeAccentId;
+    themeAccents: ThemeAccent[];
+    themeMode: ThemeMode;
+    totalDocs: number;
+    totalSections: number;
+  }>();
 
-const emit = defineEmits<{
-  closeSearch: []
-  moveSelection: [direction: 1 | -1]
-  openSearch: []
-  selectThemeAccent: [accent: ThemeAccentId]
-  selectThemeMode: [mode: ThemeMode]
-  submitSearch: [routePath?: string]
-  toggleSidebar: []
-}>()
+  const emit = defineEmits<{
+    closeSearch: [];
+    moveSelection: [direction: 1 | -1];
+    openSearch: [];
+    selectThemeAccent: [accent: ThemeAccentId];
+    selectThemeMode: [mode: ThemeMode];
+    submitSearch: [routePath?: string];
+    toggleSidebar: [];
+  }>();
 
-const searchPanelRef = useTemplateRef<InstanceType<typeof DocsSearchPanel>>('searchPanel')
-const themeMenuRef = useTemplateRef<HTMLElement>('themeMenu')
+  const searchPanelRef =
+    useTemplateRef<InstanceType<typeof DocsSearchPanel>>("searchPanel");
+  const themeMenuRef = useTemplateRef<HTMLElement>("themeMenu");
 
-const isMobileSearchExpanded = shallowRef(false)
-const isThemeMenuOpen = shallowRef(false)
+  const isMobileSearchExpanded = shallowRef(false);
+  const isThemeMenuOpen = shallowRef(false);
 
-const shouldShowMobileSearch = computed(() => isMobileSearchExpanded.value)
-const activeAccentLabel = computed(
-  () => props.themeAccents.find((accent) => accent.id === props.themeAccent)?.label ?? '星图蓝',
-)
+  const shouldShowMobileSearch = computed(() => isMobileSearchExpanded.value);
+  const activeAccentLabel = computed(
+    () =>
+      props.themeAccents.find((accent) => accent.id === props.themeAccent)
+        ?.label ?? "星图蓝",
+  );
 
-const themeModeOptions: Array<{ id: ThemeMode; label: string }> = [
-  { id: 'system', label: '系统' },
-  { id: 'light', label: '浅色' },
-  { id: 'dark', label: '暗色' },
-]
+  const themeModeOptions: Array<{ id: ThemeMode; label: string }> = [
+    { id: "system", label: "系统" },
+    { id: "light", label: "浅色" },
+    { id: "dark", label: "暗色" },
+  ];
 
-watch(
-  [() => query.value, () => props.isSearchOpen],
-  ([currentQuery, searchOpen]) => {
-    if (!currentQuery.trim() && !searchOpen) {
-      isMobileSearchExpanded.value = false
+  watch(
+    [() => query.value, () => props.isSearchOpen],
+    ([currentQuery, searchOpen]) => {
+      if (!currentQuery.trim() && !searchOpen) {
+        isMobileSearchExpanded.value = false;
+      }
+    },
+  );
+
+  onMounted(() => {
+    document.addEventListener("pointerdown", onPointerDown);
+  });
+
+  onUnmounted(() => {
+    document.removeEventListener("pointerdown", onPointerDown);
+  });
+
+  function onPointerDown(event: PointerEvent) {
+    const target = event.target;
+
+    if (!(target instanceof Node)) {
+      return;
     }
-  },
-)
 
-onMounted(() => {
-  document.addEventListener('pointerdown', onPointerDown)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('pointerdown', onPointerDown)
-})
-
-function onPointerDown(event: PointerEvent) {
-  const target = event.target
-
-  if (!(target instanceof Node)) {
-    return
+    if (!themeMenuRef.value?.contains(target)) {
+      isThemeMenuOpen.value = false;
+    }
   }
 
-  if (!themeMenuRef.value?.contains(target)) {
-    isThemeMenuOpen.value = false
-  }
-}
+  function closeSearch() {
+    emit("closeSearch");
 
-function closeSearch() {
-  emit('closeSearch')
-
-  if (!query.value.trim()) {
-    isMobileSearchExpanded.value = false
-  }
-}
-
-function openMobileSearch() {
-  isMobileSearchExpanded.value = true
-  emit('openSearch')
-
-  void nextTick(() => {
-    searchPanelRef.value?.focusInput()
-  })
-}
-
-function toggleMobileSearch() {
-  if (isMobileSearchExpanded.value) {
-    isMobileSearchExpanded.value = false
-    emit('closeSearch')
-    return
+    if (!query.value.trim()) {
+      isMobileSearchExpanded.value = false;
+    }
   }
 
-  openMobileSearch()
-}
+  function openMobileSearch() {
+    isMobileSearchExpanded.value = true;
+    emit("openSearch");
 
-function toggleThemeMenu() {
-  isThemeMenuOpen.value = !isThemeMenuOpen.value
-}
+    void nextTick(() => {
+      searchPanelRef.value?.focusInput();
+    });
+  }
 
-function selectThemeMode(mode: ThemeMode) {
-  emit('selectThemeMode', mode)
-  isThemeMenuOpen.value = false
-}
+  function toggleMobileSearch() {
+    if (isMobileSearchExpanded.value) {
+      isMobileSearchExpanded.value = false;
+      emit("closeSearch");
+      return;
+    }
 
-function selectThemeAccent(accent: ThemeAccentId) {
-  emit('selectThemeAccent', accent)
-  isThemeMenuOpen.value = false
-}
+    openMobileSearch();
+  }
+
+  function toggleThemeMenu() {
+    isThemeMenuOpen.value = !isThemeMenuOpen.value;
+  }
+
+  function selectThemeMode(mode: ThemeMode) {
+    emit("selectThemeMode", mode);
+    isThemeMenuOpen.value = false;
+  }
+
+  function selectThemeAccent(accent: ThemeAccentId) {
+    emit("selectThemeAccent", accent);
+    isThemeMenuOpen.value = false;
+  }
 </script>
 
 <template>
@@ -131,10 +147,7 @@ function selectThemeAccent(accent: ThemeAccentId) {
             目录
           </button>
 
-          <RouterLink
-            class="site-header__title"
-            to="/"
-          >
+          <RouterLink class="site-header__title" to="/">
             <span class="site-header__title-mark" />
             <span class="site-header__title-text">Docs Atlas</span>
           </RouterLink>
@@ -145,7 +158,10 @@ function selectThemeAccent(accent: ThemeAccentId) {
         </div>
 
         <DocsSearchPanel
-          :class="['site-header__search', { 'site-header__search--collapsed': !shouldShowMobileSearch }]"
+          :class="[
+            'site-header__search',
+            { 'site-header__search--collapsed': !shouldShowMobileSearch },
+          ]"
           ref="searchPanel"
           :is-open="props.isSearchOpen"
           :results="props.results"
@@ -157,10 +173,7 @@ function selectThemeAccent(accent: ThemeAccentId) {
           @submit="emit('submitSearch', $event)"
         />
 
-        <div
-          ref="themeMenu"
-          class="site-header__controls"
-        >
+        <div ref="themeMenu" class="site-header__controls">
           <button
             :aria-label="shouldShowMobileSearch ? '收起搜索' : '打开搜索'"
             class="site-header__search-trigger"
@@ -221,16 +234,18 @@ function selectThemeAccent(accent: ThemeAccentId) {
             <span
               :class="[
                 'site-header__theme-mark',
-                { 'site-header__theme-mark--dark': props.resolvedTheme === 'dark' },
+                {
+                  'site-header__theme-mark--dark':
+                    props.resolvedTheme === 'dark',
+                },
               ]"
             />
-            <span class="site-header__theme-label">{{ activeAccentLabel }}</span>
+            <span class="site-header__theme-label">{{
+              activeAccentLabel
+            }}</span>
           </button>
 
-          <div
-            v-if="isThemeMenuOpen"
-            class="site-header__theme-popover"
-          >
+          <div v-if="isThemeMenuOpen" class="site-header__theme-popover">
             <div class="site-header__theme-section">
               <p class="site-header__theme-heading">外观</p>
               <div class="site-header__mode-list">
@@ -239,7 +254,10 @@ function selectThemeAccent(accent: ThemeAccentId) {
                   :key="option.id"
                   :class="[
                     'site-header__mode-button',
-                    { 'site-header__mode-button--active': option.id === props.themeMode },
+                    {
+                      'site-header__mode-button--active':
+                        option.id === props.themeMode,
+                    },
                   ]"
                   type="button"
                   @click="selectThemeMode(option.id)"
@@ -252,7 +270,9 @@ function selectThemeAccent(accent: ThemeAccentId) {
             <div class="site-header__theme-section">
               <div class="site-header__theme-heading-row">
                 <p class="site-header__theme-heading">主题色</p>
-                <span class="site-header__theme-current">{{ activeAccentLabel }}</span>
+                <span class="site-header__theme-current">{{
+                  activeAccentLabel
+                }}</span>
               </div>
               <div class="site-header__palette-grid">
                 <button
@@ -261,14 +281,19 @@ function selectThemeAccent(accent: ThemeAccentId) {
                   :aria-label="`切换到${accent.label}`"
                   :class="[
                     'site-header__palette-option',
-                    { 'site-header__palette-option--active': accent.id === props.themeAccent },
+                    {
+                      'site-header__palette-option--active':
+                        accent.id === props.themeAccent,
+                    },
                   ]"
                   :style="{ '--theme-swatch': accent.color }"
                   type="button"
                   @click="selectThemeAccent(accent.id)"
                 >
                   <span class="site-header__palette-swatch" />
-                  <span class="site-header__palette-name">{{ accent.label }}</span>
+                  <span class="site-header__palette-name">{{
+                    accent.label
+                  }}</span>
                 </button>
               </div>
             </div>
@@ -280,357 +305,362 @@ function selectThemeAccent(accent: ThemeAccentId) {
 </template>
 
 <style scoped>
-.site-header {
-  position: sticky;
-  top: 0.65rem;
-  z-index: 40;
-  padding: 0 1rem;
-}
-
-.site-header__inner {
-  padding: 0.9rem 1.1rem;
-  margin: 0 auto;
-  max-width: 1560px;
-  border: 1px solid var(--color-line);
-  border-radius: 24px;
-  backdrop-filter: blur(22px);
-  background: var(--surface-panel-alt);
-  box-shadow: var(--shadow-panel);
-}
-
-.site-header__toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px) auto;
-  gap: 0.9rem;
-  align-items: center;
-}
-
-.site-header__brand {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  min-width: 0;
-}
-
-.site-header__menu {
-  display: none;
-  border: 0;
-  border-radius: 999px;
-  min-height: 44px;
-  padding: 0.65rem 0.95rem;
-  background: rgba(var(--color-accent-rgb), 0.12);
-  color: var(--color-ink);
-  font: inherit;
-  cursor: pointer;
-}
-
-.site-header__title {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.7rem;
-  min-width: 0;
-  color: var(--color-ink);
-  font-family: var(--font-display);
-  font-size: 1.35rem;
-  font-weight: 700;
-  text-decoration: none;
-  letter-spacing: 0.02em;
-}
-
-.site-header__title-mark {
-  width: 0.88rem;
-  height: 0.88rem;
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 30% 30%, #ffffff, var(--color-accent) 58%, var(--color-accent-deep) 100%);
-  box-shadow: 0 0 0 6px rgba(var(--color-accent-rgb), 0.12);
-}
-
-.site-header__title-text,
-.site-header__subtitle {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.site-header__subtitle {
-  margin: 0;
-  padding-left: 0.85rem;
-  border-left: 1px solid var(--color-line);
-  color: var(--color-muted);
-}
-
-.site-header__search {
-  min-width: 0;
-}
-
-.site-header__controls {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.55rem;
-}
-
-.site-header__search-trigger,
-.site-header__theme-trigger {
-  min-width: 42px;
-  min-height: 42px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
-  padding: 0.45rem 0.8rem;
-  border: 1px solid var(--color-line);
-  border-radius: 999px;
-  background: var(--surface-chip);
-  color: var(--color-ink);
-  cursor: pointer;
-  transition:
-    background-color 0.18s ease,
-    border-color 0.18s ease,
-    transform 0.18s ease;
-}
-
-.site-header__search-trigger {
-  display: none;
-  padding: 0;
-}
-
-.site-header__search-trigger:hover,
-.site-header__theme-trigger:hover,
-.site-header__mode-button:hover,
-.site-header__palette-option:hover {
-  background: rgba(var(--color-accent-rgb), 0.1);
-  border-color: rgba(var(--color-accent-rgb), 0.28);
-  transform: translateY(-1px);
-}
-
-.site-header__search-icon {
-  width: 1.05rem;
-  height: 1.05rem;
-}
-
-.site-header__theme-mark {
-  width: 0.82rem;
-  height: 0.82rem;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #fff4ba, #f2c145);
-  box-shadow: 0 0 0 4px rgba(var(--color-accent-rgb), 0.14);
-}
-
-.site-header__theme-mark--dark {
-  background: linear-gradient(135deg, #d7e4ff, #6d82c9 65%, #293969 100%);
-}
-
-.site-header__theme-label {
-  max-width: 6rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--color-muted);
-  font-size: 0.9rem;
-}
-
-.site-header__theme-popover {
-  position: absolute;
-  top: calc(100% + 0.7rem);
-  right: 0;
-  width: min(21rem, calc(100vw - 2rem));
-  display: grid;
-  gap: 0.9rem;
-  padding: 0.95rem;
-  border: 1px solid var(--color-line);
-  border-radius: 22px;
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-panel);
-}
-
-.site-header__theme-section {
-  display: grid;
-  gap: 0.65rem;
-}
-
-.site-header__theme-heading,
-.site-header__theme-current {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--color-soft);
-}
-
-.site-header__theme-heading {
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.site-header__theme-heading-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.6rem;
-  align-items: center;
-}
-
-.site-header__mode-list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.45rem;
-}
-
-.site-header__mode-button,
-.site-header__palette-option {
-  border: 1px solid var(--color-line);
-  border-radius: 16px;
-  background: var(--surface-card);
-  color: var(--color-ink);
-  cursor: pointer;
-  transition:
-    background-color 0.18s ease,
-    border-color 0.18s ease,
-    transform 0.18s ease;
-}
-
-.site-header__mode-button {
-  min-height: 40px;
-  padding: 0.65rem 0.7rem;
-}
-
-.site-header__mode-button--active,
-.site-header__palette-option--active {
-  border-color: rgba(var(--color-accent-rgb), 0.38);
-  background: rgba(var(--color-accent-rgb), 0.12);
-}
-
-.site-header__palette-grid {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.site-header__palette-option {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  min-height: 44px;
-  padding: 0.65rem 0.75rem;
-  text-align: left;
-}
-
-.site-header__palette-swatch {
-  width: 1rem;
-  height: 1rem;
-  flex: 0 0 auto;
-  border-radius: 999px;
-  background: var(--theme-swatch);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.56),
-    0 0 0 1px rgba(9, 18, 40, 0.08);
-}
-
-.site-header__palette-name {
-  color: var(--color-muted);
-}
-
-@media (max-width: 1180px) {
-  .site-header__toolbar {
-    grid-template-columns: minmax(0, 1fr) minmax(240px, 360px) auto;
-  }
-}
-
-@media (max-width: 960px) {
   .site-header {
-    top: 0;
-    padding: 0;
+    position: sticky;
+    top: 0.65rem;
+    z-index: 40;
+    padding: 0 1rem;
   }
 
   .site-header__inner {
-    padding: 0.75rem 0.8rem 0.85rem;
-    max-width: none;
-    border-radius: 0;
-    border-top: 0;
-    border-right: 0;
-    border-left: 0;
-    box-shadow: 0 10px 24px rgba(var(--color-accent-rgb), 0.12);
+    padding: 0.9rem 1.1rem;
+    margin: 0 auto;
+    max-width: 1560px;
+    border: 1px solid var(--color-line);
+    border-radius: 24px;
+    backdrop-filter: blur(22px);
+    background: var(--surface-panel-alt);
+    box-shadow: var(--shadow-panel);
   }
 
   .site-header__toolbar {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.7rem;
-  }
-
-  .site-header__menu {
-    display: inline-flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 420px) auto;
+    gap: 0.9rem;
     align-items: center;
-    justify-content: center;
-    min-width: 44px;
-    padding: 0.65rem 0.85rem;
-  }
-
-  .site-header__subtitle,
-  .site-header__search--collapsed {
-    display: none;
-  }
-
-  .site-header__search {
-    grid-column: 1 / -1;
-    order: 3;
-  }
-
-  .site-header__search-trigger {
-    display: inline-flex;
-  }
-}
-
-@media (max-width: 640px) {
-  .site-header__inner {
-    padding: 0.7rem;
-    border-radius: 0 0 16px 16px;
   }
 
   .site-header__brand {
-    gap: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
+  }
+
+  .site-header__menu {
+    display: none;
+    border: 0;
+    border-radius: 999px;
+    min-height: 44px;
+    padding: 0.65rem 0.95rem;
+    background: rgba(var(--color-accent-rgb), 0.12);
+    color: var(--color-ink);
+    font: inherit;
+    cursor: pointer;
   }
 
   .site-header__title {
-    font-size: 1.06rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-width: 0;
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 700;
+    text-decoration: none;
+    letter-spacing: 0.02em;
   }
 
-  .site-header__theme-label {
-    display: none;
+  .site-header__title-mark {
+    width: 0.88rem;
+    height: 0.88rem;
+    border-radius: 999px;
+    background: radial-gradient(
+      circle at 30% 30%,
+      #ffffff,
+      var(--color-accent) 58%,
+      var(--color-accent-deep) 100%
+    );
+    box-shadow: 0 0 0 6px rgba(var(--color-accent-rgb), 0.12);
   }
 
-  .site-header__theme-trigger {
-    padding-inline: 0;
-  }
-}
-
-@media (max-width: 520px) {
-  .site-header__inner {
-    padding: 0.65rem 0.7rem 0.8rem;
+  .site-header__title-text,
+  .site-header__subtitle {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .site-header__toolbar {
+  .site-header__subtitle {
+    margin: 0;
+    padding-left: 0.85rem;
+    border-left: 1px solid var(--color-line);
+    color: var(--color-muted);
+  }
+
+  .site-header__search {
+    min-width: 0;
+  }
+
+  .site-header__controls {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
     gap: 0.55rem;
   }
 
-  .site-header__menu,
   .site-header__search-trigger,
   .site-header__theme-trigger {
-    min-width: 40px;
-    min-height: 40px;
+    min-width: 42px;
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    padding: 0.45rem 0.8rem;
+    border: 1px solid var(--color-line);
+    border-radius: 999px;
+    background: var(--surface-chip);
+    color: var(--color-ink);
+    cursor: pointer;
+    transition:
+      background-color 0.18s ease,
+      border-color 0.18s ease,
+      transform 0.18s ease;
   }
 
-  .site-header__title {
-    font-size: 0.98rem;
+  .site-header__search-trigger {
+    display: none;
+    padding: 0;
+  }
+
+  .site-header__search-trigger:hover,
+  .site-header__theme-trigger:hover,
+  .site-header__mode-button:hover,
+  .site-header__palette-option:hover {
+    background: rgba(var(--color-accent-rgb), 0.1);
+    border-color: rgba(var(--color-accent-rgb), 0.28);
+    transform: translateY(-1px);
+  }
+
+  .site-header__search-icon {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
+
+  .site-header__theme-mark {
+    width: 0.82rem;
+    height: 0.82rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #fff4ba, #f2c145);
+    box-shadow: 0 0 0 4px rgba(var(--color-accent-rgb), 0.14);
+  }
+
+  .site-header__theme-mark--dark {
+    background: linear-gradient(135deg, #d7e4ff, #6d82c9 65%, #293969 100%);
+  }
+
+  .site-header__theme-label {
+    max-width: 6rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-muted);
+    font-size: 0.9rem;
   }
 
   .site-header__theme-popover {
-    width: min(19rem, calc(100vw - 1rem));
-    right: -0.15rem;
-    padding: 0.8rem;
+    position: absolute;
+    top: calc(100% + 0.7rem);
+    right: 0;
+    width: min(21rem, calc(100vw - 2rem));
+    display: grid;
+    gap: 0.9rem;
+    padding: 0.95rem;
+    border: 1px solid var(--color-line);
+    border-radius: 22px;
+    background: var(--surface-panel);
+    box-shadow: var(--shadow-panel);
+  }
+
+  .site-header__theme-section {
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  .site-header__theme-heading,
+  .site-header__theme-current {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--color-soft);
+  }
+
+  .site-header__theme-heading {
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .site-header__theme-heading-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.6rem;
+    align-items: center;
+  }
+
+  .site-header__mode-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+
+  .site-header__mode-button,
+  .site-header__palette-option {
+    border: 1px solid var(--color-line);
+    border-radius: 16px;
+    background: var(--surface-card);
+    color: var(--color-ink);
+    cursor: pointer;
+    transition:
+      background-color 0.18s ease,
+      border-color 0.18s ease,
+      transform 0.18s ease;
+  }
+
+  .site-header__mode-button {
+    min-height: 40px;
+    padding: 0.65rem 0.7rem;
+  }
+
+  .site-header__mode-button--active,
+  .site-header__palette-option--active {
+    border-color: rgba(var(--color-accent-rgb), 0.38);
+    background: rgba(var(--color-accent-rgb), 0.12);
+  }
+
+  .site-header__palette-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
   }
 
   .site-header__palette-option {
-    min-height: 42px;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-height: 44px;
+    padding: 0.65rem 0.75rem;
+    text-align: left;
   }
-}
+
+  .site-header__palette-swatch {
+    width: 1rem;
+    height: 1rem;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: var(--theme-swatch);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.56),
+      0 0 0 1px rgba(9, 18, 40, 0.08);
+  }
+
+  .site-header__palette-name {
+    color: var(--color-muted);
+  }
+
+  @media (max-width: 1180px) {
+    .site-header__toolbar {
+      grid-template-columns: minmax(0, 1fr) minmax(240px, 360px) auto;
+    }
+  }
+
+  @media (max-width: 960px) {
+    .site-header {
+      top: 0;
+      padding: 0;
+    }
+
+    .site-header__inner {
+      padding: 0.75rem 0.8rem 0.85rem;
+      max-width: none;
+      border-radius: 0;
+      border-top: 0;
+      border-right: 0;
+      border-left: 0;
+      box-shadow: 0 10px 24px rgba(var(--color-accent-rgb), 0.12);
+    }
+
+    .site-header__toolbar {
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.7rem;
+    }
+
+    .site-header__menu {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 44px;
+      padding: 0.65rem 0.85rem;
+    }
+
+    .site-header__subtitle,
+    .site-header__search--collapsed {
+      display: none;
+    }
+
+    .site-header__search {
+      grid-column: 1 / -1;
+      order: 3;
+    }
+
+    .site-header__search-trigger {
+      display: inline-flex;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .site-header__inner {
+      padding: 0.7rem;
+      border-radius: 0 0 16px 16px;
+    }
+
+    .site-header__brand {
+      gap: 0.6rem;
+    }
+
+    .site-header__title {
+      font-size: 1.06rem;
+    }
+
+    .site-header__theme-label {
+      display: none;
+    }
+
+    .site-header__theme-trigger {
+      padding-inline: 0;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .site-header__inner {
+      padding: 0.65rem 0.7rem 0.8rem;
+    }
+
+    .site-header__toolbar {
+      gap: 0.55rem;
+    }
+
+    .site-header__menu,
+    .site-header__search-trigger,
+    .site-header__theme-trigger {
+      min-width: 40px;
+      min-height: 40px;
+    }
+
+    .site-header__title {
+      font-size: 0.98rem;
+    }
+
+    .site-header__theme-popover {
+      width: min(19rem, calc(100vw - 1rem));
+      right: -0.15rem;
+      padding: 0.8rem;
+    }
+
+    .site-header__palette-option {
+      min-height: 42px;
+    }
+  }
 </style>
