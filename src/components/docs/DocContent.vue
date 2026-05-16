@@ -151,13 +151,13 @@ function handleBodyClick(event: MouseEvent) {
   .doc-content__body {
     min-width: 0;
     width: 100%;
-    max-width: min(100%, 74ch);
+    max-width: min(100%, 78ch);
     margin-inline: auto;
   }
 
   .doc-content__body-shell {
     min-width: 0;
-    padding: clamp(0.95rem, 1.5vw, 1.35rem) clamp(0.95rem, 1.8vw, 1.45rem);
+    padding: 1rem clamp(0.72rem, 1vw, 0.96rem);
     border: 1px solid var(--color-line);
     border-radius: 22px;
     background: var(--surface-markdown);
@@ -188,7 +188,7 @@ function handleBodyClick(event: MouseEvent) {
     }
 
     .doc-content__body-shell {
-      padding: 0.82rem 0.88rem;
+      padding: 0.78rem 0.72rem;
       border-radius: 16px;
     }
 
