@@ -133,14 +133,17 @@ const sectionDocs = computed(() => {
 .section-view__hero {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.8fr);
-  gap: 1rem;
+  gap: 0.85rem;
   align-items: stretch;
+  padding: 1.2rem 1.3rem;
+  border-radius: 22px;
+  box-shadow: 0 10px 24px rgba(var(--theme-shadow-rgb), 0.08);
 }
 
 .section-view__eyebrow,
 .panel-heading__eyebrow {
   margin: 0 0 0.35rem;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--color-soft);
@@ -154,16 +157,17 @@ const sectionDocs = computed(() => {
 }
 
 .section-view__title {
-  font-size: clamp(2rem, 4vw, 3.4rem);
-  line-height: 1.02;
+  font-size: clamp(1.72rem, 3.2vw, 2.4rem);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
 }
 
 .section-view__summary,
 .empty-state > p {
-  margin: 0.8rem 0 0;
+  margin: 0.58rem 0 0;
   color: var(--color-muted);
-  font-size: 1.02rem;
-  line-height: 1.65;
+  font-size: 0.95rem;
+  line-height: 1.62;
 }
 
 .section-view__hero-copy {
@@ -173,31 +177,31 @@ const sectionDocs = computed(() => {
 
 .section-view__stats {
   display: grid;
-  gap: 0.85rem;
+  gap: 0.65rem;
 }
 
 .section-view__stat-card {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.22rem;
   align-content: center;
-  min-height: 132px;
-  padding: 1.1rem 1.2rem;
+  min-height: 94px;
+  padding: 0.85rem 0.95rem;
   border: 1px solid var(--color-line);
-  border-radius: 24px;
+  border-radius: 16px;
   background: var(--surface-contrast);
   color: var(--text-on-contrast);
 }
 
 .section-view__stat-label {
   color: var(--text-on-contrast-soft);
-  font-size: 0.82rem;
+  font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .section-view__stat-value {
   font-family: var(--font-display);
-  font-size: 1.6rem;
+  font-size: 1.25rem;
 }
 
 .section-view__guide {
@@ -295,7 +299,6 @@ const sectionDocs = computed(() => {
 }
 
 @media (max-width: 960px) {
-  .section-view__hero,
   .section-view__guide,
   .section-view__list,
   .empty-state {
@@ -303,13 +306,18 @@ const sectionDocs = computed(() => {
     border-radius: 24px;
   }
 
+  .section-view__hero {
+    padding: 1rem 1.05rem;
+    border-radius: 18px;
+  }
+
   .section-view__title {
-    font-size: clamp(1.8rem, 9vw, 2.8rem);
+    font-size: clamp(1.55rem, 6vw, 2rem);
   }
 
   .section-view__stat-card {
-    min-height: 112px;
-    padding: 1rem;
+    min-height: 86px;
+    padding: 0.82rem 0.88rem;
   }
 
   .section-view__cards {
@@ -326,12 +334,21 @@ const sectionDocs = computed(() => {
     gap: 1rem;
   }
 
-  .section-view__hero,
   .section-view__guide,
   .section-view__list,
   .empty-state {
     padding: 1rem;
     border-radius: 22px;
+  }
+
+  .section-view__hero {
+    gap: 0.72rem;
+    padding: 0.92rem;
+    border-radius: 16px;
+  }
+
+  .section-view__summary {
+    font-size: 0.92rem;
   }
 
   .section-view__list-head {
