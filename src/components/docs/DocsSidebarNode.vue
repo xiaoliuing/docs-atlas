@@ -91,6 +91,25 @@ function getSectionToggleLabel(title: string, expanded: boolean) {
       class="docs-sidebar-node__body"
     >
       <template v-if="node.isSource">
+        <div
+          v-if="node.rootDocs.length > 0"
+          class="docs-sidebar-node__docs docs-sidebar-node__docs--root"
+        >
+          <RouterLink
+            v-for="doc in node.rootDocs"
+            :key="doc.slug"
+            :class="[
+              'docs-sidebar-node__doc-link',
+              'docs-sidebar-node__doc-link--root',
+              { 'docs-sidebar-node__doc-link--active': doc.slug === currentDocSlug },
+            ]"
+            :to="doc.routePath"
+            @click="emit('close')"
+          >
+            <span class="docs-sidebar-node__doc-title">{{ doc.title }}</span>
+          </RouterLink>
+        </div>
+
         <section
           v-for="section in sectionItems"
           :key="section.id"
@@ -147,24 +166,6 @@ function getSectionToggleLabel(title: string, expanded: boolean) {
             </RouterLink>
           </div>
         </section>
-
-        <div
-          v-if="node.rootDocs.length > 0"
-          class="docs-sidebar-node__docs docs-sidebar-node__docs--root"
-        >
-          <RouterLink
-            v-for="doc in node.rootDocs"
-            :key="doc.slug"
-            :class="[
-              'docs-sidebar-node__doc-link',
-              { 'docs-sidebar-node__doc-link--active': doc.slug === currentDocSlug },
-            ]"
-            :to="doc.routePath"
-            @click="emit('close')"
-          >
-            <span class="docs-sidebar-node__doc-title">{{ doc.title }}</span>
-          </RouterLink>
-        </div>
       </template>
 
       <template v-else>
@@ -323,8 +324,13 @@ function getSectionToggleLabel(title: string, expanded: boolean) {
 }
 
 .docs-sidebar-node__docs--root {
-  margin-left: 0.1rem;
-  padding-top: 0.12rem;
+  gap: 0.24rem;
+  margin-left: 0;
+  margin-bottom: 0.2rem;
+  padding-left: 0;
+  padding-bottom: 0.4rem;
+  border-left: 0;
+  border-bottom: 1px solid rgba(var(--color-accent-rgb), 0.12);
 }
 
 .docs-sidebar-node__doc-link {
@@ -338,6 +344,10 @@ function getSectionToggleLabel(title: string, expanded: boolean) {
   background: transparent;
   font-size: 0.85rem;
   line-height: 1.35;
+}
+
+.docs-sidebar-node__doc-link--root {
+  padding-left: 0.2rem;
 }
 
 .docs-sidebar-node__doc-link:hover,
