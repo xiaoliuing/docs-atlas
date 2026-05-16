@@ -8,7 +8,7 @@ type PreviewImage = {
 }
 
 const MAX_ZOOM = 4
-const MIN_ZOOM = 1
+const MIN_ZOOM = 0.25
 const ZOOM_STEP = 0.25
 
 const props = defineProps<{
@@ -21,73 +21,74 @@ const emit = defineEmits<{
   'update:activeIndex': [index: number]
 }>()
 
-const canvasRef = useTemplateRef<HTMLDivElement>('canvas')
 const imageRef = useTemplateRef<HTMLImageElement>('image')
+const wrapperRef = useTemplateRef<HTMLDivElement>('wrapper')
+const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined'
 
 const zoom = shallowRef(1)
-const panX = shallowRef(0)
-const panY = shallowRef(0)
+const rotate = shallowRef(0)
+const translateX = shallowRef(0)
+const translateY = shallowRef(0)
 const isDragging = shallowRef(false)
+const wrapperMouseDownTarget = shallowRef<EventTarget | null>(null)
 
 let pointerId: number | null = null
-let dragStartX = 0
-let dragStartY = 0
-let dragOriginX = 0
-let dragOriginY = 0
+let startX = 0
+let startY = 0
+let originX = 0
+let originY = 0
 
-const hasImages = computed(() => props.images.length > 0)
 const currentImage = computed(() => props.images[props.activeIndex] ?? null)
-const caption = computed(() => currentImage.value?.title || currentImage.value?.alt || '')
-const canGoPrev = computed(() => props.activeIndex > 0)
-const canGoNext = computed(() => props.activeIndex < props.images.length - 1)
+const currentSrc = computed(() => currentImage.value?.src ?? '')
+const currentAlt = computed(() => currentImage.value?.alt || currentImage.value?.title || '图片预览')
+const currentTitle = computed(() => currentImage.value?.title || currentImage.value?.alt || '')
 const zoomPercent = computed(() => `${Math.round(zoom.value * 100)}%`)
-const imageCursor = computed(() => {
-  if (zoom.value <= 1) {
-    return 'zoom-in'
-  }
-
-  return isDragging.value ? 'grabbing' : 'grab'
-})
-const imageTransform = computed(
-  () => `translate3d(${panX.value}px, ${panY.value}px, 0) scale(${zoom.value})`,
-)
+const imageStyle = computed(() => ({
+  cursor: isDragging.value ? 'grabbing' : zoom.value > 1 ? 'grab' : 'zoom-in',
+  transform: `translate(${translateX.value}px, ${translateY.value}px) scale(${zoom.value}) rotate(${rotate.value}deg)`,
+  transition: isDragging.value ? 'none' : 'transform 0.2s cubic-bezier(0.2, 0, 0.2, 1)',
+}))
 
 watch(
-  () => [props.activeIndex, currentImage.value?.src] as const,
+  () => currentSrc.value,
   () => {
-    resetViewport()
+    reset()
   },
 )
 
-watch(hasImages, (opened) => {
-  document.body.style.overflow = opened ? 'hidden' : ''
-})
+watch(
+  () => Boolean(currentImage.value),
+  (visible) => {
+    if (!isBrowser) {
+      return
+    }
 
-watch(zoom, () => {
-  if (zoom.value <= 1) {
-    panX.value = 0
-    panY.value = 0
+    document.body.style.overflow = visible ? 'hidden' : ''
+  },
+  { immediate: true },
+)
+
+onMounted(() => {
+  if (!isBrowser) {
     return
   }
 
-  void nextTick(() => {
-    clampPanWithinBounds()
-  })
-})
-
-onMounted(() => {
   window.addEventListener('keydown', handleWindowKeydown)
   window.addEventListener('resize', handleWindowResize)
 })
 
 onBeforeUnmount(() => {
+  if (!isBrowser) {
+    return
+  }
+
   document.body.style.overflow = ''
   window.removeEventListener('keydown', handleWindowKeydown)
   window.removeEventListener('resize', handleWindowResize)
 })
 
-function closePreview() {
-  endDrag()
+function handleClose() {
+  stopDrag()
   emit('close')
 }
 
@@ -99,58 +100,47 @@ function updateActiveIndex(nextIndex: number) {
   emit('update:activeIndex', nextIndex)
 }
 
-function goPrev() {
-  updateActiveIndex(props.activeIndex - 1)
-}
-
-function goNext() {
-  updateActiveIndex(props.activeIndex + 1)
-}
-
-function updateZoom(nextZoom: number) {
-  zoom.value = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Number(nextZoom.toFixed(2))))
-}
-
 function zoomIn() {
-  updateZoom(zoom.value + ZOOM_STEP)
+  zoom.value = Math.min(MAX_ZOOM, Number((zoom.value + ZOOM_STEP).toFixed(2)))
 }
 
 function zoomOut() {
-  updateZoom(zoom.value - ZOOM_STEP)
+  zoom.value = Math.max(MIN_ZOOM, Number((zoom.value - ZOOM_STEP).toFixed(2)))
 }
 
-function resetViewport() {
+function rotateLeft() {
+  rotate.value -= 90
+}
+
+function rotateRight() {
+  rotate.value += 90
+}
+
+function reset() {
   zoom.value = 1
-  panX.value = 0
-  panY.value = 0
-  endDrag()
+  rotate.value = 0
+  translateX.value = 0
+  translateY.value = 0
+  stopDrag()
 }
 
-function toggleZoom() {
-  if (zoom.value === 1) {
-    updateZoom(2)
+function prevImage() {
+  if (props.images.length <= 1) {
     return
   }
 
-  resetViewport()
+  updateActiveIndex((props.activeIndex - 1 + props.images.length) % props.images.length)
 }
 
-function centerImage() {
-  panX.value = 0
-  panY.value = 0
-}
-
-function handleBackdropClick(event: MouseEvent) {
-  if (event.target === event.currentTarget) {
-    closePreview()
+function nextImage() {
+  if (props.images.length <= 1) {
+    return
   }
+
+  updateActiveIndex((props.activeIndex + 1) % props.images.length)
 }
 
 function handleWheel(event: WheelEvent) {
-  if (!hasImages.value) {
-    return
-  }
-
   if (event.deltaY < 0) {
     zoomIn()
     return
@@ -159,29 +149,33 @@ function handleWheel(event: WheelEvent) {
   zoomOut()
 }
 
-function handleImageLoad() {
-  void nextTick(() => {
-    clampPanWithinBounds()
-  })
+function handleWrapperMouseDown(event: MouseEvent) {
+  wrapperMouseDownTarget.value = event.target
+}
+
+function handleWrapperClick(event: MouseEvent) {
+  if (event.target === event.currentTarget && wrapperMouseDownTarget.value === event.currentTarget) {
+    handleClose()
+  }
 }
 
 function handlePointerDown(event: PointerEvent) {
-  if (zoom.value <= 1 || event.button !== 0) {
+  if (event.button !== 0) {
     return
   }
 
-  const canvas = canvasRef.value
-  if (!canvas) {
+  const wrapper = wrapperRef.value
+  if (!wrapper) {
     return
   }
 
   pointerId = event.pointerId
-  dragStartX = event.clientX
-  dragStartY = event.clientY
-  dragOriginX = panX.value
-  dragOriginY = panY.value
   isDragging.value = true
-  canvas.setPointerCapture(event.pointerId)
+  startX = event.clientX
+  startY = event.clientY
+  originX = translateX.value
+  originY = translateY.value
+  wrapper.setPointerCapture(event.pointerId)
 }
 
 function handlePointerMove(event: PointerEvent) {
@@ -189,9 +183,8 @@ function handlePointerMove(event: PointerEvent) {
     return
   }
 
-  const nextX = dragOriginX + event.clientX - dragStartX
-  const nextY = dragOriginY + event.clientY - dragStartY
-  clampPanWithinBounds(nextX, nextY)
+  translateX.value = originX + event.clientX - startX
+  translateY.value = originY + event.clientY - startY
 }
 
 function handlePointerUp(event: PointerEvent) {
@@ -199,46 +192,46 @@ function handlePointerUp(event: PointerEvent) {
     return
   }
 
-  const canvas = canvasRef.value
-  if (canvas?.hasPointerCapture(event.pointerId)) {
-    canvas.releasePointerCapture(event.pointerId)
+  const wrapper = wrapperRef.value
+  if (wrapper?.hasPointerCapture(event.pointerId)) {
+    wrapper.releasePointerCapture(event.pointerId)
   }
 
-  endDrag()
+  stopDrag()
 }
 
-function endDrag() {
+function stopDrag() {
   isDragging.value = false
   pointerId = null
 }
 
 function handleWindowResize() {
-  if (!hasImages.value) {
-    return
-  }
-
-  clampPanWithinBounds()
+  void nextTick(() => {
+    if (!imageRef.value) {
+      return
+    }
+  })
 }
 
 function handleWindowKeydown(event: KeyboardEvent) {
-  if (!hasImages.value) {
+  if (!props.images.length) {
     return
   }
 
   if (event.key === 'Escape') {
-    closePreview()
+    handleClose()
     return
   }
 
   if (event.key === 'ArrowLeft') {
     event.preventDefault()
-    goPrev()
+    prevImage()
     return
   }
 
   if (event.key === 'ArrowRight') {
     event.preventDefault()
-    goNext()
+    nextImage()
     return
   }
 
@@ -256,320 +249,227 @@ function handleWindowKeydown(event: KeyboardEvent) {
 
   if (event.key === '0') {
     event.preventDefault()
-    resetViewport()
+    reset()
   }
-}
-
-function clampPanWithinBounds(nextX = panX.value, nextY = panY.value) {
-  const canvas = canvasRef.value
-  const image = imageRef.value
-
-  if (!canvas || !image || zoom.value <= 1) {
-    panX.value = 0
-    panY.value = 0
-    return
-  }
-
-  const maxOffsetX = Math.max((image.clientWidth * zoom.value - canvas.clientWidth) / 2, 0)
-  const maxOffsetY = Math.max((image.clientHeight * zoom.value - canvas.clientHeight) / 2, 0)
-
-  panX.value = clamp(nextX, -maxOffsetX, maxOffsetX)
-  panY.value = clamp(nextY, -maxOffsetY, maxOffsetY)
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value))
 }
 </script>
 
 <template>
   <Teleport to="body">
-    <Transition name="image-preview">
+    <Transition name="fade">
       <div
         v-if="currentImage"
-        class="image-preview"
+        class="image-preview-mask"
         role="dialog"
         aria-modal="true"
-        :aria-label="caption || '图片预览'"
-        @click="handleBackdropClick"
+        :aria-label="currentAlt"
       >
-        <button
-          type="button"
-          class="image-preview__close"
-          aria-label="关闭图片预览"
-          @click="closePreview"
-        >
-          <svg
-            aria-hidden="true"
-            class="image-preview__icon"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <path
-              d="M6.75 6.75L17.25 17.25"
-              stroke="currentColor"
-              stroke-linecap="round"
-              stroke-width="1.8"
-            />
-            <path
-              d="M17.25 6.75L6.75 17.25"
-              stroke="currentColor"
-              stroke-linecap="round"
-              stroke-width="1.8"
-            />
-          </svg>
-        </button>
-
-        <div class="image-preview__stage">
+        <div class="preview-toolbar">
           <button
-            v-if="images.length > 1"
             type="button"
-            class="image-preview__nav image-preview__nav--prev"
-            :disabled="!canGoPrev"
-            aria-label="查看上一张图片"
-            @click="goPrev"
+            class="toolbar-btn"
+            title="放大"
+            @click="zoomIn"
           >
             <svg
-              aria-hidden="true"
-              class="image-preview__icon"
-              fill="none"
               viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              stroke="currentColor"
+              stroke-width="2"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
             >
-              <path
-                d="M14.5 6.5L9 12L14.5 17.5"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="1.9"
-              />
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              <line x1="11" y1="8" x2="11" y2="14" />
+              <line x1="8" y1="11" x2="14" y2="11" />
             </svg>
           </button>
 
-          <figure class="image-preview__figure">
-            <div
-              ref="canvas"
-              :class="['image-preview__canvas', { 'image-preview__canvas--dragging': isDragging }]"
-              @wheel.prevent="handleWheel"
-              @pointerdown="handlePointerDown"
-              @pointermove="handlePointerMove"
-              @pointerup="handlePointerUp"
-              @pointercancel="handlePointerUp"
-              @lostpointercapture="endDrag"
-            >
-              <img
-                ref="image"
-                :alt="currentImage.alt"
-                :class="['image-preview__image', { 'image-preview__image--dragging': isDragging }]"
-                :src="currentImage.src"
-                :style="{ cursor: imageCursor, transform: imageTransform }"
-                @dblclick="toggleZoom"
-                @load="handleImageLoad"
-              />
-            </div>
-
-            <figcaption
-              v-if="caption"
-              class="image-preview__caption"
-            >
-              {{ caption }}
-            </figcaption>
-          </figure>
-
           <button
-            v-if="images.length > 1"
             type="button"
-            class="image-preview__nav image-preview__nav--next"
-            :disabled="!canGoNext"
-            aria-label="查看下一张图片"
-            @click="goNext"
+            class="toolbar-btn"
+            title="缩小"
+            @click="zoomOut"
           >
             <svg
-              aria-hidden="true"
-              class="image-preview__icon"
-              fill="none"
               viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              stroke="currentColor"
+              stroke-width="2"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
             >
-              <path
-                d="M9.5 6.5L15 12L9.5 17.5"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="1.9"
-              />
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              <line x1="8" y1="11" x2="14" y2="11" />
+            </svg>
+          </button>
+
+          <div class="zoom-indicator">
+            {{ zoomPercent }}
+          </div>
+
+          <div class="divider" />
+
+          <button
+            type="button"
+            class="toolbar-btn"
+            title="向左旋转"
+            @click="rotateLeft"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              stroke="currentColor"
+              stroke-width="2"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="3 2 3 7 8 7" />
+              <path d="M9 11a5 5 0 1 0 3.9-8.4L3 7" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            class="toolbar-btn"
+            title="向右旋转"
+            @click="rotateRight"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              stroke="currentColor"
+              stroke-width="2"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="21 2 21 7 16 7" />
+              <path d="M15 11a5 5 0 1 1-3.9-8.4L21 7" />
+            </svg>
+          </button>
+
+          <div class="divider" />
+
+          <button
+            type="button"
+            class="toolbar-btn"
+            title="重置视图"
+            @click="reset"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              stroke="currentColor"
+              stroke-width="2"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
             </svg>
           </button>
         </div>
 
-        <div class="image-preview__dock">
-          <button
-            type="button"
-            class="image-preview__dock-button"
-            aria-label="缩小图片"
-            @click="zoomOut"
+        <button
+          type="button"
+          class="close-btn"
+          title="关闭"
+          @click="handleClose"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round"
           >
-            <svg
-              aria-hidden="true"
-              class="image-preview__icon"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                cx="10.5"
-                cy="10.5"
-                r="5.5"
-                stroke="currentColor"
-                stroke-width="1.7"
-              />
-              <path
-                d="M7.8 10.5H13.2"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-width="1.7"
-              />
-              <path
-                d="M15.5 15.5L19 19"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-width="1.7"
-              />
-            </svg>
-          </button>
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
 
-          <button
-            type="button"
-            class="image-preview__dock-button"
-            aria-label="放大图片"
-            @click="zoomIn"
+        <button
+          v-if="props.images.length > 1"
+          type="button"
+          class="nav-btn prev"
+          @click="prevImage"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round"
           >
-            <svg
-              aria-hidden="true"
-              class="image-preview__icon"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                cx="10.5"
-                cy="10.5"
-                r="5.5"
-                stroke="currentColor"
-                stroke-width="1.7"
-              />
-              <path
-                d="M10.5 7.8V13.2"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-width="1.7"
-              />
-              <path
-                d="M7.8 10.5H13.2"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-width="1.7"
-              />
-              <path
-                d="M15.5 15.5L19 19"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-width="1.7"
-              />
-            </svg>
-          </button>
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
 
-          <button
-            type="button"
-            class="image-preview__dock-value"
-            aria-label="重置缩放到 100%"
-            @click="resetViewport"
+        <button
+          v-if="props.images.length > 1"
+          type="button"
+          class="nav-btn next"
+          @click="nextImage"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round"
           >
-            {{ zoomPercent }}
-          </button>
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
 
-          <button
-            type="button"
-            class="image-preview__dock-button"
-            aria-label="图片回到中心位置"
-            @click="centerImage"
-          >
-            <svg
-              aria-hidden="true"
-              class="image-preview__icon"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M12 4V8"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-width="1.7"
-              />
-              <path
-                d="M12 16V20"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-width="1.7"
-              />
-              <path
-                d="M4 12H8"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-width="1.7"
-              />
-              <path
-                d="M16 12H20"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-width="1.7"
-              />
-              <circle
-                cx="12"
-                cy="12"
-                r="2.8"
-                stroke="currentColor"
-                stroke-width="1.7"
-              />
-            </svg>
-          </button>
+        <div
+          ref="wrapper"
+          class="image-wrapper"
+          @click="handleWrapperClick"
+          @mousedown="handleWrapperMouseDown"
+          @pointermove="handlePointerMove"
+          @pointerup="handlePointerUp"
+          @pointercancel="handlePointerUp"
+          @lostpointercapture="stopDrag"
+        >
+          <img
+            ref="image"
+            :src="currentSrc"
+            :alt="currentAlt"
+            :style="imageStyle"
+            class="preview-image"
+            draggable="false"
+            @mousedown.prevent
+            @pointerdown="handlePointerDown"
+            @wheel.prevent="handleWheel"
+          />
+        </div>
 
-          <button
-            type="button"
-            class="image-preview__dock-button"
-            aria-label="重置视图"
-            @click="resetViewport"
-          >
-            <svg
-              aria-hidden="true"
-              class="image-preview__icon"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M6.5 9.5V5.5H10.5"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="1.7"
-              />
-              <path
-                d="M17.5 14.5V18.5H13.5"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="1.7"
-              />
-              <path
-                d="M17.1 6.9C15.8 5.7 14 5 12 5C8.13 5 5 8.13 5 12"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-width="1.7"
-              />
-              <path
-                d="M6.9 17.1C8.2 18.3 10 19 12 19C15.87 19 19 15.87 19 12"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-width="1.7"
-              />
-            </svg>
-          </button>
+        <div
+          v-if="currentTitle"
+          class="preview-caption"
+        >
+          {{ currentTitle }}
         </div>
       </div>
     </Transition>
@@ -577,272 +477,199 @@ function clamp(value: number, min: number, max: number) {
 </template>
 
 <style scoped>
-.image-preview {
+.image-preview-mask {
   position: fixed;
   inset: 0;
-  z-index: 60;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 1rem;
-  padding: clamp(1rem, 2.8vw, 2rem);
-  background:
-    radial-gradient(circle at top, rgba(var(--color-accent-rgb), 0.18), transparent 42%),
-    var(--preview-overlay);
-  backdrop-filter: blur(18px) saturate(1.15);
-}
-
-.image-preview__stage {
-  position: relative;
-  display: grid;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
   align-items: center;
-  justify-items: center;
-  min-height: 0;
+  user-select: none;
+  background:
+    radial-gradient(circle at top, rgba(var(--color-accent-rgb), 0.16), transparent 38%),
+    var(--preview-overlay);
+  backdrop-filter: blur(16px) saturate(1.1);
 }
 
-.image-preview__close,
-.image-preview__nav,
-.image-preview__dock-button,
-.image-preview__dock-value {
-  border: 1px solid rgba(var(--color-accent-rgb), 0.12);
+.preview-toolbar {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border: 1px solid rgba(var(--color-accent-rgb), 0.16);
+  border-radius: 999px;
+  background: var(--preview-surface-strong);
+  color: var(--preview-button-fg);
+  box-shadow: var(--preview-frame-shadow);
+  z-index: 10000;
+}
+
+.toolbar-btn,
+.close-btn,
+.nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.toolbar-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+}
+
+.toolbar-btn:hover,
+.close-btn:hover,
+.nav-btn:hover {
+  color: var(--color-accent-deep);
+  background: rgba(var(--color-accent-rgb), 0.12);
+}
+
+.zoom-indicator {
+  min-width: 48px;
+  margin: 0 8px;
+  color: var(--color-ink);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 8px;
+  background-color: rgba(var(--color-accent-rgb), 0.14);
+}
+
+.close-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 10000;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
   background: var(--preview-button-bg);
   color: var(--preview-button-fg);
   box-shadow: var(--preview-frame-shadow);
 }
 
-.image-preview__close,
-.image-preview__nav,
-.image-preview__dock-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition:
-    transform 0.18s ease,
-    background-color 0.18s ease,
-    border-color 0.18s ease,
-    opacity 0.18s ease,
-    color 0.18s ease;
-}
-
-.image-preview__close:hover,
-.image-preview__nav:hover:not(:disabled),
-.image-preview__dock-button:hover,
-.image-preview__dock-value:hover {
-  transform: translateY(-1px);
-  border-color: rgba(var(--color-accent-rgb), 0.28);
-  background: rgba(var(--color-accent-rgb), 0.12);
-  color: var(--color-accent-deep);
-}
-
-.image-preview__close {
-  position: absolute;
-  top: max(1rem, env(safe-area-inset-top));
-  right: max(1rem, env(safe-area-inset-right));
-  z-index: 2;
-  width: 3.55rem;
-  height: 3.55rem;
-  border-radius: 999px;
-}
-
-.image-preview__nav {
+.nav-btn {
   position: absolute;
   top: 50%;
-  z-index: 2;
-  width: 3.6rem;
-  height: 3.6rem;
-  border-radius: 999px;
+  z-index: 10000;
+  width: 52px;
+  height: 52px;
+  border: 1px solid rgba(var(--color-accent-rgb), 0.14);
+  border-radius: 50%;
+  background: var(--preview-button-bg);
+  color: var(--preview-button-fg);
+  box-shadow: 0 10px 26px rgba(var(--theme-shadow-rgb), 0.18);
   transform: translateY(-50%);
 }
 
-.image-preview__nav:hover:not(:disabled) {
-  transform: translateY(calc(-50% - 1px));
+.nav-btn.prev {
+  left: 20px;
 }
 
-.image-preview__nav--prev {
-  left: max(0.35rem, env(safe-area-inset-left));
+.nav-btn.next {
+  right: 20px;
 }
 
-.image-preview__nav--next {
-  right: max(0.35rem, env(safe-area-inset-right));
-}
-
-.image-preview__nav:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.image-preview__figure {
-  width: 100%;
-  min-width: 0;
-  min-height: 100%;
-  display: grid;
-  gap: 1rem;
-  justify-items: center;
-}
-
-.image-preview__canvas {
+.image-wrapper {
   width: 100%;
   height: 100%;
-  min-height: calc(100vh - 10rem);
   overflow: hidden;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   background: transparent;
-  box-shadow: none;
   touch-action: none;
 }
 
-.image-preview__canvas--dragging {
-  user-select: none;
-}
-
-.image-preview__image {
-  display: block;
-  max-width: calc(100vw - 6.5rem);
-  max-height: calc(100vh - 10.5rem);
-  width: auto;
-  height: auto;
-  border-radius: 0.9rem;
+.preview-image {
+  max-width: calc(100vw - 1.5rem);
+  max-height: calc(100vh - 5.75rem);
+  object-fit: contain;
   background: transparent;
-  box-shadow: 0 20px 48px rgba(var(--theme-shadow-rgb), 0.18);
-  transform-origin: center center;
-  transition: transform 0.16s ease;
-  will-change: transform;
 }
 
-.image-preview__image--dragging {
-  transition: none;
-}
-
-.image-preview__caption {
-  max-width: min(70ch, calc(100vw - 4rem));
-  padding: 0.68rem 1rem;
+.preview-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 88px;
+  transform: translateX(-50%);
+  max-width: min(72ch, calc(100vw - 3rem));
+  padding: 0.65rem 0.95rem;
   border: 1px solid rgba(var(--color-accent-rgb), 0.14);
   border-radius: 999px;
   background: var(--preview-caption-bg);
   color: var(--preview-button-fg);
+  box-shadow: 0 12px 28px rgba(var(--theme-shadow-rgb), 0.14);
   text-align: center;
-  box-shadow: 0 14px 32px rgba(var(--theme-shadow-rgb), 0.14);
+  z-index: 10000;
 }
 
-.image-preview__dock {
-  justify-self: center;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.38rem;
-  border: 1px solid rgba(var(--color-accent-rgb), 0.12);
-  border-radius: 999px;
-  background: var(--preview-surface-strong);
-  box-shadow: var(--preview-frame-shadow);
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.28s ease;
 }
 
-.image-preview__dock-button,
-.image-preview__dock-value {
-  min-width: 3rem;
-  height: 3rem;
-  border-radius: 999px;
-}
-
-.image-preview__dock-button {
-  padding: 0;
-}
-
-.image-preview__dock-value {
-  min-width: 5.3rem;
-  padding: 0 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    transform 0.18s ease,
-    background-color 0.18s ease,
-    border-color 0.18s ease,
-    color 0.18s ease;
-}
-
-.image-preview__icon {
-  width: 1.35rem;
-  height: 1.35rem;
-}
-
-.image-preview-enter-active,
-.image-preview-leave-active {
-  transition: opacity 0.24s ease;
-}
-
-.image-preview-enter-active .image-preview__figure,
-.image-preview-leave-active .image-preview__figure,
-.image-preview-enter-active .image-preview__dock,
-.image-preview-leave-active .image-preview__dock {
-  transition: transform 0.24s ease, opacity 0.24s ease;
-}
-
-.image-preview-enter-from,
-.image-preview-leave-to {
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
 }
 
-.image-preview-enter-from .image-preview__figure,
-.image-preview-leave-to .image-preview__figure {
-  transform: translateY(14px) scale(0.985);
-  opacity: 0;
-}
-
-.image-preview-enter-from .image-preview__dock,
-.image-preview-leave-to .image-preview__dock {
-  transform: translateY(10px);
-  opacity: 0;
-}
-
-@media (max-width: 900px) {
-  .image-preview {
-    padding: 0.85rem;
-  }
-
-  .image-preview__close {
-    width: 3rem;
-    height: 3rem;
-  }
-
-  .image-preview__nav {
-    width: 3.2rem;
-    height: 3.2rem;
-  }
-
-  .image-preview__nav--prev {
-    left: 0;
-  }
-
-  .image-preview__nav--next {
-    right: 0;
-  }
-
-  .image-preview__canvas {
-    min-height: calc(100vh - 11.25rem);
-  }
-
-  .image-preview__image {
-    max-width: calc(100vw - 2rem);
-    max-height: calc(100vh - 12.5rem);
-    border-radius: 0.75rem;
-  }
-
-  .image-preview__dock {
-    gap: 0.22rem;
-    max-width: calc(100vw - 1.7rem);
+@media (max-width: 720px) {
+  .preview-toolbar {
+    max-width: calc(100vw - 1.2rem);
+    padding-inline: 10px;
     overflow-x: auto;
   }
 
-  .image-preview__dock-button,
-  .image-preview__dock-value {
-    height: 2.8rem;
+  .close-btn {
+    top: 14px;
+    right: 14px;
+    width: 40px;
+    height: 40px;
   }
 
-  .image-preview__dock-value {
-    min-width: 4.65rem;
+  .nav-btn {
+    width: 46px;
+    height: 46px;
+  }
+
+  .nav-btn.prev {
+    left: 10px;
+  }
+
+  .nav-btn.next {
+    right: 10px;
+  }
+
+  .preview-image {
+    max-width: calc(100vw - 0.75rem);
+    max-height: calc(100vh - 8.5rem);
+  }
+
+  .preview-caption {
+    bottom: 84px;
+    max-width: calc(100vw - 1.5rem);
+    border-radius: 18px;
   }
 }
 </style>
