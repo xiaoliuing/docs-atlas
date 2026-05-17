@@ -126,7 +126,6 @@ function navigateToResult(routePath?: string) {
 <style scoped>
 .app-shell {
   min-height: 100vh;
-  padding: 0 0 1.4rem;
 }
 
 .app-shell__frame {
