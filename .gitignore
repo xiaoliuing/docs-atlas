@@ -7,3 +7,7 @@ dist
 config.yaml
 docs-atlas.config.yaml
 docs-cms.config.yaml
+PRD.md
+requirements.md
+GITHUB-PAGES-DEPLOY.md
+technical-design.md
