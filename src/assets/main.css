@@ -361,7 +361,6 @@
 
 html {
   scroll-behavior: smooth;
-  overflow-anchor: none;
 }
 
 body {
@@ -369,7 +368,6 @@ body {
   color: var(--color-ink);
   font-family: var(--font-body);
   overflow-x: clip;
-  overflow-anchor: none;
   background:
     linear-gradient(rgba(var(--color-accent-rgb), 0.06) 1px, transparent 1px),
     linear-gradient(
