@@ -556,9 +556,9 @@ function handleWindowKeydown(event: KeyboardEvent) {
           @pointerup="handlePointerUp"
           @pointercancel="handlePointerUp"
           @lostpointercapture="stopDrag"
-          @touchstart.passive="handleTouchStart"
-          @touchmove.passive="handleTouchMove"
-          @touchend.passive="handleTouchEnd"
+          @touchstart="handleTouchStart"
+          @touchmove="handleTouchMove"
+          @touchend="handleTouchEnd"
         >
           <img
             ref="image"
