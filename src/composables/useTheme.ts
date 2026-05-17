@@ -12,7 +12,8 @@ export type ThemeAccentId =
   | "sage-olive"
   | "terracotta"
   | "plum-orchid"
-  | "walnut-brown";
+  | "walnut-brown"
+  | "pure-white";
 
 export type ThemeAccent = {
   id: ThemeAccentId;
@@ -28,8 +29,9 @@ const resolvedTheme = shallowRef<ResolvedTheme>("light");
 const themeAccent = shallowRef<ThemeAccentId>("atlas-blue");
 
 const themeAccents: ThemeAccent[] = [
+  { id: "pure-white", label: "纯净白", color: "#ffffff" },
   { id: "slate-indigo", label: "靛云蓝", color: "#5B6FD6" },
-  { id: "sage-olive", label: "鼠尾草", color: "#6F9478" },
+  // { id: "sage-olive", label: "鼠尾草", color: "#6F9478" },
   { id: "terracotta", label: "赤陶橘", color: "#C97059" },
   { id: "plum-orchid", label: "晚梅紫", color: "#9A68B2" },
   { id: "walnut-brown", label: "榛木棕", color: "#9B7653" },
