@@ -158,7 +158,7 @@
     position: sticky;
     top: 98px;
     height: calc(100vh - 98px);
-    padding: 0.35rem 0 1.1rem 0;
+    padding: 0.55rem 0 1.1rem 0;
   }
 
   .docs-sidebar__inner {
