@@ -38,6 +38,21 @@ let startY = 0
 let originX = 0
 let originY = 0
 
+// 双击缩放
+let lastTapTime = 0
+let lastTapX = 0
+let lastTapY = 0
+
+// 双指缩放
+let activeTouchCount = 0
+let pinchStartDistance = 0
+let pinchStartZoom = 1
+let pinchCenterX = 0
+let pinchCenterY = 0
+let isPinching = false
+let pinchOriginX = 0
+let pinchOriginY = 0
+
 const currentImage = computed(() => props.images[props.activeIndex] ?? null)
 const currentSrc = computed(() => currentImage.value?.src ?? '')
 const currentAlt = computed(() => currentImage.value?.alt || currentImage.value?.title || '图片预览')
@@ -147,6 +162,96 @@ function handleWheel(event: WheelEvent) {
   }
 
   zoomOut()
+}
+
+function getTouchDistance(touches: TouchList) {
+  const dx = touches[0].clientX - touches[1].clientX
+  const dy = touches[0].clientY - touches[1].clientY
+  return Math.hypot(dx, dy)
+}
+
+function getTouchCenter(touches: TouchList) {
+  return {
+    x: (touches[0].clientX + touches[1].clientX) / 2,
+    y: (touches[0].clientY + touches[1].clientY) / 2,
+  }
+}
+
+function handleTouchStart(event: TouchEvent) {
+  activeTouchCount = event.touches.length
+
+  if (event.touches.length === 2) {
+    isPinching = true
+    isDragging.value = false
+    pinchStartDistance = getTouchDistance(event.touches)
+    pinchStartZoom = zoom.value
+    const center = getTouchCenter(event.touches)
+    pinchCenterX = center.x
+    pinchCenterY = center.y
+    pinchOriginX = translateX.value
+    pinchOriginY = translateY.value
+    event.preventDefault()
+  } else if (event.touches.length === 1) {
+    const now = Date.now()
+    const touch = event.touches[0]
+    const dx = Math.abs(touch.clientX - lastTapX)
+    const dy = Math.abs(touch.clientY - lastTapY)
+
+    // 双击：300ms 内、同位置
+    if (
+      now - lastTapTime < 300
+      && dx < 30
+      && dy < 30
+    ) {
+      // 双击缩放：1x ↔ 2x
+      if (zoom.value > 1) {
+        zoom.value = 1
+        translateX.value = 0
+        translateY.value = 0
+      }
+      else {
+        zoom.value = 2
+        // 以点击位置为中心缩放
+        const rect = wrapperRef.value?.getBoundingClientRect()
+        if (rect) {
+          const centerX = rect.width / 2
+          const centerY = rect.height / 2
+          translateX.value = (centerX - touch.clientX) * (2 - 1)
+          translateY.value = (centerY - touch.clientY) * (2 - 1)
+        }
+      }
+      lastTapTime = 0
+    }
+    else {
+      lastTapTime = now
+      lastTapX = touch.clientX
+      lastTapY = touch.clientY
+    }
+  }
+}
+
+function handleTouchMove(event: TouchEvent) {
+  if (event.touches.length === 2 && isPinching) {
+    const distance = getTouchDistance(event.touches)
+    const scale = distance / pinchStartDistance
+    const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, pinchStartZoom * scale))
+    zoom.value = Number(newZoom.toFixed(2))
+
+    // 缩放时同步平移，保持双指中心点相对位置
+    const center = getTouchCenter(event.touches)
+    const dx = center.x - pinchCenterX
+    const dy = center.y - pinchCenterY
+    translateX.value = pinchOriginX + dx
+    translateY.value = pinchOriginY + dy
+    event.preventDefault()
+  }
+}
+
+function handleTouchEnd(event: TouchEvent) {
+  activeTouchCount = event.touches.length
+  if (event.touches.length < 2) {
+    isPinching = false
+  }
 }
 
 function handleWrapperMouseDown(event: MouseEvent) {
@@ -451,6 +556,9 @@ function handleWindowKeydown(event: KeyboardEvent) {
           @pointerup="handlePointerUp"
           @pointercancel="handlePointerUp"
           @lostpointercapture="stopDrag"
+          @touchstart.passive="handleTouchStart"
+          @touchmove.passive="handleTouchMove"
+          @touchend.passive="handleTouchEnd"
         >
           <img
             ref="image"
