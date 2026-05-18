@@ -108,6 +108,7 @@ export async function scanWorkspaceSources(sources: WorkspaceSourceNodeInput[]):
 
   return {
     documents: [],
+    sourceStatuses: [],
   }
 }
 

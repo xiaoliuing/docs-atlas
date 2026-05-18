@@ -1,7 +1,7 @@
 {
   "name": "@docs-atlas/shared-types",
   "private": true,
-  "version": "0.19.1",
+  "version": "0.20.0",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",

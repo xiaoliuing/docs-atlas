@@ -355,7 +355,9 @@ function waitForDocAvailability(slug: string, timeoutMs = 5000) {
           :current-section-id="currentSectionId"
           :current-source-id="currentSourceId"
           :current-workspace-id="currentWorkspaceId"
+          :current-workspace-unhealthy-source-count="workspaceDocs.unhealthySourceCount"
           :current-workspace-source-count="sourceCount"
+          :is-workspace-indexing="workspaceDocs.isLoading"
           :source-groups="visibleSourceGroups"
           :workspaces="workspaces"
           @create-workspace="openCreateWorkspaceDialog"
@@ -404,6 +406,8 @@ function waitForDocAvailability(slug: string, timeoutMs = 5000) {
     <DesktopSourceTreeDialog
       v-model:open="isSourceTreeDialogOpen"
       :is-saving="isSavingWorkspaceSources"
+      :is-scanning="workspaceDocs.isLoading"
+      :runtime-source-statuses-by-node-id="workspaceDocs.sourceStatusesByNodeId"
       :workspace="currentWorkspace"
       @close="isSourceTreeDialogOpen = false"
       @save="handleSaveWorkspaceSources"

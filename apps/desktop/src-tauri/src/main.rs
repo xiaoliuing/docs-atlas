@@ -2,6 +2,8 @@
 
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
@@ -46,6 +48,13 @@ create table if not exists recent_workspace_entries (
   workspace_id text primary key,
   opened_at text not null,
   foreign key (workspace_id) references workspaces(id) on delete cascade
+);
+
+create table if not exists workspace_source_scan_cache (
+  source_root text primary key,
+  fingerprint text not null,
+  payload_json text not null,
+  updated_at text not null
 );
 "#;
 
@@ -139,7 +148,7 @@ struct SourcePathValidationPayload {
   is_directory: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct WorkspaceSourceDocumentPayload {
   source_node_id: String,
@@ -149,10 +158,37 @@ struct WorkspaceSourceDocumentPayload {
   markdown: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceSourceStatusPayload {
+  source_node_id: String,
+  source_root: String,
+  state: String,
+  message: String,
+  document_count: usize,
+  used_cache: bool,
+  checked_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct WorkspaceSourceScanPayload {
   documents: Vec<WorkspaceSourceDocumentPayload>,
+  source_statuses: Vec<WorkspaceSourceStatusPayload>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CachedWorkspaceSourcePayload {
+  documents: Vec<WorkspaceSourceDocumentPayload>,
+}
+
+#[derive(Debug, Clone)]
+struct MarkdownFileSnapshot {
+  absolute_path: PathBuf,
+  relative_path: String,
+  modified_at: u64,
+  size: u64,
 }
 
 #[tauri::command]
@@ -319,39 +355,39 @@ fn validate_source_path(path: String) -> SourcePathValidationPayload {
 
 #[tauri::command]
 fn scan_workspace_sources(
+  app: AppHandle,
   sources: Vec<WorkspaceSourceNodeInput>,
 ) -> Result<WorkspaceSourceScanPayload, String> {
+  let connection = open_workspace_database(&app)?;
   let mut documents = Vec::<WorkspaceSourceDocumentPayload>::new();
+  let mut source_statuses = Vec::<WorkspaceSourceStatusPayload>::new();
   let folder_sources = collect_enabled_folder_sources(None, sources, true);
 
   for source in folder_sources {
-    let root = PathBuf::from(&source.path);
-    if !root.is_dir() {
-      continue;
-    }
-
-    let mut markdown_files = collect_markdown_files(&root)?;
-    markdown_files.sort();
-
-    for file_path in markdown_files {
-      let relative_path = file_path
-        .strip_prefix(&root)
-        .map_err(|error| error.to_string())?
-        .to_string_lossy()
-        .replace('\\', "/");
-      let markdown = std::fs::read_to_string(&file_path).map_err(|error| error.to_string())?;
-
-      documents.push(WorkspaceSourceDocumentPayload {
-        source_node_id: source.id.clone(),
-        source_root: source.path.clone(),
-        absolute_path: file_path.to_string_lossy().to_string(),
-        relative_path,
-        markdown,
-      });
+    let checked_at = current_timestamp();
+    match scan_single_source(&connection, &source, &checked_at) {
+      Ok((source_documents, status)) => {
+        documents.extend(source_documents);
+        source_statuses.push(status);
+      }
+      Err(message) => {
+        source_statuses.push(WorkspaceSourceStatusPayload {
+          source_node_id: source.id.clone(),
+          source_root: source.path.clone(),
+          state: "error".to_string(),
+          message,
+          document_count: 0,
+          used_cache: false,
+          checked_at,
+        });
+      }
     }
   }
 
-  Ok(WorkspaceSourceScanPayload { documents })
+  Ok(WorkspaceSourceScanPayload {
+    documents,
+    source_statuses,
+  })
 }
 
 #[tauri::command]
@@ -901,6 +937,128 @@ struct EnabledFolderSource {
   path: String,
 }
 
+fn scan_single_source(
+  connection: &Connection,
+  source: &EnabledFolderSource,
+  checked_at: &str,
+) -> Result<(Vec<WorkspaceSourceDocumentPayload>, WorkspaceSourceStatusPayload), String> {
+  let root = PathBuf::from(&source.path);
+  let root_key = resolve_source_root_key(&root, &source.path);
+
+  let metadata = match std::fs::metadata(&root) {
+    Ok(metadata) => metadata,
+    Err(_) => {
+      return Ok((
+        Vec::new(),
+        WorkspaceSourceStatusPayload {
+          source_node_id: source.id.clone(),
+          source_root: source.path.clone(),
+          state: "missing".to_string(),
+          message: "目录不存在".to_string(),
+          document_count: 0,
+          used_cache: false,
+          checked_at: checked_at.to_string(),
+        },
+      ));
+    }
+  };
+
+  if !metadata.is_dir() {
+    return Ok((
+      Vec::new(),
+      WorkspaceSourceStatusPayload {
+        source_node_id: source.id.clone(),
+        source_root: source.path.clone(),
+        state: "not_directory".to_string(),
+        message: "路径不是目录".to_string(),
+        document_count: 0,
+        used_cache: false,
+        checked_at: checked_at.to_string(),
+      },
+    ));
+  }
+
+  let file_snapshots = collect_markdown_file_snapshots(&root, &root)?;
+  if file_snapshots.is_empty() {
+    return Ok((
+      Vec::new(),
+      WorkspaceSourceStatusPayload {
+        source_node_id: source.id.clone(),
+        source_root: source.path.clone(),
+        state: "empty".to_string(),
+        message: "目录下没有 Markdown 文档".to_string(),
+        document_count: 0,
+        used_cache: false,
+        checked_at: checked_at.to_string(),
+      },
+    ));
+  }
+
+  let fingerprint = build_markdown_fingerprint(&file_snapshots);
+  if let Some(cached_payload) = read_source_scan_cache(connection, &root_key, &fingerprint)? {
+    let documents = cached_payload
+      .documents
+      .into_iter()
+      .map(|document| WorkspaceSourceDocumentPayload {
+        source_node_id: source.id.clone(),
+        source_root: source.path.clone(),
+        absolute_path: document.absolute_path,
+        relative_path: document.relative_path,
+        markdown: document.markdown,
+      })
+      .collect::<Vec<_>>();
+
+    return Ok((
+      documents.clone(),
+      WorkspaceSourceStatusPayload {
+        source_node_id: source.id.clone(),
+        source_root: source.path.clone(),
+        state: "ready".to_string(),
+        message: format!("已加载 {} 篇文档（缓存）", documents.len()),
+        document_count: documents.len(),
+        used_cache: true,
+        checked_at: checked_at.to_string(),
+      },
+    ));
+  }
+
+  let documents = file_snapshots
+    .iter()
+    .map(|snapshot| {
+      let markdown = std::fs::read_to_string(&snapshot.absolute_path).map_err(|error| error.to_string())?;
+      Ok(WorkspaceSourceDocumentPayload {
+        source_node_id: source.id.clone(),
+        source_root: source.path.clone(),
+        absolute_path: snapshot.absolute_path.to_string_lossy().to_string(),
+        relative_path: snapshot.relative_path.clone(),
+        markdown,
+      })
+    })
+    .collect::<Result<Vec<_>, String>>()?;
+
+  write_source_scan_cache(
+    connection,
+    &root_key,
+    &fingerprint,
+    &CachedWorkspaceSourcePayload {
+      documents: documents.clone(),
+    },
+  )?;
+
+  Ok((
+    documents.clone(),
+    WorkspaceSourceStatusPayload {
+      source_node_id: source.id.clone(),
+      source_root: source.path.clone(),
+      state: "ready".to_string(),
+      message: format!("已扫描 {} 篇文档", documents.len()),
+      document_count: documents.len(),
+      used_cache: false,
+      checked_at: checked_at.to_string(),
+    },
+  ))
+}
+
 fn collect_enabled_folder_sources(
   parent_enabled: Option<bool>,
   nodes: Vec<WorkspaceSourceNodeInput>,
@@ -936,8 +1094,8 @@ fn collect_enabled_folder_sources(
   sources
 }
 
-fn collect_markdown_files(root: &Path) -> Result<Vec<PathBuf>, String> {
-  let mut files = Vec::<PathBuf>::new();
+fn collect_markdown_file_snapshots(root: &Path, base_root: &Path) -> Result<Vec<MarkdownFileSnapshot>, String> {
+  let mut files = Vec::<MarkdownFileSnapshot>::new();
   let entries = std::fs::read_dir(root).map_err(|error| error.to_string())?;
 
   for entry in entries {
@@ -946,14 +1104,34 @@ fn collect_markdown_files(root: &Path) -> Result<Vec<PathBuf>, String> {
     let file_type = entry.file_type().map_err(|error| error.to_string())?;
 
     if file_type.is_dir() {
-      files.extend(collect_markdown_files(&path)?);
+      files.extend(collect_markdown_file_snapshots(&path, base_root)?);
       continue;
     }
 
     if file_type.is_file() && is_markdown_file(&path) {
-      files.push(path);
+      let relative_path = path
+        .strip_prefix(base_root)
+        .map_err(|error| error.to_string())?
+        .to_string_lossy()
+        .replace('\\', "/");
+      let metadata = entry.metadata().map_err(|error| error.to_string())?;
+      let modified_at = metadata
+        .modified()
+        .ok()
+        .and_then(|value| value.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|value| value.as_secs())
+        .unwrap_or(0);
+
+      files.push(MarkdownFileSnapshot {
+        absolute_path: path,
+        relative_path,
+        modified_at,
+        size: metadata.len(),
+      });
     }
   }
+
+  files.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
 
   Ok(files)
 }
@@ -963,4 +1141,76 @@ fn is_markdown_file(path: &Path) -> bool {
     .and_then(|value| value.to_str())
     .map(|value| value.eq_ignore_ascii_case("md"))
     .unwrap_or(false)
+}
+
+fn build_markdown_fingerprint(files: &[MarkdownFileSnapshot]) -> String {
+  let mut hasher = DefaultHasher::new();
+  files.len().hash(&mut hasher);
+
+  for file in files {
+    file.relative_path.hash(&mut hasher);
+    file.modified_at.hash(&mut hasher);
+    file.size.hash(&mut hasher);
+  }
+
+  format!("{:016x}", hasher.finish())
+}
+
+fn resolve_source_root_key(root: &Path, fallback: &str) -> String {
+  root
+    .canonicalize()
+    .map(|value| value.to_string_lossy().to_string())
+    .unwrap_or_else(|_| fallback.to_string())
+}
+
+fn read_source_scan_cache(
+  connection: &Connection,
+  source_root: &str,
+  fingerprint: &str,
+) -> Result<Option<CachedWorkspaceSourcePayload>, String> {
+  let raw_payload = connection
+    .query_row(
+      r#"
+      select payload_json
+      from workspace_source_scan_cache
+      where source_root = ?1 and fingerprint = ?2
+      "#,
+      params![source_root, fingerprint],
+      |row| row.get::<_, String>(0),
+    )
+    .optional()
+    .map_err(|error| error.to_string())?;
+
+  match raw_payload {
+    Some(payload) => serde_json::from_str::<CachedWorkspaceSourcePayload>(&payload)
+      .map(Some)
+      .map_err(|error| error.to_string()),
+    None => Ok(None),
+  }
+}
+
+fn write_source_scan_cache(
+  connection: &Connection,
+  source_root: &str,
+  fingerprint: &str,
+  payload: &CachedWorkspaceSourcePayload,
+) -> Result<(), String> {
+  let payload_json = serde_json::to_string(payload).map_err(|error| error.to_string())?;
+  let now = current_timestamp();
+
+  connection
+    .execute(
+      r#"
+      insert into workspace_source_scan_cache (source_root, fingerprint, payload_json, updated_at)
+      values (?1, ?2, ?3, ?4)
+      on conflict(source_root) do update set
+        fingerprint = excluded.fingerprint,
+        payload_json = excluded.payload_json,
+        updated_at = excluded.updated_at
+      "#,
+      params![source_root, fingerprint, payload_json, now],
+    )
+    .map_err(|error| error.to_string())?;
+
+  Ok(())
 }

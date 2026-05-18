@@ -12,6 +12,8 @@ const props = defineProps<{
   currentWorkspaceDocCount: number
   currentWorkspaceId: string
   currentWorkspaceSourceCount: number
+  currentWorkspaceUnhealthySourceCount: number
+  isWorkspaceIndexing: boolean
   sourceGroups: DocsSourceGroup[]
   workspaces: WorkspaceDetail[]
 }>()
@@ -242,6 +244,27 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
             设置
           </button>
         </div>
+
+        <div
+          v-if="props.isWorkspaceIndexing || props.currentWorkspaceUnhealthySourceCount > 0"
+          class="desktop-docs-sidebar__workspace-health"
+        >
+          <span
+            :class="[
+              'desktop-docs-sidebar__workspace-health-chip',
+              {
+                'desktop-docs-sidebar__workspace-health-chip--warning':
+                  !props.isWorkspaceIndexing && props.currentWorkspaceUnhealthySourceCount > 0,
+              },
+            ]"
+          >
+            {{
+              props.isWorkspaceIndexing
+                ? '正在检查文档源'
+                : `${props.currentWorkspaceUnhealthySourceCount} 个目录源异常`
+            }}
+          </span>
+        </div>
       </div>
     </div>
 
@@ -349,6 +372,27 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 }
 
 .desktop-docs-sidebar__workspace-meta { margin-top: 0.48rem; }
+
+.desktop-docs-sidebar__workspace-health {
+  margin-top: 0.46rem;
+}
+
+.desktop-docs-sidebar__workspace-health-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.7rem;
+  padding: 0.24rem 0.58rem;
+  border-radius: 999px;
+  background: rgba(var(--desktop-accent-rgb), 0.08);
+  color: var(--desktop-accent);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.desktop-docs-sidebar__workspace-health-chip--warning {
+  background: rgba(217, 131, 40, 0.12);
+  color: #b56a1f;
+}
 
 .desktop-docs-sidebar__workspace-trigger {
   display: grid;

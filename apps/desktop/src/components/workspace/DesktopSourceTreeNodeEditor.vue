@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import type { WorkspaceSourceStatus } from '@docs-atlas/shared-types/workspace'
 import type { WorkspaceSourceNodeDraft } from '@/utils/workspaceTree'
 
 const node = defineModel<WorkspaceSourceNodeDraft>('node', { required: true })
@@ -9,6 +10,7 @@ const props = defineProps<{
   disabled?: boolean
   isValidatingPathByNodeId: Record<string, boolean | undefined>
   issuesByNodeId: Record<string, string[]>
+  runtimeSourceStatusesByNodeId: Record<string, WorkspaceSourceStatus | undefined>
   pathStatusesByNodeId: Record<string, {
     exists: boolean
     isDirectory: boolean
@@ -25,6 +27,7 @@ const emit = defineEmits<{
 const nodeIssues = computed(() => props.issuesByNodeId[node.value.id] ?? [])
 const pathStatus = computed(() => props.pathStatusesByNodeId[node.value.id])
 const isValidatingPath = computed(() => Boolean(props.isValidatingPathByNodeId[node.value.id]))
+const runtimeSourceStatus = computed(() => props.runtimeSourceStatusesByNodeId[node.value.id])
 const pathStatusLabel = computed(() => {
   if (node.value.kind !== 'folder') {
     return ''
@@ -67,6 +70,15 @@ const pathStatusTone = computed(() => {
   }
 
   return 'error'
+})
+
+const runtimeStatusTone = computed(() => {
+  const status = runtimeSourceStatus.value
+  if (!status || node.value.kind !== 'folder') {
+    return 'muted'
+  }
+
+  return status.state === 'ready' ? 'success' : 'error'
 })
 </script>
 
@@ -136,6 +148,16 @@ const pathStatusTone = computed(() => {
       </div>
 
       <div
+        v-if="node.kind === 'folder' && runtimeSourceStatus"
+        :class="[
+          'desktop-source-tree-node__runtime-status',
+          `desktop-source-tree-node__runtime-status--${runtimeStatusTone}`,
+        ]"
+      >
+        {{ runtimeSourceStatus.message }}
+      </div>
+
+      <div
         v-if="nodeIssues.length > 0"
         class="desktop-source-tree-node__issues"
       >
@@ -188,6 +210,7 @@ const pathStatusTone = computed(() => {
         :disabled="disabled"
         :is-validating-path-by-node-id="isValidatingPathByNodeId"
         :issues-by-node-id="issuesByNodeId"
+        :runtime-source-statuses-by-node-id="runtimeSourceStatusesByNodeId"
         :path-statuses-by-node-id="pathStatusesByNodeId"
         @add-folder="emit('addFolder', $event)"
         @add-group="emit('addGroup', $event)"
@@ -298,6 +321,20 @@ const pathStatusTone = computed(() => {
 
 .desktop-source-tree-node__path-hint--error {
   color: #c53c53;
+}
+
+.desktop-source-tree-node__runtime-status {
+  font-size: 0.73rem;
+  line-height: 1.45;
+  color: var(--desktop-soft);
+}
+
+.desktop-source-tree-node__runtime-status--success {
+  color: #2f7b5f;
+}
+
+.desktop-source-tree-node__runtime-status--error {
+  color: #c56b2f;
 }
 
 .desktop-source-tree-node__action--danger {

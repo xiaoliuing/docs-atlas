@@ -64,6 +64,24 @@ export type WorkspaceSourceDocumentSnapshot = {
   markdown: string
 }
 
+export type WorkspaceSourceStatusState =
+  | 'ready'
+  | 'empty'
+  | 'missing'
+  | 'not_directory'
+  | 'error'
+
+export type WorkspaceSourceStatus = {
+  sourceNodeId: string
+  sourceRoot: string
+  state: WorkspaceSourceStatusState
+  message: string
+  documentCount: number
+  usedCache: boolean
+  checkedAt: string
+}
+
 export type WorkspaceSourceScanPayload = {
   documents: WorkspaceSourceDocumentSnapshot[]
+  sourceStatuses: WorkspaceSourceStatus[]
 }

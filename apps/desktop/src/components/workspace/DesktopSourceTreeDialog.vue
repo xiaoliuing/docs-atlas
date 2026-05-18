@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue'
-import type { WorkspaceDetail } from '@docs-atlas/shared-types/workspace'
+import type { WorkspaceDetail, WorkspaceSourceStatus } from '@docs-atlas/shared-types/workspace'
 import { pickFolderPath, validateSourcePath } from '@/api/workspaces'
 import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
 import DesktopSourceTreeNodeEditor from './DesktopSourceTreeNodeEditor.vue'
@@ -26,6 +26,8 @@ const isOpen = defineModel<boolean>('open', { default: false })
 
 const props = defineProps<{
   isSaving: boolean
+  isScanning: boolean
+  runtimeSourceStatusesByNodeId: Record<string, WorkspaceSourceStatus | undefined>
   workspace: WorkspaceDetail | null
 }>()
 
@@ -225,7 +227,7 @@ async function validateFolderNode(nodeId: string, pathValue: string) {
             {{ props.workspace?.name ?? '当前工作区' }} 的文档源
           </h2>
           <p class="desktop-source-tree-dialog__summary">
-            {{ groupCount }} 个分组 · {{ sourceCount }} 个目录源
+            {{ groupCount }} 个分组 · {{ sourceCount }} 个目录源{{ props.isScanning ? ' · 检查中' : '' }}
           </p>
         </div>
 
@@ -278,6 +280,7 @@ async function validateFolderNode(nodeId: string, pathValue: string) {
           :is-validating-path-by-node-id="state.validatingPathIds"
           :issues-by-node-id="issuesByNodeId"
           :path-statuses-by-node-id="state.pathStatuses"
+          :runtime-source-statuses-by-node-id="props.runtimeSourceStatusesByNodeId"
           @add-folder="handleAddNestedFolder"
           @add-group="handleAddNestedGroup"
           @browse-folder="handleBrowseFolder"

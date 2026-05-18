@@ -1,5 +1,5 @@
 import { computed, shallowRef, toValue, watch, type MaybeRefOrGetter } from 'vue'
-import type { WorkspaceDetail } from '@docs-atlas/shared-types/workspace'
+import type { WorkspaceDetail, WorkspaceSourceStatus } from '@docs-atlas/shared-types/workspace'
 import { scanWorkspaceSources } from '@/api/workspaces'
 import type { DocDetail, DocMeta, DocsSourceGroup, SearchRecord } from '@/types/docs'
 import { buildWorkspaceDocsModel } from '@/utils/workspaceDocs'
@@ -15,6 +15,7 @@ const emptySourceGroups: DocsSourceGroup[] = []
 const emptySearchIndex: SearchRecord[] = []
 const emptyDocsBySlug: Record<string, DocMeta> = {}
 const emptyDocDetailsBySlug: Record<string, DocDetail> = {}
+const emptySourceStatuses: WorkspaceSourceStatus[] = []
 
 export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions) {
   const docsRef = shallowRef<DocMeta[]>(isTauriRuntime() ? emptyDocs : docs)
@@ -24,6 +25,7 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
   )
   const searchIndexRef = shallowRef<SearchRecord[]>(isTauriRuntime() ? emptySearchIndex : searchIndex)
   const sourceGroupsRef = shallowRef<DocsSourceGroup[]>(isTauriRuntime() ? emptySourceGroups : sourceGroups)
+  const sourceStatusesRef = shallowRef<WorkspaceSourceStatus[]>(emptySourceStatuses)
   const isLoading = shallowRef(false)
   const error = shallowRef('')
   let activeTaskId = 0
@@ -45,6 +47,7 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
         docDetailsBySlugRef.value = emptyDocDetailsBySlug
         searchIndexRef.value = emptySearchIndex
         sourceGroupsRef.value = emptySourceGroups
+        sourceStatusesRef.value = emptySourceStatuses
         error.value = ''
         isLoading.value = false
         return
@@ -65,6 +68,7 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
         docDetailsBySlugRef.value = model.docDetailsBySlug
         searchIndexRef.value = model.searchIndex
         sourceGroupsRef.value = model.sourceGroups
+        sourceStatusesRef.value = scanPayload.sourceStatuses
       } catch (loadError) {
         if (taskId !== activeTaskId) {
           return
@@ -75,6 +79,7 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
         docDetailsBySlugRef.value = emptyDocDetailsBySlug
         searchIndexRef.value = emptySearchIndex
         sourceGroupsRef.value = emptySourceGroups
+        sourceStatusesRef.value = emptySourceStatuses
         error.value = loadError instanceof Error ? loadError.message : '加载工作区文档失败'
       } finally {
         if (taskId === activeTaskId) {
@@ -90,9 +95,15 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
     docs: computed(() => docsRef.value),
     docsBySlug: computed(() => docsBySlugRef.value),
     error: computed(() => error.value),
+    healthySourceCount: computed(() => sourceStatusesRef.value.filter((item) => item.state === 'ready').length),
     isLoading: computed(() => isLoading.value),
+    sourceStatuses: computed(() => sourceStatusesRef.value),
+    sourceStatusesByNodeId: computed(() =>
+      Object.fromEntries(sourceStatusesRef.value.map((status) => [status.sourceNodeId, status])),
+    ),
     searchIndex: computed(() => searchIndexRef.value),
     sourceGroups: computed(() => sourceGroupsRef.value),
+    unhealthySourceCount: computed(() => sourceStatusesRef.value.filter((item) => item.state !== 'ready').length),
   }
 }
 
