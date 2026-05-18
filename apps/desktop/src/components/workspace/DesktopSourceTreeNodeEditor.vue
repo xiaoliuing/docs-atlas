@@ -28,11 +28,8 @@ const emit = defineEmits<{
   addFolder: [parentId: string]
   addGroup: [parentId: string]
   browseFolder: [nodeId: string]
-  dragEnd: []
-  dragOverNode: [payload: { targetNodeId: string; placement: DraftNodeDropPlacement }]
   dragStart: [nodeId: string]
   moveNode: [nodeId: string, direction: -1 | 1]
-  dropNode: [payload: { targetNodeId: string; placement: DraftNodeDropPlacement }]
   removeNode: [nodeId: string]
   toggleExpand: [nodeId: string]
 }>()
@@ -106,64 +103,13 @@ function forwardMoveNode(nodeId: string, direction: -1 | 1) {
   emit('moveNode', nodeId, direction)
 }
 
-function handleDragStart(event: DragEvent) {
-  if (!event.dataTransfer || props.disabled) {
+function handlePointerDown(event: PointerEvent) {
+  if (props.disabled || event.button !== 0) {
     return
   }
 
-  event.dataTransfer.effectAllowed = 'move'
-  event.dataTransfer.setData('text/plain', node.value.id)
+  event.preventDefault()
   emit('dragStart', node.value.id)
-}
-
-function handleDragEnd() {
-  emit('dragEnd')
-}
-
-function handleDragOver(event: DragEvent) {
-  if (props.disabled || props.draggedNodeId === node.value.id) {
-    return
-  }
-
-  event.preventDefault()
-  event.dataTransfer!.dropEffect = 'move'
-  emit('dragOverNode', {
-    targetNodeId: node.value.id,
-    placement: resolveDropPlacement(event),
-  })
-}
-
-function handleDrop(event: DragEvent) {
-  if (props.disabled || props.draggedNodeId === node.value.id) {
-    return
-  }
-
-  event.preventDefault()
-  emit('dropNode', {
-    targetNodeId: node.value.id,
-    placement: resolveDropPlacement(event),
-  })
-}
-
-function resolveDropPlacement(event: DragEvent): DraftNodeDropPlacement {
-  const currentTarget = event.currentTarget
-  if (!(currentTarget instanceof HTMLElement)) {
-    return 'inside'
-  }
-
-  const { top, height } = currentTarget.getBoundingClientRect()
-  const offsetY = event.clientY - top
-  const threshold = Math.min(18, height * 0.24)
-
-  if (offsetY <= threshold) {
-    return 'before'
-  }
-
-  if (offsetY >= height - threshold) {
-    return 'after'
-  }
-
-  return 'inside'
 }
 </script>
 
@@ -182,8 +128,7 @@ function resolveDropPlacement(event: DragEvent): DraftNodeDropPlacement {
           'desktop-source-tree-node__card--drop-after': isDropAfterActive,
         },
       ]"
-      @dragover="handleDragOver"
-      @drop="handleDrop"
+      :data-source-tree-node-id="node.id"
     >
       <div class="desktop-source-tree-node__row">
         <button
@@ -206,10 +151,8 @@ function resolveDropPlacement(event: DragEvent): DraftNodeDropPlacement {
         <button
           :disabled="disabled"
           class="desktop-source-tree-node__drag-handle"
-          draggable="true"
           type="button"
-          @dragstart="handleDragStart"
-          @dragend="handleDragEnd"
+          @pointerdown="handlePointerDown"
         >
           <DesktopUiIcon name="grip" :size="15" />
         </button>
@@ -363,11 +306,8 @@ function resolveDropPlacement(event: DragEvent): DraftNodeDropPlacement {
         @add-folder="emit('addFolder', $event)"
         @add-group="emit('addGroup', $event)"
         @browse-folder="emit('browseFolder', $event)"
-        @drag-end="emit('dragEnd')"
-        @drag-over-node="emit('dragOverNode', $event)"
         @drag-start="emit('dragStart', $event)"
         @move-node="forwardMoveNode"
-        @drop-node="emit('dropNode', $event)"
         @remove-node="emit('removeNode', $event)"
         @toggle-expand="emit('toggleExpand', $event)"
       />
@@ -487,6 +427,8 @@ function resolveDropPlacement(event: DragEvent): DraftNodeDropPlacement {
   background: rgba(var(--desktop-accent-rgb), 0.04);
   color: var(--desktop-soft);
   cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 
 .desktop-source-tree-node__drag-handle:active {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, watch } from 'vue'
 import type { WorkspaceDetail, WorkspaceSourceStatus } from '@docs-atlas/shared-types/workspace'
 import { pickFolderPath, pickFolderPaths, validateSourcePath } from '@/api/workspaces'
 import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
@@ -211,51 +211,69 @@ function handleMoveNode(nodeId: string, direction: -1 | 1) {
 }
 
 function handleDragStart(nodeId: string) {
+  if (props.isSaving) {
+    return
+  }
+
   state.draggedNodeId = nodeId
+  bindDragListeners()
+  document.body.classList.add('desktop-source-tree-dialog--dragging')
 }
 
-function handleDragOver(payload: { targetNodeId: string; placement: DraftNodeDropPlacement }) {
-  if (!state.draggedNodeId || state.draggedNodeId === payload.targetNodeId) {
-    return
-  }
-
-  state.dragOverNodeId = payload.targetNodeId
-  state.dragPlacement = payload.placement
-
-  if (payload.placement === 'inside') {
-    scheduleDragExpand(payload.targetNodeId)
-    return
-  }
-
-  clearDragExpandTimer()
-}
-
-function handleDrop(payload: { targetNodeId: string; placement: DraftNodeDropPlacement }) {
+function handleWindowPointerMove(event: PointerEvent) {
   if (!state.draggedNodeId) {
     return
   }
 
-  const nextNodes = moveDraftNodeByDrop(
-    state.draftNodes,
-    state.draggedNodeId,
-    payload.targetNodeId,
-    payload.placement,
-  )
-  const didMove = nextNodes !== state.draftNodes
-  state.draftNodes = nextNodes
-  syncDraftParentIds(state.draftNodes)
-  if (didMove && payload.placement === 'inside') {
-    ensureNodeExpanded(payload.targetNodeId)
+  const nextTarget = resolveDragTarget(event.clientX, event.clientY)
+  if (!nextTarget || nextTarget.targetNodeId === state.draggedNodeId) {
+    clearActiveDropTarget()
+    return
   }
-  setFeedback(didMove ? '已更新文档源层级。' : '当前拖拽位置无效。', didMove ? 'success' : 'warning')
+
+  state.dragOverNodeId = nextTarget.targetNodeId
+  state.dragPlacement = nextTarget.placement
+
+  if (nextTarget.placement === 'inside') {
+    scheduleDragExpand(nextTarget.targetNodeId)
+    return
+  }
+
+  clearDragExpandTimer()
+}
+
+function handleWindowPointerUp() {
+  if (!state.draggedNodeId) {
+    return
+  }
+
+  if (state.dragOverNodeId && state.dragPlacement) {
+    const nextNodes = moveDraftNodeByDrop(
+      state.draftNodes,
+      state.draggedNodeId,
+      state.dragOverNodeId,
+      state.dragPlacement,
+    )
+    const didMove = nextNodes !== state.draftNodes
+    state.draftNodes = nextNodes
+    syncDraftParentIds(state.draftNodes)
+    if (didMove && state.dragPlacement === 'inside') {
+      ensureNodeExpanded(state.dragOverNodeId)
+    }
+    if (didMove) {
+      setFeedback('已更新文档源层级。', 'success')
+    }
+  }
+
   resetDragState()
 }
 
 function resetDragState() {
+  unbindDragListeners()
   clearDragExpandTimer()
-  state.dragOverNodeId = null
-  state.dragPlacement = null
+  clearActiveDropTarget()
   state.draggedNodeId = null
+  document.body.classList.remove('desktop-source-tree-dialog--dragging')
 }
 
 function handleClose() {
@@ -470,6 +488,58 @@ function clearDragExpandTimer() {
   dragExpandTimer = null
   dragExpandTargetId = null
 }
+
+function clearActiveDropTarget() {
+  state.dragOverNodeId = null
+  state.dragPlacement = null
+}
+
+function resolveDragTarget(clientX: number, clientY: number): { targetNodeId: string; placement: DraftNodeDropPlacement } | null {
+  const element = document.elementFromPoint(clientX, clientY)
+  const nodeCard = element instanceof HTMLElement
+    ? element.closest<HTMLElement>('[data-source-tree-node-id]')
+    : null
+
+  if (!nodeCard) {
+    return null
+  }
+
+  const targetNodeId = nodeCard.dataset.sourceTreeNodeId
+  if (!targetNodeId) {
+    return null
+  }
+
+  const { top, height } = nodeCard.getBoundingClientRect()
+  const offsetY = clientY - top
+  const threshold = Math.min(18, height * 0.24)
+  const placement = offsetY <= threshold
+    ? 'before'
+    : offsetY >= height - threshold
+      ? 'after'
+      : 'inside'
+
+  return {
+    targetNodeId,
+    placement,
+  }
+}
+
+function bindDragListeners() {
+  unbindDragListeners()
+  window.addEventListener('pointermove', handleWindowPointerMove)
+  window.addEventListener('pointerup', handleWindowPointerUp)
+  window.addEventListener('pointercancel', handleWindowPointerUp)
+}
+
+function unbindDragListeners() {
+  window.removeEventListener('pointermove', handleWindowPointerMove)
+  window.removeEventListener('pointerup', handleWindowPointerUp)
+  window.removeEventListener('pointercancel', handleWindowPointerUp)
+}
+
+onBeforeUnmount(() => {
+  resetDragState()
+})
 </script>
 
 <template>
@@ -570,11 +640,8 @@ function clearDragExpandTimer() {
           @add-folder="handleAddNestedFolder"
           @add-group="handleAddNestedGroup"
           @browse-folder="handleBrowseFolder"
-          @drag-end="resetDragState"
-          @drag-over-node="handleDragOver"
           @drag-start="handleDragStart"
           @move-node="handleMoveNode"
-          @drop-node="handleDrop"
           @remove-node="handleRemoveNode"
           @toggle-expand="toggleExpand"
         />
