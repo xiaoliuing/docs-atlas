@@ -312,7 +312,7 @@ function countDocs(group: DocsSourceGroup): number {
 }
 
 .desktop-docs-sidebar__workspace-panel {
-  padding: 0.9rem;
+  padding: 0.7rem 0.72rem;
 }
 
 .desktop-docs-sidebar__panel-label,
@@ -329,15 +329,15 @@ function countDocs(group: DocsSourceGroup): number {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.8rem;
+  gap: 0.6rem;
 }
 
 .desktop-docs-sidebar__create {
   position: relative;
-  width: 1.95rem;
-  height: 1.95rem;
+  width: 1.7rem;
+  height: 1.7rem;
   border: 1px solid var(--desktop-line);
-  border-radius: 12px;
+  border-radius: 10px;
   background: rgba(var(--desktop-accent-rgb), 0.05);
   color: var(--desktop-accent);
   cursor: pointer;
@@ -360,24 +360,25 @@ function countDocs(group: DocsSourceGroup): number {
 
 .desktop-docs-sidebar__workspace-switcher {
   position: relative;
-  margin-top: 0.7rem;
+  margin-top: 0.45rem;
 }
 
 .desktop-docs-sidebar__workspace-meta {
-  display: grid;
-  gap: 0.65rem;
-  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
 }
 
 .desktop-docs-sidebar__workspace-trigger {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.8rem;
+  gap: 0.6rem;
   width: 100%;
-  padding: 0.8rem;
+  padding: 0.58rem 0.62rem;
   border: 1px solid rgba(var(--desktop-accent-rgb), 0.12);
-  border-radius: 16px;
+  border-radius: 13px;
   background:
     linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.06), transparent 68%),
     var(--desktop-surface-strong);
@@ -395,41 +396,44 @@ function countDocs(group: DocsSourceGroup): number {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.6rem;
-  height: 2.6rem;
-  border-radius: 14px;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 11px;
   background: color-mix(in srgb, var(--workspace-color) 14%, transparent);
   color: var(--workspace-color);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--workspace-color) 18%, transparent);
 }
 
 .desktop-docs-sidebar__workspace-avatar svg {
-  width: 1.2rem;
-  height: 1.2rem;
+  width: 0.96rem;
+  height: 0.96rem;
 }
 
 .desktop-docs-sidebar__workspace-copy {
   display: grid;
-  gap: 0.16rem;
+  gap: 0.08rem;
   min-width: 0;
 }
 
 .desktop-docs-sidebar__workspace-name {
   color: var(--desktop-ink);
-  font-size: 0.95rem;
+  font-size: 0.86rem;
   font-weight: 650;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .desktop-docs-sidebar__workspace-summary {
   color: var(--desktop-muted);
-  font-size: 0.76rem;
-  line-height: 1.45;
+  font-size: 0.7rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .desktop-docs-sidebar__workspace-chevron {
-  width: 0.62rem;
-  height: 0.62rem;
+  width: 0.5rem;
+  height: 0.5rem;
   border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
   color: var(--desktop-soft);
@@ -443,14 +447,14 @@ function countDocs(group: DocsSourceGroup): number {
 
 .desktop-docs-sidebar__workspace-menu {
   position: absolute;
-  top: calc(100% + 0.6rem);
+  top: calc(100% + 0.45rem);
   right: 0;
   left: 0;
   display: grid;
-  gap: 0.4rem;
-  padding: 0.35rem;
+  gap: 0.28rem;
+  padding: 0.28rem;
   border: 1px solid var(--desktop-line);
-  border-radius: 16px;
+  border-radius: 13px;
   background: var(--desktop-surface-strong);
   box-shadow: 0 18px 42px rgba(var(--desktop-shadow), 0.16);
   z-index: 20;
@@ -459,12 +463,12 @@ function countDocs(group: DocsSourceGroup): number {
 .desktop-docs-sidebar__workspace-option {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.7rem;
+  gap: 0.58rem;
   align-items: center;
   width: 100%;
-  padding: 0.72rem;
+  padding: 0.56rem 0.58rem;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 10px;
   background: transparent;
   text-align: left;
   cursor: pointer;
@@ -478,10 +482,10 @@ function countDocs(group: DocsSourceGroup): number {
 }
 
 .desktop-docs-sidebar__workspace-option-dot {
-  width: 0.7rem;
-  height: 0.7rem;
+  width: 0.6rem;
+  height: 0.6rem;
   border-radius: 999px;
-  box-shadow: 0 0 0 4px rgba(var(--desktop-accent-rgb), 0.06);
+  box-shadow: 0 0 0 3px rgba(var(--desktop-accent-rgb), 0.06);
 }
 
 .desktop-docs-sidebar__workspace-option-copy {
@@ -492,49 +496,56 @@ function countDocs(group: DocsSourceGroup): number {
 
 .desktop-docs-sidebar__workspace-option-copy strong {
   color: var(--desktop-ink);
-  font-size: 0.84rem;
+  font-size: 0.78rem;
   font-weight: 600;
 }
 
 .desktop-docs-sidebar__workspace-option-copy span {
   color: var(--desktop-muted);
-  font-size: 0.74rem;
+  font-size: 0.69rem;
 }
 
 .desktop-docs-sidebar__workspace-stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.55rem;
+  display: flex;
+  align-items: center;
+  gap: 0.34rem;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .desktop-docs-sidebar__workspace-stat {
-  display: grid;
-  gap: 0.12rem;
-  padding: 0.68rem 0.72rem;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.22rem;
+  padding: 0.38rem 0.52rem;
   border: 1px solid var(--desktop-line);
-  border-radius: 14px;
+  border-radius: 999px;
   background: rgba(var(--desktop-accent-rgb), 0.035);
 }
 
 .desktop-docs-sidebar__workspace-stat strong {
   color: var(--desktop-ink);
-  font-size: 0.94rem;
+  font-size: 0.76rem;
   font-weight: 650;
+  line-height: 1;
 }
 
 .desktop-docs-sidebar__workspace-stat span {
   color: var(--desktop-muted);
-  font-size: 0.71rem;
+  font-size: 0.66rem;
+  line-height: 1;
 }
 
 .desktop-docs-sidebar__workspace-action {
-  min-height: 2.4rem;
+  flex: none;
+  min-height: 1.95rem;
+  padding: 0 0.7rem;
   border: 1px solid rgba(var(--desktop-accent-rgb), 0.18);
-  border-radius: 14px;
+  border-radius: 10px;
   background: rgba(var(--desktop-accent-rgb), 0.07);
   color: var(--desktop-accent);
   font: inherit;
-  font-size: 0.79rem;
+  font-size: 0.73rem;
   font-weight: 600;
   cursor: pointer;
   transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;

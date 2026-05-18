@@ -99,6 +99,226 @@
   --preview-caption-bg: rgba(20, 28, 43, 0.9);
 }
 
+:root[data-theme-accent='atlas-blue'] {
+  --desktop-bg: rgb(238, 244, 255);
+  --desktop-surface: rgba(246, 249, 255, 0.78);
+  --desktop-surface-strong: rgba(246, 249, 255, 0.94);
+  --desktop-surface-muted: rgba(246, 249, 255, 0.88);
+  --desktop-line: rgba(19, 36, 77, 0.08);
+  --desktop-line-strong: rgba(31, 84, 217, 0.18);
+  --desktop-accent: #1f54d9;
+  --desktop-accent-rgb: 31, 84, 217;
+  --desktop-shadow: 19, 42, 92;
+}
+
+:root[data-theme-accent='ocean-teal'] {
+  --desktop-bg: rgb(236, 248, 248);
+  --desktop-surface: rgba(244, 252, 252, 0.78);
+  --desktop-surface-strong: rgba(244, 252, 252, 0.94);
+  --desktop-surface-muted: rgba(244, 252, 252, 0.88);
+  --desktop-line: rgba(77, 137, 141, 0.18);
+  --desktop-line-strong: rgba(15, 140, 149, 0.2);
+  --desktop-accent: #0f8c95;
+  --desktop-accent-rgb: 15, 140, 149;
+  --desktop-shadow: 14, 94, 100;
+}
+
+:root[data-theme-accent='forest-green'] {
+  --desktop-bg: rgb(238, 248, 243);
+  --desktop-surface: rgba(246, 252, 249, 0.78);
+  --desktop-surface-strong: rgba(246, 252, 249, 0.94);
+  --desktop-surface-muted: rgba(246, 252, 249, 0.88);
+  --desktop-line: rgba(82, 137, 116, 0.18);
+  --desktop-line-strong: rgba(31, 143, 99, 0.2);
+  --desktop-accent: #1f8f63;
+  --desktop-accent-rgb: 31, 143, 99;
+  --desktop-shadow: 22, 97, 69;
+}
+
+:root[data-theme-accent='sunset-amber'] {
+  --desktop-bg: rgb(250, 244, 232);
+  --desktop-surface: rgba(254, 249, 239, 0.78);
+  --desktop-surface-strong: rgba(254, 249, 239, 0.94);
+  --desktop-surface-muted: rgba(254, 249, 239, 0.88);
+  --desktop-line: rgba(163, 126, 48, 0.2);
+  --desktop-line-strong: rgba(194, 138, 26, 0.22);
+  --desktop-accent: #c28a1a;
+  --desktop-accent-rgb: 194, 138, 26;
+  --desktop-shadow: 113, 82, 21;
+}
+
+:root[data-theme-accent='dusty-rose'] {
+  --desktop-bg: rgb(249, 240, 244);
+  --desktop-surface: rgba(253, 246, 249, 0.78);
+  --desktop-surface-strong: rgba(253, 246, 249, 0.94);
+  --desktop-surface-muted: rgba(253, 246, 249, 0.88);
+  --desktop-line: rgba(160, 102, 124, 0.2);
+  --desktop-line-strong: rgba(192, 95, 127, 0.22);
+  --desktop-accent: #c05f7f;
+  --desktop-accent-rgb: 192, 95, 127;
+  --desktop-shadow: 110, 44, 68;
+}
+
+:root[data-theme-accent='slate-indigo'] {
+  --desktop-bg: rgb(240, 243, 252);
+  --desktop-surface: rgba(247, 249, 255, 0.78);
+  --desktop-surface-strong: rgba(247, 249, 255, 0.94);
+  --desktop-surface-muted: rgba(247, 249, 255, 0.88);
+  --desktop-line: rgba(103, 118, 170, 0.2);
+  --desktop-line-strong: rgba(91, 111, 214, 0.22);
+  --desktop-accent: #5b6fd6;
+  --desktop-accent-rgb: 91, 111, 214;
+  --desktop-shadow: 46, 57, 112;
+}
+
+:root[data-theme-accent='terracotta'] {
+  --desktop-bg: rgb(250, 243, 239);
+  --desktop-surface: rgba(254, 249, 246, 0.78);
+  --desktop-surface-strong: rgba(254, 249, 246, 0.94);
+  --desktop-surface-muted: rgba(254, 249, 246, 0.88);
+  --desktop-line: rgba(165, 113, 98, 0.22);
+  --desktop-line-strong: rgba(201, 112, 89, 0.22);
+  --desktop-accent: #c97059;
+  --desktop-accent-rgb: 201, 112, 89;
+  --desktop-shadow: 113, 62, 42;
+}
+
+:root[data-theme-accent='plum-orchid'] {
+  --desktop-bg: rgb(245, 241, 249);
+  --desktop-surface: rgba(251, 247, 253, 0.78);
+  --desktop-surface-strong: rgba(251, 247, 253, 0.94);
+  --desktop-surface-muted: rgba(251, 247, 253, 0.88);
+  --desktop-line: rgba(145, 110, 162, 0.22);
+  --desktop-line-strong: rgba(154, 104, 178, 0.22);
+  --desktop-accent: #9a68b2;
+  --desktop-accent-rgb: 154, 104, 178;
+  --desktop-shadow: 90, 52, 108;
+}
+
+:root[data-theme-accent='walnut-brown'] {
+  --desktop-bg: rgb(247, 242, 237);
+  --desktop-surface: rgba(252, 248, 244, 0.78);
+  --desktop-surface-strong: rgba(252, 248, 244, 0.94);
+  --desktop-surface-muted: rgba(252, 248, 244, 0.88);
+  --desktop-line: rgba(148, 117, 90, 0.22);
+  --desktop-line-strong: rgba(155, 118, 83, 0.22);
+  --desktop-accent: #9b7653;
+  --desktop-accent-rgb: 155, 118, 83;
+  --desktop-shadow: 88, 63, 37;
+}
+
+:root[data-theme-accent='pure-white'] {
+  --desktop-bg: rgb(250, 250, 250);
+  --desktop-surface: rgba(255, 255, 255, 0.82);
+  --desktop-surface-strong: rgba(255, 255, 255, 0.97);
+  --desktop-surface-muted: rgba(255, 255, 255, 0.92);
+  --desktop-line: rgba(160, 160, 160, 0.2);
+  --desktop-line-strong: rgba(33, 90, 229, 0.2);
+  --desktop-accent: #215ae5;
+  --desktop-accent-rgb: 33, 90, 229;
+  --desktop-shadow: 160, 160, 160;
+}
+
+:root[data-theme='dark'][data-theme-accent='atlas-blue'] {
+  --desktop-bg: rgb(10, 17, 32);
+  --desktop-surface: rgba(14, 24, 48, 0.88);
+  --desktop-surface-strong: rgba(14, 24, 48, 0.96);
+  --desktop-surface-muted: rgba(14, 24, 48, 0.94);
+  --desktop-line: rgba(79, 123, 230, 0.18);
+  --desktop-line-strong: rgba(79, 123, 230, 0.26);
+  --desktop-shadow: 3, 8, 25;
+}
+
+:root[data-theme='dark'][data-theme-accent='ocean-teal'] {
+  --desktop-bg: rgb(8, 21, 24);
+  --desktop-surface: rgba(12, 33, 37, 0.88);
+  --desktop-surface-strong: rgba(12, 33, 37, 0.96);
+  --desktop-surface-muted: rgba(12, 33, 37, 0.94);
+  --desktop-line: rgba(78, 145, 150, 0.24);
+  --desktop-line-strong: rgba(78, 145, 150, 0.3);
+  --desktop-shadow: 2, 11, 13;
+}
+
+:root[data-theme='dark'][data-theme-accent='forest-green'] {
+  --desktop-bg: rgb(9, 20, 17);
+  --desktop-surface: rgba(14, 34, 28, 0.88);
+  --desktop-surface-strong: rgba(14, 34, 28, 0.96);
+  --desktop-surface-muted: rgba(14, 34, 28, 0.94);
+  --desktop-line: rgba(95, 159, 131, 0.23);
+  --desktop-line-strong: rgba(95, 159, 131, 0.3);
+  --desktop-shadow: 3, 12, 10;
+}
+
+:root[data-theme='dark'][data-theme-accent='sunset-amber'] {
+  --desktop-bg: rgb(20, 16, 8);
+  --desktop-surface: rgba(37, 29, 14, 0.88);
+  --desktop-surface-strong: rgba(37, 29, 14, 0.96);
+  --desktop-surface-muted: rgba(37, 29, 14, 0.94);
+  --desktop-line: rgba(182, 144, 64, 0.24);
+  --desktop-line-strong: rgba(182, 144, 64, 0.3);
+  --desktop-shadow: 14, 10, 2;
+}
+
+:root[data-theme='dark'][data-theme-accent='dusty-rose'] {
+  --desktop-bg: rgb(20, 13, 17);
+  --desktop-surface: rgba(36, 20, 28, 0.88);
+  --desktop-surface-strong: rgba(36, 20, 28, 0.96);
+  --desktop-surface-muted: rgba(36, 20, 28, 0.94);
+  --desktop-line: rgba(179, 111, 136, 0.24);
+  --desktop-line-strong: rgba(179, 111, 136, 0.3);
+  --desktop-shadow: 11, 4, 7;
+}
+
+:root[data-theme='dark'][data-theme-accent='slate-indigo'] {
+  --desktop-bg: rgb(13, 16, 29);
+  --desktop-surface: rgba(22, 27, 47, 0.88);
+  --desktop-surface-strong: rgba(22, 27, 47, 0.96);
+  --desktop-surface-muted: rgba(22, 27, 47, 0.94);
+  --desktop-line: rgba(112, 127, 191, 0.25);
+  --desktop-line-strong: rgba(112, 127, 191, 0.32);
+  --desktop-shadow: 6, 8, 18;
+}
+
+:root[data-theme='dark'][data-theme-accent='terracotta'] {
+  --desktop-bg: rgb(22, 15, 12);
+  --desktop-surface: rgba(38, 24, 20, 0.88);
+  --desktop-surface-strong: rgba(38, 24, 20, 0.96);
+  --desktop-surface-muted: rgba(38, 24, 20, 0.94);
+  --desktop-line: rgba(185, 122, 102, 0.26);
+  --desktop-line-strong: rgba(185, 122, 102, 0.32);
+  --desktop-shadow: 10, 5, 4;
+}
+
+:root[data-theme='dark'][data-theme-accent='plum-orchid'] {
+  --desktop-bg: rgb(18, 13, 22);
+  --desktop-surface: rgba(31, 22, 38, 0.88);
+  --desktop-surface-strong: rgba(31, 22, 38, 0.96);
+  --desktop-surface-muted: rgba(31, 22, 38, 0.94);
+  --desktop-line: rgba(162, 120, 185, 0.26);
+  --desktop-line-strong: rgba(162, 120, 185, 0.32);
+  --desktop-shadow: 8, 4, 11;
+}
+
+:root[data-theme='dark'][data-theme-accent='walnut-brown'] {
+  --desktop-bg: rgb(20, 15, 11);
+  --desktop-surface: rgba(34, 25, 19, 0.88);
+  --desktop-surface-strong: rgba(34, 25, 19, 0.96);
+  --desktop-surface-muted: rgba(34, 25, 19, 0.94);
+  --desktop-line: rgba(170, 132, 102, 0.24);
+  --desktop-line-strong: rgba(170, 132, 102, 0.32);
+  --desktop-shadow: 9, 6, 3;
+}
+
+:root[data-theme='dark'][data-theme-accent='pure-white'] {
+  --desktop-bg: rgb(13, 15, 18);
+  --desktop-surface: rgba(27, 30, 36, 0.88);
+  --desktop-surface-strong: rgba(27, 30, 36, 0.96);
+  --desktop-surface-muted: rgba(27, 30, 36, 0.94);
+  --desktop-line: rgba(140, 147, 160, 0.2);
+  --desktop-line-strong: rgba(83, 129, 240, 0.3);
+  --desktop-shadow: 4, 6, 10;
+}
+
 * {
   box-sizing: border-box;
 }

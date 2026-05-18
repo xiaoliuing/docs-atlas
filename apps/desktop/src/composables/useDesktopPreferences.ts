@@ -3,7 +3,17 @@ import { computed, shallowRef } from 'vue'
 const STORAGE_KEY = 'docs-atlas.desktop.preferences.v1'
 
 export type DesktopThemeMode = 'system' | 'light' | 'dark'
-export type DesktopAccentId = 'atlas' | 'forest' | 'amber' | 'rose' | 'violet'
+export type DesktopAccentId =
+  | 'pure-white'
+  | 'slate-indigo'
+  | 'terracotta'
+  | 'plum-orchid'
+  | 'walnut-brown'
+  | 'atlas-blue'
+  | 'ocean-teal'
+  | 'forest-green'
+  | 'sunset-amber'
+  | 'dusty-rose'
 
 export type DesktopAccentOption = {
   id: DesktopAccentId
@@ -18,20 +28,27 @@ type DesktopPreferences = {
 }
 
 const accentOptions: DesktopAccentOption[] = [
-  { id: 'atlas', label: 'Atlas Blue', hex: '#1F54D9', rgb: '31, 84, 217' },
-  { id: 'forest', label: 'Forest Green', hex: '#1F7A5A', rgb: '31, 122, 90' },
-  { id: 'amber', label: 'Amber Gold', hex: '#C98512', rgb: '201, 133, 18' },
-  { id: 'rose', label: 'Rose Coral', hex: '#C75A72', rgb: '199, 90, 114' },
-  { id: 'violet', label: 'Violet Ink', hex: '#6D5BD0', rgb: '109, 91, 208' },
+  { id: 'pure-white', label: '纯净白', hex: '#FFFFFF', rgb: '255, 255, 255' },
+  { id: 'slate-indigo', label: '靛云蓝', hex: '#5B6FD6', rgb: '91, 111, 214' },
+  { id: 'terracotta', label: '赤陶橘', hex: '#C97059', rgb: '201, 112, 89' },
+  { id: 'plum-orchid', label: '晚梅紫', hex: '#9A68B2', rgb: '154, 104, 178' },
+  { id: 'walnut-brown', label: '榛木棕', hex: '#9B7653', rgb: '155, 118, 83' },
+  { id: 'atlas-blue', label: '星图蓝', hex: '#1F54D9', rgb: '31, 84, 217' },
+  { id: 'ocean-teal', label: '海雾青', hex: '#0F8C95', rgb: '15, 140, 149' },
+  { id: 'forest-green', label: '森林绿', hex: '#1F8F63', rgb: '31, 143, 99' },
+  { id: 'sunset-amber', label: '落日金', hex: '#C28A1A', rgb: '194, 138, 26' },
+  { id: 'dusty-rose', label: '雾玫瑰', hex: '#C05F7F', rgb: '192, 95, 127' },
 ]
 
 const defaultPreferences: DesktopPreferences = {
   themeMode: 'system',
-  accentId: 'atlas',
+  accentId: 'atlas-blue',
 }
 
 const preferences = shallowRef<DesktopPreferences>(defaultPreferences)
 let hasLoaded = false
+let mediaQueryList: MediaQueryList | null = null
+let cleanupMediaQueryListener: (() => void) | null = null
 
 export function useDesktopPreferences() {
   ensurePreferencesLoaded()
@@ -91,6 +108,7 @@ function ensurePreferencesLoaded() {
     preferences.value = defaultPreferences
   }
 
+  bindSystemThemeListener()
   applyPreferences(preferences.value)
 }
 
@@ -109,21 +127,12 @@ function applyPreferences(value: DesktopPreferences) {
 
   const root = document.documentElement
   const accent = accentOptions.find((option) => option.id === value.accentId) ?? accentOptions[0]
+  const resolvedTheme = value.themeMode === 'system' ? getSystemTheme() : value.themeMode
 
-  if (value.themeMode === 'system') {
-    root.removeAttribute('data-theme-mode')
-    root.style.setProperty('color-scheme', 'light dark')
-  } else {
-    root.dataset.themeMode = value.themeMode
-    root.style.setProperty('color-scheme', value.themeMode)
-  }
-
+  root.dataset.themeMode = value.themeMode
+  root.dataset.theme = resolvedTheme
   root.dataset.themeAccent = accent.id
-  root.style.setProperty('--desktop-accent', accent.hex)
-  root.style.setProperty('--desktop-accent-rgb', accent.rgb)
-  root.style.setProperty('--color-accent', accent.hex)
-  root.style.setProperty('--color-accent-rgb', accent.rgb)
-  root.style.setProperty('--color-accent-deep', accent.hex)
+  root.style.setProperty('color-scheme', resolvedTheme)
 }
 
 function isThemeMode(value: unknown): value is DesktopThemeMode {
@@ -132,4 +141,30 @@ function isThemeMode(value: unknown): value is DesktopThemeMode {
 
 function isAccentId(value: unknown): value is DesktopAccentId {
   return accentOptions.some((option) => option.id === value)
+}
+
+function bindSystemThemeListener() {
+  if (typeof window === 'undefined' || cleanupMediaQueryListener) {
+    return
+  }
+
+  mediaQueryList = window.matchMedia('(prefers-color-scheme: dark)')
+  const handleChange = () => {
+    if (preferences.value.themeMode === 'system') {
+      applyPreferences(preferences.value)
+    }
+  }
+
+  mediaQueryList.addEventListener('change', handleChange)
+  cleanupMediaQueryListener = () => {
+    mediaQueryList?.removeEventListener('change', handleChange)
+  }
+}
+
+function getSystemTheme(): 'light' | 'dark' {
+  if (typeof window === 'undefined') {
+    return 'light'
+  }
+
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }

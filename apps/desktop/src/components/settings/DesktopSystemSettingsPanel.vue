@@ -161,15 +161,16 @@ const themeModeOptions: Array<{ value: DesktopThemeMode; label: string; descript
 
 .desktop-system-settings-panel__accents {
   display: grid;
-  gap: 0.55rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
 }
 
 .desktop-system-settings-panel__accent {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 0.72rem;
-  padding: 0.72rem;
+  gap: 0.62rem;
+  padding: 0.64rem 0.68rem;
   text-align: left;
 }
 
@@ -185,5 +186,11 @@ const themeModeOptions: Array<{ value: DesktopThemeMode; label: string; descript
   display: grid;
   gap: 0.1rem;
   min-width: 0;
+}
+
+.desktop-system-settings-panel__accent-copy strong {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>
