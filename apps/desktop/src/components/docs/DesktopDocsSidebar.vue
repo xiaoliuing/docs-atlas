@@ -13,7 +13,6 @@ const props = defineProps<{
   currentWorkspaceId: string
   currentWorkspaceSourceCount: number
   currentWorkspaceUnhealthySourceCount: number
-  isWorkspaceIndexing: boolean
   sourceGroups: DocsSourceGroup[]
   workspaces: WorkspaceDetail[]
 }>()
@@ -246,23 +245,16 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
         </div>
 
         <div
-          v-if="props.isWorkspaceIndexing || props.currentWorkspaceUnhealthySourceCount > 0"
+          v-if="props.currentWorkspaceUnhealthySourceCount > 0"
           class="desktop-docs-sidebar__workspace-health"
         >
           <span
             :class="[
               'desktop-docs-sidebar__workspace-health-chip',
-              {
-                'desktop-docs-sidebar__workspace-health-chip--warning':
-                  !props.isWorkspaceIndexing && props.currentWorkspaceUnhealthySourceCount > 0,
-              },
+              'desktop-docs-sidebar__workspace-health-chip--warning',
             ]"
           >
-            {{
-              props.isWorkspaceIndexing
-                ? '正在检查文档源'
-                : `${props.currentWorkspaceUnhealthySourceCount} 个目录源异常`
-            }}
+            {{ `${props.currentWorkspaceUnhealthySourceCount} 个目录源异常` }}
           </span>
         </div>
       </div>

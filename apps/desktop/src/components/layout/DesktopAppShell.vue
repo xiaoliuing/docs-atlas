@@ -357,7 +357,6 @@ function waitForDocAvailability(slug: string, timeoutMs = 5000) {
           :current-workspace-id="currentWorkspaceId"
           :current-workspace-unhealthy-source-count="workspaceDocs.unhealthySourceCount"
           :current-workspace-source-count="sourceCount"
-          :is-workspace-indexing="workspaceDocs.isLoading"
           :source-groups="visibleSourceGroups"
           :workspaces="workspaces"
           @create-workspace="openCreateWorkspaceDialog"
