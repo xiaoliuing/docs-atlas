@@ -2,13 +2,16 @@
 import { computed } from 'vue'
 import type { WorkspaceSourceStatus } from '@docs-atlas/shared-types/workspace'
 import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
-import type { WorkspaceSourceNodeDraft } from '@/utils/workspaceTree'
+import type { DraftNodeDropPlacement, WorkspaceSourceNodeDraft } from '@/utils/workspaceTree'
 
 const node = defineModel<WorkspaceSourceNodeDraft>('node', { required: true })
 
 const props = defineProps<{
   depth: number
   disabled?: boolean
+  dragOverNodeId?: string | null
+  dragPlacement?: DraftNodeDropPlacement | null
+  draggedNodeId?: string | null
   isValidatingPathByNodeId: Record<string, boolean | undefined>
   issuesByNodeId: Record<string, string[]>
   siblingCount?: number
@@ -24,7 +27,11 @@ const emit = defineEmits<{
   addFolder: [parentId: string]
   addGroup: [parentId: string]
   browseFolder: [nodeId: string]
+  dragEnd: []
+  dragOverNode: [payload: { targetNodeId: string; placement: DraftNodeDropPlacement }]
+  dragStart: [nodeId: string]
   moveNode: [nodeId: string, direction: -1 | 1]
+  dropNode: [payload: { targetNodeId: string; placement: DraftNodeDropPlacement }]
   removeNode: [nodeId: string]
 }>()
 
@@ -86,9 +93,73 @@ const runtimeStatusTone = computed(() => {
 })
 const canMoveUp = computed(() => (props.siblingIndex ?? 0) > 0)
 const canMoveDown = computed(() => (props.siblingIndex ?? 0) < (props.siblingCount ?? 1) - 1)
+const isDraggingSelf = computed(() => props.draggedNodeId === node.value.id)
+const isDropBeforeActive = computed(() => props.dragOverNodeId === node.value.id && props.dragPlacement === 'before')
+const isDropInsideActive = computed(() => props.dragOverNodeId === node.value.id && props.dragPlacement === 'inside')
+const isDropAfterActive = computed(() => props.dragOverNodeId === node.value.id && props.dragPlacement === 'after')
 
 function forwardMoveNode(nodeId: string, direction: -1 | 1) {
   emit('moveNode', nodeId, direction)
+}
+
+function handleDragStart(event: DragEvent) {
+  if (!event.dataTransfer || props.disabled) {
+    return
+  }
+
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', node.value.id)
+  emit('dragStart', node.value.id)
+}
+
+function handleDragEnd() {
+  emit('dragEnd')
+}
+
+function handleDragOver(event: DragEvent) {
+  if (props.disabled || props.draggedNodeId === node.value.id) {
+    return
+  }
+
+  event.preventDefault()
+  event.dataTransfer!.dropEffect = 'move'
+  emit('dragOverNode', {
+    targetNodeId: node.value.id,
+    placement: resolveDropPlacement(event),
+  })
+}
+
+function handleDrop(event: DragEvent) {
+  if (props.disabled || props.draggedNodeId === node.value.id) {
+    return
+  }
+
+  event.preventDefault()
+  emit('dropNode', {
+    targetNodeId: node.value.id,
+    placement: resolveDropPlacement(event),
+  })
+}
+
+function resolveDropPlacement(event: DragEvent): DraftNodeDropPlacement {
+  const currentTarget = event.currentTarget
+  if (!(currentTarget instanceof HTMLElement)) {
+    return 'inside'
+  }
+
+  const { top, height } = currentTarget.getBoundingClientRect()
+  const offsetY = event.clientY - top
+  const threshold = Math.min(18, height * 0.24)
+
+  if (offsetY <= threshold) {
+    return 'before'
+  }
+
+  if (offsetY >= height - threshold) {
+    return 'after'
+  }
+
+  return 'inside'
 }
 </script>
 
@@ -97,8 +168,30 @@ function forwardMoveNode(nodeId: string, direction: -1 | 1) {
     class="desktop-source-tree-node"
     :style="{ '--source-tree-depth': depth }"
   >
-    <div class="desktop-source-tree-node__card">
+    <div
+      :class="[
+        'desktop-source-tree-node__card',
+        {
+          'desktop-source-tree-node__card--dragging': isDraggingSelf,
+          'desktop-source-tree-node__card--drop-before': isDropBeforeActive,
+          'desktop-source-tree-node__card--drop-inside': isDropInsideActive,
+          'desktop-source-tree-node__card--drop-after': isDropAfterActive,
+        },
+      ]"
+      @dragover="handleDragOver"
+      @drop="handleDrop"
+    >
       <div class="desktop-source-tree-node__row">
+        <button
+          :disabled="disabled"
+          class="desktop-source-tree-node__drag-handle"
+          draggable="true"
+          type="button"
+          @dragstart="handleDragStart"
+          @dragend="handleDragEnd"
+        >
+          <DesktopUiIcon name="grip" :size="15" />
+        </button>
         <span
           :class="[
             'desktop-source-tree-node__kind',
@@ -236,6 +329,9 @@ function forwardMoveNode(nodeId: string, direction: -1 | 1) {
         v-model:node="node.children[index]"
         :depth="depth + 1"
         :disabled="disabled"
+        :drag-over-node-id="dragOverNodeId"
+        :drag-placement="dragPlacement"
+        :dragged-node-id="draggedNodeId"
         :is-validating-path-by-node-id="isValidatingPathByNodeId"
         :issues-by-node-id="issuesByNodeId"
         :sibling-count="node.children.length"
@@ -245,7 +341,11 @@ function forwardMoveNode(nodeId: string, direction: -1 | 1) {
         @add-folder="emit('addFolder', $event)"
         @add-group="emit('addGroup', $event)"
         @browse-folder="emit('browseFolder', $event)"
+        @drag-end="emit('dragEnd')"
+        @drag-over-node="emit('dragOverNode', $event)"
+        @drag-start="emit('dragStart', $event)"
         @move-node="forwardMoveNode"
+        @drop-node="emit('dropNode', $event)"
         @remove-node="emit('removeNode', $event)"
       />
     </div>
@@ -259,6 +359,7 @@ function forwardMoveNode(nodeId: string, direction: -1 | 1) {
 }
 
 .desktop-source-tree-node__card {
+  position: relative;
   display: grid;
   gap: 0.6rem;
   padding: 0.8rem;
@@ -266,6 +367,36 @@ function forwardMoveNode(nodeId: string, direction: -1 | 1) {
   border: 1px solid var(--desktop-line);
   border-radius: 16px;
   background: var(--desktop-surface);
+  transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+}
+
+.desktop-source-tree-node__card--dragging {
+  opacity: 0.56;
+}
+
+.desktop-source-tree-node__card--drop-inside {
+  border-color: rgba(var(--desktop-accent-rgb), 0.38);
+  background: rgba(var(--desktop-accent-rgb), 0.06);
+  box-shadow: inset 0 0 0 1px rgba(var(--desktop-accent-rgb), 0.12);
+}
+
+.desktop-source-tree-node__card--drop-before::before,
+.desktop-source-tree-node__card--drop-after::after {
+  content: '';
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--desktop-accent);
+}
+
+.desktop-source-tree-node__card--drop-before::before {
+  top: -1px;
+}
+
+.desktop-source-tree-node__card--drop-after::after {
+  bottom: -1px;
 }
 
 .desktop-source-tree-node__row,
@@ -295,6 +426,25 @@ function forwardMoveNode(nodeId: string, direction: -1 | 1) {
 .desktop-source-tree-node__kind--folder {
   background: rgba(47, 123, 95, 0.1);
   color: #2f7b5f;
+}
+
+.desktop-source-tree-node__drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1.9rem;
+  min-height: 1.9rem;
+  padding: 0;
+  border: 1px solid var(--desktop-line);
+  border-radius: 10px;
+  background: rgba(var(--desktop-accent-rgb), 0.04);
+  color: var(--desktop-soft);
+  cursor: grab;
+}
+
+.desktop-source-tree-node__drag-handle:active {
+  cursor: grabbing;
 }
 
 .desktop-source-tree-node__name,

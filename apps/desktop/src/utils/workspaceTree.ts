@@ -17,6 +17,8 @@ export type SourceTreeValidationIssue = {
   severity: 'error' | 'warning'
 }
 
+export type DraftNodeDropPlacement = 'before' | 'after' | 'inside'
+
 export function cloneWorkspaceSources(nodes: WorkspaceDetail['sources'] | WorkspaceSourceNodeDraft[]): WorkspaceSourceNodeDraft[] {
   return nodes.map((node, index) => ({
     id: node.id,
@@ -160,6 +162,35 @@ export function moveDraftNode(
   return nodes
 }
 
+export function moveDraftNodeByDrop(
+  nodes: WorkspaceSourceNodeDraft[],
+  draggedNodeId: string,
+  targetNodeId: string,
+  placement: DraftNodeDropPlacement,
+): WorkspaceSourceNodeDraft[] {
+  if (!draggedNodeId || !targetNodeId || draggedNodeId === targetNodeId) {
+    return nodes
+  }
+
+  const draggedNode = findDraftNode(nodes, draggedNodeId)
+  if (!draggedNode || containsNodeId(draggedNode.children, targetNodeId)) {
+    return nodes
+  }
+
+  const [withoutDraggedNode, extractedNode] = extractDraftNode(nodes, draggedNodeId)
+  if (!extractedNode) {
+    return nodes
+  }
+
+  const nextNodes = insertDraftNode(withoutDraggedNode, extractedNode, targetNodeId, placement)
+  if (nextNodes === withoutDraggedNode) {
+    return nodes
+  }
+
+  normalizeDraftPositions(nextNodes)
+  return nextNodes
+}
+
 export function collectSourceTreeIssues(
   nodes: WorkspaceSourceNodeDraft[],
   pathStatuses: Record<string, { exists: boolean; isDirectory: boolean } | undefined>,
@@ -278,4 +309,90 @@ export function syncDraftParentIds(nodes: WorkspaceSourceNodeDraft[], parentId: 
 
 export function cloneSourceNodes(nodes: WorkspaceSourceNode[]): WorkspaceSourceNodeDraft[] {
   return cloneWorkspaceSources(nodes)
+}
+
+function containsNodeId(nodes: WorkspaceSourceNodeDraft[], targetId: string): boolean {
+  return nodes.some((node) => node.id === targetId || containsNodeId(node.children, targetId))
+}
+
+function extractDraftNode(
+  nodes: WorkspaceSourceNodeDraft[],
+  targetId: string,
+): [WorkspaceSourceNodeDraft[], WorkspaceSourceNodeDraft | null] {
+  const targetIndex = nodes.findIndex((node) => node.id === targetId)
+  if (targetIndex >= 0) {
+    const nextNodes = [...nodes]
+    const [targetNode] = nextNodes.splice(targetIndex, 1)
+    return [nextNodes, targetNode]
+  }
+
+  let extractedNode: WorkspaceSourceNodeDraft | null = null
+  const nextNodes = nodes.map((node) => {
+    if (extractedNode) {
+      return node
+    }
+
+    const [nextChildren, nestedExtractedNode] = extractDraftNode(node.children, targetId)
+    if (!nestedExtractedNode) {
+      return node
+    }
+
+    extractedNode = nestedExtractedNode
+    return {
+      ...node,
+      children: nextChildren,
+    }
+  })
+
+  return [extractedNode ? nextNodes : nodes, extractedNode]
+}
+
+function insertDraftNode(
+  nodes: WorkspaceSourceNodeDraft[],
+  draftNode: WorkspaceSourceNodeDraft,
+  targetNodeId: string,
+  placement: DraftNodeDropPlacement,
+): WorkspaceSourceNodeDraft[] {
+  const targetIndex = nodes.findIndex((node) => node.id === targetNodeId)
+  if (targetIndex >= 0) {
+    const nextNodes = [...nodes]
+
+    if (placement === 'inside') {
+      const targetNode = nextNodes[targetIndex]
+      nextNodes.splice(targetIndex, 1, {
+        ...targetNode,
+        children: [...targetNode.children, cloneWorkspaceSources([draftNode])[0]!].map((child) => ({
+          ...child,
+          parentId: targetNode.id,
+        })),
+      })
+      return nextNodes
+    }
+
+    const insertIndex = placement === 'before' ? targetIndex : targetIndex + 1
+    nextNodes.splice(insertIndex, 0, {
+      ...draftNode,
+      parentId: nextNodes[targetIndex]?.parentId ?? null,
+    })
+    return nextNodes
+  }
+
+  let changed = false
+  const nextNodes = nodes.map((node) => {
+    const nextChildren = insertDraftNode(node.children, draftNode, targetNodeId, placement)
+    if (nextChildren !== node.children) {
+      changed = true
+      return {
+        ...node,
+        children: nextChildren.map((child) => ({
+          ...child,
+          parentId: node.id,
+        })),
+      }
+    }
+
+    return node
+  })
+
+  return changed ? nextNodes : nodes
 }

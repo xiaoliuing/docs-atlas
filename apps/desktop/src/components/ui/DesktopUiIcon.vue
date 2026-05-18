@@ -5,6 +5,7 @@ withDefaults(
       | 'atlas'
       | 'search'
       | 'settings'
+      | 'grip'
       | 'plus'
       | 'close'
       | 'chevron-down'
@@ -54,6 +55,15 @@ withDefaults(
       <circle cx="9" cy="7.5" r="2.15" fill="currentColor" stroke="none" />
       <circle cx="15.5" cy="12" r="2.15" fill="currentColor" stroke="none" />
       <circle cx="11.5" cy="16.5" r="2.15" fill="currentColor" stroke="none" />
+    </template>
+
+    <template v-else-if="name === 'grip'">
+      <circle cx="9" cy="8" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="8" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="16" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="16" r="1.2" fill="currentColor" stroke="none" />
     </template>
 
     <template v-else-if="name === 'plus'">

@@ -10,10 +10,12 @@ import {
   countDraftSources,
   createFolderDraft,
   createGroupDraft,
+  type DraftNodeDropPlacement,
   findDraftNode,
   flattenDraftNodes,
   inferFolderDisplayName,
   insertDraftChild,
+  moveDraftNodeByDrop,
   moveDraftNode,
   normalizeDraftPositions,
   removeDraftNode,
@@ -39,6 +41,9 @@ const emit = defineEmits<{
 
 const state = reactive({
   draftNodes: [] as WorkspaceSourceNodeDraft[],
+  dragOverNodeId: null as string | null,
+  dragPlacement: null as DraftNodeDropPlacement | null,
+  draggedNodeId: null as string | null,
   importSummary: '',
   pathStatuses: {} as Record<string, { exists: boolean; isDirectory: boolean } | undefined>,
   pathValidationTokens: {} as Record<string, number>,
@@ -73,6 +78,7 @@ watch(
     }
 
     state.draftNodes = cloneSourceNodes(props.workspace.sources)
+    resetDragState()
     state.importSummary = ''
     state.pathStatuses = {}
     void validateAllFolderNodes()
@@ -169,6 +175,40 @@ function handleRemoveNode(nodeId: string) {
 function handleMoveNode(nodeId: string, direction: -1 | 1) {
   state.draftNodes = moveDraftNode(state.draftNodes, nodeId, direction)
   syncDraftParentIds(state.draftNodes)
+}
+
+function handleDragStart(nodeId: string) {
+  state.draggedNodeId = nodeId
+}
+
+function handleDragOver(payload: { targetNodeId: string; placement: DraftNodeDropPlacement }) {
+  if (!state.draggedNodeId || state.draggedNodeId === payload.targetNodeId) {
+    return
+  }
+
+  state.dragOverNodeId = payload.targetNodeId
+  state.dragPlacement = payload.placement
+}
+
+function handleDrop(payload: { targetNodeId: string; placement: DraftNodeDropPlacement }) {
+  if (!state.draggedNodeId) {
+    return
+  }
+
+  state.draftNodes = moveDraftNodeByDrop(
+    state.draftNodes,
+    state.draggedNodeId,
+    payload.targetNodeId,
+    payload.placement,
+  )
+  syncDraftParentIds(state.draftNodes)
+  resetDragState()
+}
+
+function resetDragState() {
+  state.dragOverNodeId = null
+  state.dragPlacement = null
+  state.draggedNodeId = null
 }
 
 function handleClose() {
@@ -393,6 +433,9 @@ function normalizePathValue(pathValue: string) {
           v-model:node="state.draftNodes[index]"
           :depth="0"
           :disabled="props.isSaving"
+          :drag-over-node-id="state.dragOverNodeId"
+          :drag-placement="state.dragPlacement"
+          :dragged-node-id="state.draggedNodeId"
           :is-validating-path-by-node-id="state.validatingPathIds"
           :issues-by-node-id="issuesByNodeId"
           :sibling-count="state.draftNodes.length"
@@ -402,7 +445,11 @@ function normalizePathValue(pathValue: string) {
           @add-folder="handleAddNestedFolder"
           @add-group="handleAddNestedGroup"
           @browse-folder="handleBrowseFolder"
+          @drag-end="resetDragState"
+          @drag-over-node="handleDragOver"
+          @drag-start="handleDragStart"
           @move-node="handleMoveNode"
+          @drop-node="handleDrop"
           @remove-node="handleRemoveNode"
         />
       </div>
