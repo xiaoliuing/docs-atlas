@@ -27,6 +27,35 @@
     "SFMono-Regular",
     "SF Mono",
     monospace;
+  --theme-shadow-rgb: var(--desktop-shadow);
+  --color-background: var(--desktop-bg);
+  --color-panel: var(--desktop-surface);
+  --color-ink: var(--desktop-ink);
+  --color-muted: var(--desktop-muted);
+  --color-soft: var(--desktop-soft);
+  --color-accent: var(--desktop-accent);
+  --color-accent-rgb: var(--desktop-accent-rgb);
+  --color-accent-deep: var(--desktop-accent);
+  --color-line: var(--desktop-line);
+  --surface-panel: var(--desktop-surface);
+  --surface-panel-alt: var(--desktop-surface);
+  --surface-card: var(--desktop-surface);
+  --surface-card-strong: var(--desktop-surface-strong);
+  --surface-card-hover: rgba(var(--desktop-accent-rgb), 0.08);
+  --surface-chip: var(--desktop-surface-muted);
+  --surface-contrast: #13213b;
+  --surface-markdown: var(--desktop-surface-strong);
+  --font-body: var(--desktop-font-sans);
+  --font-display: var(--desktop-font-sans);
+  --font-mono: var(--desktop-font-mono);
+  --shadow-panel: 0 14px 34px rgba(var(--desktop-shadow), 0.08);
+  --preview-overlay: rgba(7, 12, 22, 0.76);
+  --preview-surface: rgba(255, 255, 255, 0.9);
+  --preview-surface-strong: rgba(255, 255, 255, 0.96);
+  --preview-button-bg: rgba(255, 255, 255, 0.92);
+  --preview-button-fg: #172033;
+  --preview-caption-bg: rgba(255, 255, 255, 0.88);
+  --preview-frame-shadow: 0 20px 48px rgba(var(--desktop-shadow), 0.18);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -66,6 +95,10 @@ body {
   color: var(--desktop-ink);
   font-family: var(--desktop-font-sans);
   line-height: 1.5;
+}
+
+a {
+  color: inherit;
 }
 
 button,

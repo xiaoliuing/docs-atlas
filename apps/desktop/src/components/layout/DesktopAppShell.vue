@@ -1,14 +1,68 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import DesktopSettingsPanel from '@/components/settings/DesktopSettingsPanel.vue'
-import WorkspaceOverviewPanel from '@/components/workspace/WorkspaceOverviewPanel.vue'
+import DesktopDocReader from '@/components/docs/DesktopDocReader.vue'
+import DesktopDocsSidebar from '@/components/docs/DesktopDocsSidebar.vue'
+import DesktopDocToc from '@/components/docs/DesktopDocToc.vue'
+import DesktopSearchPanel from '@/components/docs/DesktopSearchPanel.vue'
+import { useDesktopActiveHeadings } from '@/composables/useDesktopActiveHeadings'
+import { useDesktopDocsBrowser } from '@/composables/useDesktopDocsBrowser'
+import { useDesktopDocsSearch } from '@/composables/useDesktopDocsSearch'
 import WorkspaceSidebar from '@/components/workspace/WorkspaceSidebar.vue'
 import { useWorkspaceSelection } from '@/composables/useWorkspaceSelection'
 
 const { currentWorkspace, currentWorkspaceId, selectWorkspace, workspaces } = useWorkspaceSelection()
+const {
+  currentDoc,
+  currentSectionId,
+  currentSourceId,
+  headings,
+  nextDoc,
+  prevDoc,
+  selectDoc,
+  selectFirstDoc,
+  selectedDocSlug,
+  sourceGroups,
+} = useDesktopDocsBrowser()
+const {
+  activeResult,
+  close: closeSearch,
+  isOpen,
+  moveSelection,
+  open: openSearch,
+  query,
+  results,
+  selectedIndex,
+  setQuery,
+} = useDesktopDocsSearch()
+const { activeId, scrollToHeading } = useDesktopActiveHeadings(headings)
 
 const sourceCount = computed(() => currentWorkspace.value?.sources.length ?? 0)
 const workspaceLabel = computed(() => currentWorkspace.value?.name ?? '未选择工作环境')
+const searchQuery = computed({
+  get: () => query.value,
+  set: (value: string) => {
+    setQuery(value)
+  },
+})
+
+function handleSelectWorkspace(workspaceId: string) {
+  selectWorkspace(workspaceId)
+  selectFirstDoc()
+}
+
+function handleSelectDoc(slug: string) {
+  selectDoc(slug)
+}
+
+function handleSubmitSearch(slug?: string) {
+  const targetSlug = slug || activeResult.value?.slug
+  if (!targetSlug) {
+    return
+  }
+
+  selectDoc(targetSlug)
+  closeSearch()
+}
 </script>
 
 <template>
@@ -17,7 +71,7 @@ const workspaceLabel = computed(() => currentWorkspace.value?.name ?? '未选择
       <WorkspaceSidebar
         :current-workspace-id="currentWorkspaceId"
         :workspaces="workspaces"
-        @select-workspace="selectWorkspace"
+        @select-workspace="handleSelectWorkspace"
       />
     </aside>
 
@@ -51,9 +105,49 @@ const workspaceLabel = computed(() => currentWorkspace.value?.name ?? '未选择
         </div>
       </header>
 
-      <div class="desktop-app-shell__grid">
-        <WorkspaceOverviewPanel :workspace="currentWorkspace" />
-        <DesktopSettingsPanel />
+      <section class="desktop-app-shell__toolbar">
+        <div class="desktop-app-shell__toolbar-copy">
+          <p class="desktop-app-shell__toolbar-title">文档检索</p>
+          <p class="desktop-app-shell__toolbar-summary">
+            当前先直接读取本地 docs 内容，下一步再切到 Workspace + SQLite 实际数据。
+          </p>
+        </div>
+
+        <DesktopSearchPanel
+          v-model="searchQuery"
+          class="desktop-app-shell__toolbar-search"
+          :is-open="isOpen"
+          :results="results"
+          :selected-index="selectedIndex"
+          @close="closeSearch"
+          @move-selection="moveSelection"
+          @open="openSearch"
+          @submit="handleSubmitSearch"
+        />
+      </section>
+
+      <div class="desktop-app-shell__reader-grid">
+        <DesktopDocsSidebar
+          :current-doc-slug="selectedDocSlug || null"
+          :current-section-id="currentSectionId"
+          :current-source-id="currentSourceId"
+          :source-groups="sourceGroups"
+          @select-doc="handleSelectDoc"
+        />
+
+        <DesktopDocReader
+          :doc="currentDoc"
+          :highlight-query="query"
+          :next-doc="nextDoc"
+          :prev-doc="prevDoc"
+          @select-doc="handleSelectDoc"
+        />
+
+        <DesktopDocToc
+          :active-id="activeId"
+          :headings="headings"
+          @select="scrollToHeading"
+        />
       </div>
     </main>
   </div>
@@ -84,7 +178,7 @@ const workspaceLabel = computed(() => currentWorkspace.value?.name ?? '未选择
 
 .desktop-app-shell__main {
   display: grid;
-  gap: 1rem;
+  gap: 0.95rem;
   min-width: 0;
 }
 
@@ -174,9 +268,45 @@ const workspaceLabel = computed(() => currentWorkspace.value?.name ?? '未选择
   line-height: 1.1;
 }
 
-.desktop-app-shell__grid {
+.desktop-app-shell__toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.88fr);
+  grid-template-columns: minmax(0, 0.8fr) minmax(320px, 1fr);
+  gap: 0.95rem;
+  align-items: center;
+  padding: 0.95rem 1.05rem;
+  border: 1px solid var(--desktop-line);
+  border-radius: var(--desktop-radius-lg);
+  background: var(--desktop-surface);
+}
+
+.desktop-app-shell__toolbar-copy {
+  display: grid;
+  gap: 0.22rem;
+}
+
+.desktop-app-shell__toolbar-title,
+.desktop-app-shell__toolbar-summary {
+  margin: 0;
+}
+
+.desktop-app-shell__toolbar-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.desktop-app-shell__toolbar-summary {
+  color: var(--desktop-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.desktop-app-shell__toolbar-search {
+  min-width: 0;
+}
+
+.desktop-app-shell__reader-grid {
+  display: grid;
+  grid-template-columns: 312px minmax(0, 1fr) 248px;
   gap: 0.95rem;
   align-items: start;
 }
@@ -200,17 +330,22 @@ const workspaceLabel = computed(() => currentWorkspace.value?.name ?? '未选择
     flex-direction: column;
   }
 
-  .desktop-app-shell__hero-meta {
+  .desktop-app-shell__hero-meta,
+  .desktop-app-shell__toolbar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .desktop-app-shell__grid {
+  .desktop-app-shell__reader-grid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 640px) {
   .desktop-app-shell__hero-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .desktop-app-shell__toolbar {
     grid-template-columns: 1fr;
   }
 }
