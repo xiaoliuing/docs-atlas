@@ -42,7 +42,10 @@ const emit = defineEmits<{
 }
 
 .doc-toc__inner {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   gap: 0.22rem;
   height: 100%;
   overflow-y: auto;
@@ -59,6 +62,7 @@ const emit = defineEmits<{
 }
 
 .doc-toc__link {
+  flex: none;
   border: 0;
   padding: 0.3rem 0.48rem;
   border-radius: 8px;

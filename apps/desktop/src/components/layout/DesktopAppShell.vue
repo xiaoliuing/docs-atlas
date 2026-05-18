@@ -425,8 +425,11 @@ function filterSourceGroups(groups: typeof sourceGroups, allowedSourceIds: Set<s
   justify-content: space-between;
   gap: 1rem;
   padding: 0 0.9rem 0 0.2rem;
-  background: rgba(226, 234, 247, 0.82);
+  background:
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.15), rgba(var(--desktop-accent-rgb), 0.05) 62%, transparent),
+    var(--desktop-surface-strong);
   border-bottom: 1px solid var(--desktop-line);
+  box-shadow: inset 0 -1px 0 rgba(var(--desktop-accent-rgb), 0.08);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
@@ -499,7 +502,9 @@ function filterSourceGroups(groups: typeof sourceGroups, allowedSourceIds: Set<s
   height: 2.05rem;
   border: 1px solid var(--desktop-line);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.64);
+  background:
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.09), transparent 85%),
+    var(--desktop-surface);
   color: var(--desktop-muted);
   cursor: pointer;
   transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
@@ -513,7 +518,9 @@ function filterSourceGroups(groups: typeof sourceGroups, allowedSourceIds: Set<s
 .desktop-titlebar__icon-button:hover,
 .desktop-titlebar__icon-button--active {
   border-color: var(--desktop-line-strong);
-  background: rgba(var(--desktop-accent-rgb), 0.12);
+  background:
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.18), rgba(var(--desktop-accent-rgb), 0.08)),
+    var(--desktop-surface-strong);
   color: var(--desktop-accent);
   transform: translateY(-1px);
 }
@@ -567,24 +574,6 @@ function filterSourceGroups(groups: typeof sourceGroups, allowedSourceIds: Set<s
   background: var(--desktop-surface);
   box-shadow: var(--shadow-panel);
   overflow: hidden;
-}
-
-@media (prefers-color-scheme: dark) {
-  .desktop-titlebar {
-    background: rgba(18, 27, 42, 0.86);
-  }
-
-  .desktop-titlebar__icon-button {
-    background: rgba(20, 30, 46, 0.8);
-  }
-}
-
-:global(:root[data-theme-mode='dark']) .desktop-titlebar {
-  background: rgba(18, 27, 42, 0.86);
-}
-
-:global(:root[data-theme-mode='dark']) .desktop-titlebar__icon-button {
-  background: rgba(20, 30, 46, 0.8);
 }
 
 @media (max-width: 1320px) {
