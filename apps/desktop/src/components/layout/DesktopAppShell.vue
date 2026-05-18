@@ -13,6 +13,7 @@ import { useDesktopActiveHeadings } from '@/composables/useDesktopActiveHeadings
 import { useDesktopDocsBrowser } from '@/composables/useDesktopDocsBrowser'
 import { useDesktopPreferences } from '@/composables/useDesktopPreferences'
 import { useDesktopDocsSearch } from '@/composables/useDesktopDocsSearch'
+import { useDesktopSearchCatalog } from '@/composables/useDesktopSearchCatalog'
 import { useDesktopWorkspaceDocs } from '@/composables/useDesktopWorkspaceDocs'
 import { useWorkspaceSelection } from '@/composables/useWorkspaceSelection'
 
@@ -32,6 +33,9 @@ const {
 } = useWorkspaceSelection()
 const workspaceDocs = useDesktopWorkspaceDocs({
   workspace: currentWorkspace,
+})
+const searchCatalog = useDesktopSearchCatalog({
+  workspaces,
 })
 const {
   clearSelection,
@@ -65,8 +69,8 @@ const {
   setQuery,
   setScope,
 } = useDesktopDocsSearch({
-  docsBySlug: workspaceDocs.docsBySlug,
-  searchIndex: workspaceDocs.searchIndex,
+  docsBySlug: searchCatalog.docsBySlug,
+  searchIndex: searchCatalog.searchIndex,
   workspaceSourceIds: currentWorkspaceSourceIds,
 })
 const { accentOptions, preferences, setAccent, setThemeMode } = useDesktopPreferences()
@@ -129,13 +133,21 @@ function openSourceTreeDialog() {
   isSourceTreeDialogOpen.value = true
 }
 
-function handleSubmitSearch(slug?: string) {
-  const targetSlug = slug || activeResult.value?.slug
-  if (!targetSlug) {
+async function handleSubmitSearch(slug?: string) {
+  const targetSearchSlug = slug || activeResult.value?.slug
+  if (!targetSearchSlug) {
     return
   }
 
-  selectDoc(targetSlug)
+  const targetWorkspaceId = searchCatalog.workspaceIdBySearchSlug.value[targetSearchSlug]
+  const targetDocSlug = searchCatalog.docSlugBySearchSlug.value[targetSearchSlug] ?? targetSearchSlug
+
+  if (targetWorkspaceId && targetWorkspaceId !== currentWorkspaceId.value) {
+    await selectWorkspace(targetWorkspaceId)
+    await waitForDocAvailability(targetDocSlug)
+  }
+
+  selectDoc(targetDocSlug)
   closeSearch()
 }
 
@@ -232,6 +244,30 @@ function countWorkspaceFolderSources(nodes: WorkspaceSourceNode[]): number {
     const selfCount = node.kind === 'folder' ? 1 : 0
     return count + selfCount + countWorkspaceFolderSources(node.children)
   }, 0)
+}
+
+function waitForDocAvailability(slug: string, timeoutMs = 5000) {
+  if (workspaceDocs.docsBySlug.value[slug]) {
+    return Promise.resolve()
+  }
+
+  return new Promise<void>((resolve) => {
+    const stop = watch(
+      [workspaceDocs.docsBySlug, workspaceDocs.isLoading],
+      ([docsBySlugValue, isLoadingValue]) => {
+        if (docsBySlugValue[slug] || (!isLoadingValue && Object.keys(docsBySlugValue).length > 0)) {
+          stop()
+          resolve()
+        }
+      },
+      { immediate: true },
+    )
+
+    window.setTimeout(() => {
+      stop()
+      resolve()
+    }, timeoutMs)
+  })
 }
 </script>
 

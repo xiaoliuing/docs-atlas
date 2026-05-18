@@ -214,6 +214,23 @@ defineExpose({
   border: 1px solid var(--desktop-line);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.64);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.desktop-search-panel__field:focus-within {
+  border-color: rgba(var(--desktop-accent-rgb), 0.34);
+  box-shadow:
+    0 0 0 1px rgba(var(--desktop-accent-rgb), 0.18),
+    0 10px 24px rgba(var(--desktop-shadow), 0.08);
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.desktop-search-panel__field:focus-within .desktop-search-panel__field-icon,
+.desktop-search-panel__field:focus-within .desktop-search-panel__clear {
+  color: var(--desktop-accent);
 }
 
 .desktop-search-panel__field-icon {
@@ -370,9 +387,17 @@ defineExpose({
   .desktop-search-panel__field {
     background: rgba(14, 22, 36, 0.86);
   }
+
+  .desktop-search-panel__field:focus-within {
+    background: rgba(17, 26, 41, 0.96);
+  }
 }
 
 :global(:root[data-theme-mode='dark']) .desktop-search-panel__field {
   background: rgba(14, 22, 36, 0.86);
+}
+
+:global(:root[data-theme-mode='dark']) .desktop-search-panel__field:focus-within {
+  background: rgba(17, 26, 41, 0.96);
 }
 </style>
