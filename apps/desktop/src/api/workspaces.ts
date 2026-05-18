@@ -8,6 +8,8 @@ import type {
 import { browserDefaultWorkspaces, createDefaultWorkspaces } from '@/mocks/workspaces'
 
 const STORAGE_KEY = 'docs-atlas.desktop.workspaces.v1'
+const SEED_VERSION_KEY = 'docs-atlas.desktop.workspaces.seed-version'
+const CURRENT_SEED_VERSION = '2'
 
 export type WorkspaceSaveInput = WorkspaceUpsertInput & {
   sources?: WorkspaceSourceNodeInput[]
@@ -126,15 +128,18 @@ function readBrowserWorkspaces(): WorkspaceDetail[] {
   if (!rawValue) {
     const seeded = cloneWorkspaces(browserDefaultWorkspaces)
     writeBrowserWorkspaces(seeded)
+    markBrowserSeedVersion()
     return seeded
   }
 
   try {
     const parsed = JSON.parse(rawValue) as WorkspaceDetail[]
-    return cloneWorkspaces(parsed)
+    const next = maybeMigrateLegacyBrowserWorkspaces(parsed)
+    return cloneWorkspaces(next)
   } catch {
     const seeded = cloneWorkspaces(browserDefaultWorkspaces)
     writeBrowserWorkspaces(seeded)
+    markBrowserSeedVersion()
     return seeded
   }
 }
@@ -150,6 +155,35 @@ function writeBrowserWorkspaces(workspaces: WorkspaceDetail[]) {
   }
 
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(workspaces))
+}
+
+function maybeMigrateLegacyBrowserWorkspaces(workspaces: WorkspaceDetail[]) {
+  if (typeof window === 'undefined') {
+    return workspaces
+  }
+
+  const savedSeedVersion = window.localStorage.getItem(SEED_VERSION_KEY)
+  if (savedSeedVersion === CURRENT_SEED_VERSION) {
+    return workspaces
+  }
+
+  if (isLegacySeedWorkspaceSet(workspaces)) {
+    const seeded = cloneWorkspaces(browserDefaultWorkspaces)
+    writeBrowserWorkspaces(seeded)
+    markBrowserSeedVersion()
+    return seeded
+  }
+
+  markBrowserSeedVersion()
+  return workspaces
+}
+
+function markBrowserSeedVersion() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(SEED_VERSION_KEY, CURRENT_SEED_VERSION)
 }
 
 function isTauriRuntime() {
@@ -179,3 +213,57 @@ function sortWorkspaces(workspaces: WorkspaceDetail[]) {
     return left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, 'zh-Hans-CN')
   })
 }
+
+function isLegacySeedWorkspaceSet(workspaces: WorkspaceDetail[]) {
+  if (workspaces.length === 0) {
+    return true
+  }
+
+  if (workspaces.length === 1 && workspaces[0]?.id === 'workspace:default') {
+    return !matchesCurrentDefaultWorkspace(workspaces[0])
+  }
+
+  return workspaces.every((workspace) => {
+    return (
+      LEGACY_WORKSPACE_IDS.has(workspace.id) ||
+      workspace.sources.some((source) => containsLegacySeedMarker(source))
+    )
+  })
+}
+
+function matchesCurrentDefaultWorkspace(workspace: WorkspaceDetail) {
+  if (workspace.sources.length !== 1) {
+    return false
+  }
+
+  const [source] = workspace.sources
+  return (
+    workspace.name === '项目文档' &&
+    source.id === 'node:project-docs' &&
+    source.kind === 'folder' &&
+    source.name === '项目文档' &&
+    normalizePath(source.path) === './docs' &&
+    source.children.length === 0
+  )
+}
+
+function containsLegacySeedMarker(source: WorkspaceDetail['sources'][number]): boolean {
+  if (
+    LEGACY_SOURCE_IDS.has(source.id) ||
+    LEGACY_SOURCE_NAMES.has(source.name) ||
+    normalizePath(source.path).includes('config.yaml') ||
+    normalizePath(source.path).includes('config.yml')
+  ) {
+    return true
+  }
+
+  return source.children.some((child) => containsLegacySeedMarker(child))
+}
+
+function normalizePath(value: string) {
+  return value.replace(/\\/g, '/').trim().toLowerCase()
+}
+
+const LEGACY_WORKSPACE_IDS = new Set(['workspace:atlas', 'workspace:product', 'workspace:ai'])
+const LEGACY_SOURCE_IDS = new Set(['source:atlas', 'source:product', 'source:ai'])
+const LEGACY_SOURCE_NAMES = new Set(['AI-Agent', 'Another Project', 'Local Workspace'])

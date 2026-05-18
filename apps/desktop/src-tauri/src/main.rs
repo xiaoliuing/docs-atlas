@@ -5,6 +5,9 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
+const DESKTOP_SEED_VERSION_KEY: &str = "desktop_seed_version";
+const CURRENT_DESKTOP_SEED_VERSION: &str = "2";
+
 const WORKSPACE_DB_SCHEMA: &str = r#"
 create table if not exists workspaces (
   id text primary key,
@@ -353,11 +356,7 @@ fn scan_workspace_sources(
 
 #[tauri::command]
 fn get_default_docs_path() -> Result<String, String> {
-  let docs_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../docs");
-  match docs_path.canonicalize() {
-    Ok(path) => Ok(path.to_string_lossy().to_string()),
-    Err(_) => Ok(docs_path.to_string_lossy().to_string()),
-  }
+  Ok(resolve_default_docs_path())
 }
 
 fn main() {
@@ -380,7 +379,7 @@ fn open_workspace_database(app: &AppHandle) -> Result<Connection, String> {
   std::fs::create_dir_all(&data_directory).map_err(|error| error.to_string())?;
 
   let database_path = data_directory.join("docs-atlas.db");
-  let connection = Connection::open(database_path).map_err(|error| error.to_string())?;
+  let mut connection = Connection::open(database_path).map_err(|error| error.to_string())?;
   connection
     .execute_batch("pragma foreign_keys = on;")
     .map_err(|error| error.to_string())?;
@@ -388,6 +387,7 @@ fn open_workspace_database(app: &AppHandle) -> Result<Connection, String> {
     .execute_batch(WORKSPACE_DB_SCHEMA)
     .map_err(|error| error.to_string())?;
   migrate_workspace_database(&connection)?;
+  maybe_migrate_legacy_seed_workspaces(&mut connection)?;
   Ok(connection)
 }
 
@@ -415,6 +415,253 @@ fn add_column_if_missing(connection: &Connection, statement: &str) -> Result<(),
       }
     }
   }
+}
+
+fn maybe_migrate_legacy_seed_workspaces(connection: &mut Connection) -> Result<(), String> {
+  let saved_seed_version = read_app_setting_string(connection, DESKTOP_SEED_VERSION_KEY)?;
+  if saved_seed_version.as_deref() == Some(CURRENT_DESKTOP_SEED_VERSION) {
+    return Ok(());
+  }
+
+  if should_reset_legacy_seed_workspaces(connection)? {
+    reset_to_default_workspace(connection)?;
+  }
+
+  write_app_setting_string(
+    connection,
+    DESKTOP_SEED_VERSION_KEY,
+    CURRENT_DESKTOP_SEED_VERSION,
+  )?;
+  Ok(())
+}
+
+fn should_reset_legacy_seed_workspaces(connection: &Connection) -> Result<bool, String> {
+  let workspaces = list_workspace_summaries(connection)?;
+  if workspaces.is_empty() {
+    return Ok(false);
+  }
+
+  if workspaces.len() == 1 && workspaces[0].id == "workspace:default" {
+    let detail = load_workspace_detail(connection, workspaces[0].clone())?;
+    return Ok(!matches_current_default_workspace(&detail, &resolve_default_docs_path()));
+  }
+
+  for workspace in workspaces {
+    if is_legacy_workspace_id(&workspace.id) {
+      continue;
+    }
+
+    let detail = load_workspace_detail(connection, workspace)?;
+    if !detail
+      .sources
+      .iter()
+      .any(|source| contains_legacy_seed_marker(source))
+    {
+      return Ok(false);
+    }
+  }
+
+  Ok(true)
+}
+
+fn reset_to_default_workspace(connection: &mut Connection) -> Result<(), String> {
+  let transaction = connection.transaction().map_err(|error| error.to_string())?;
+  let now = current_timestamp();
+  let default_docs_path = resolve_default_docs_path();
+
+  transaction
+    .execute("delete from workspace_source_nodes", [])
+    .map_err(|error| error.to_string())?;
+  transaction
+    .execute("delete from recent_workspace_entries", [])
+    .map_err(|error| error.to_string())?;
+  transaction
+    .execute("delete from workspaces", [])
+    .map_err(|error| error.to_string())?;
+
+  transaction
+    .execute(
+      r#"
+      insert into workspaces (
+        id,
+        name,
+        description,
+        icon,
+        color,
+        default_search_scope,
+        sort_order,
+        created_at,
+        updated_at,
+        last_opened_at
+      )
+      values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+      "#,
+      params![
+        "workspace:default",
+        "项目文档",
+        "默认工作空间，指向当前项目的 docs 目录。",
+        "folder",
+        "#1f54d9",
+        "workspace",
+        0,
+        now,
+        now,
+        now
+      ],
+    )
+    .map_err(|error| error.to_string())?;
+
+  replace_workspace_source_nodes(
+    &transaction,
+    "workspace:default",
+    vec![WorkspaceSourceNodeInput {
+      id: "node:project-docs".to_string(),
+      parent_id: None,
+      kind: "folder".to_string(),
+      name: "项目文档".to_string(),
+      path: Some(default_docs_path),
+      enabled: Some(true),
+      position: Some(0),
+      children: Some(Vec::new()),
+    }],
+  )?;
+
+  transaction.commit().map_err(|error| error.to_string())
+}
+
+fn list_workspace_summaries(connection: &Connection) -> Result<Vec<WorkspaceSummaryRow>, String> {
+  let mut statement = connection
+    .prepare(
+      r#"
+      select
+        id,
+        name,
+        description,
+        icon,
+        color,
+        default_search_scope,
+        sort_order,
+        created_at,
+        updated_at,
+        last_opened_at
+      from workspaces
+      order by sort_order asc, name asc
+      "#,
+    )
+    .map_err(|error| error.to_string())?;
+
+  let rows = statement
+    .query_map([], |row| {
+      Ok(WorkspaceSummaryRow {
+        id: row.get(0)?,
+        name: row.get(1)?,
+        description: row.get(2)?,
+        icon: row.get(3)?,
+        color: row.get(4)?,
+        default_search_scope: row.get(5)?,
+        sort_order: row.get(6)?,
+        created_at: row.get(7)?,
+        updated_at: row.get(8)?,
+        last_opened_at: row.get(9)?,
+      })
+    })
+    .map_err(|error| error.to_string())?;
+
+  rows
+    .collect::<Result<Vec<_>, _>>()
+    .map_err(|error| error.to_string())
+}
+
+fn matches_current_default_workspace(
+  workspace: &WorkspaceDetailPayload,
+  default_docs_path: &str,
+) -> bool {
+  if workspace.name != "项目文档" || workspace.sources.len() != 1 {
+    return false;
+  }
+
+  let source = &workspace.sources[0];
+  source.id == "node:project-docs"
+    && source.kind == "folder"
+    && source.name == "项目文档"
+    && normalize_path(&source.path) == normalize_path(default_docs_path)
+    && source.children.is_empty()
+}
+
+fn contains_legacy_seed_marker(source: &WorkspaceSourceNodePayload) -> bool {
+  if is_legacy_source_id(&source.id)
+    || matches!(source.name.as_str(), "AI-Agent" | "Another Project" | "Local Workspace")
+  {
+    return true;
+  }
+
+  let normalized_path = normalize_path(&source.path);
+  if normalized_path.contains("config.yaml") || normalized_path.contains("config.yml") {
+    return true;
+  }
+
+  source
+    .children
+    .iter()
+    .any(|child| contains_legacy_seed_marker(child))
+}
+
+fn read_app_setting_string(connection: &Connection, key: &str) -> Result<Option<String>, String> {
+  let raw_value = connection
+    .query_row(
+      "select value_json from app_settings where key = ?1",
+      params![key],
+      |row| row.get::<_, String>(0),
+    )
+    .optional()
+    .map_err(|error| error.to_string())?;
+
+  match raw_value {
+    Some(value) => serde_json::from_str::<String>(&value)
+      .map(Some)
+      .map_err(|error| error.to_string()),
+    None => Ok(None),
+  }
+}
+
+fn write_app_setting_string(connection: &Connection, key: &str, value: &str) -> Result<(), String> {
+  let now = current_timestamp();
+  let value_json = serde_json::to_string(value).map_err(|error| error.to_string())?;
+
+  connection
+    .execute(
+      r#"
+      insert into app_settings (key, value_json, updated_at)
+      values (?1, ?2, ?3)
+      on conflict(key) do update set
+        value_json = excluded.value_json,
+        updated_at = excluded.updated_at
+      "#,
+      params![key, value_json, now],
+    )
+    .map_err(|error| error.to_string())?;
+
+  Ok(())
+}
+
+fn resolve_default_docs_path() -> String {
+  let docs_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../docs");
+  match docs_path.canonicalize() {
+    Ok(path) => path.to_string_lossy().to_string(),
+    Err(_) => docs_path.to_string_lossy().to_string(),
+  }
+}
+
+fn normalize_path(value: &str) -> String {
+  value.replace('\\', "/").trim().to_lowercase()
+}
+
+fn is_legacy_workspace_id(value: &str) -> bool {
+  matches!(value, "workspace:atlas" | "workspace:product" | "workspace:ai")
+}
+
+fn is_legacy_source_id(value: &str) -> bool {
+  matches!(value, "source:atlas" | "source:product" | "source:ai")
 }
 
 fn load_workspace_summary(connection: &Connection, workspace_id: &str) -> Result<WorkspaceSummaryRow, String> {
