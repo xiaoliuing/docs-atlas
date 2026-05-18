@@ -1,4 +1,4 @@
-import { computed, shallowRef } from 'vue'
+import { computed, shallowRef, toValue, type MaybeRefOrGetter } from 'vue'
 import type { SearchResult } from '@/types/docs'
 import { useDesktopDocsCatalog } from './useDesktopDocsCatalog'
 import { useDesktopDocsContent } from './useDesktopDocsContent'
@@ -6,14 +6,23 @@ import { getSearchMatchMeta, normalizeSearchTerm } from '@/utils/search'
 
 const RESULT_LIMIT = 10
 
-export function useDesktopDocsSearch() {
+export type DesktopSearchScope = 'global' | 'workspace'
+
+type UseDesktopDocsSearchOptions = {
+  workspaceSourceIds?: MaybeRefOrGetter<string[]>
+}
+
+export function useDesktopDocsSearch(options: UseDesktopDocsSearchOptions = {}) {
   const query = shallowRef('')
   const isOpen = shallowRef(false)
+  const scope = shallowRef<DesktopSearchScope>('global')
   const selectedIndex = shallowRef(0)
   const { docsBySlug } = useDesktopDocsCatalog()
   const { ensureSearchIndex, searchIndex } = useDesktopDocsContent()
 
   const normalizedQuery = computed(() => normalizeSearchTerm(query.value))
+  const workspaceSourceIds = computed(() => new Set(toValue(options.workspaceSourceIds) ?? []))
+  const isWorkspaceScope = computed(() => scope.value === 'workspace')
 
   const results = computed<SearchResult[]>(() => {
     if (!normalizedQuery.value) {
@@ -22,6 +31,15 @@ export function useDesktopDocsSearch() {
 
     return (searchIndex.value ?? [])
       .map((record) => {
+        const docMeta = docsBySlug[record.slug]
+        if (!docMeta) {
+          return null
+        }
+
+        if (isWorkspaceScope.value && !workspaceSourceIds.value.has(docMeta.sourceId)) {
+          return null
+        }
+
         const matchMeta = getSearchMatchMeta(record, normalizedQuery.value)
         if (!matchMeta) {
           return null
@@ -30,7 +48,7 @@ export function useDesktopDocsSearch() {
         return {
           ...record,
           matchField: matchMeta.field,
-          routePath: docsBySlug[record.slug]?.routePath ?? `/docs/${record.slug}/`,
+          routePath: docMeta.routePath ?? `/docs/${record.slug}/`,
           score: matchMeta.score,
           snippet: matchMeta.snippet || record.summary,
         }
@@ -55,11 +73,19 @@ export function useDesktopDocsSearch() {
   function setQuery(value: string) {
     query.value = value
     selectedIndex.value = 0
-    isOpen.value = value.trim().length > 0
 
     if (value.trim()) {
       void ensureSearchIndex()
     }
+  }
+
+  function setScope(nextScope: DesktopSearchScope) {
+    scope.value = nextScope
+    selectedIndex.value = 0
+  }
+
+  function toggleScope() {
+    setScope(scope.value === 'global' ? 'workspace' : 'global')
   }
 
   function moveSelection(direction: 1 | -1) {
@@ -86,11 +112,15 @@ export function useDesktopDocsSearch() {
     activeResult,
     close,
     isOpen,
+    isWorkspaceScope,
     moveSelection,
     open,
     query,
     results,
+    scope,
     selectedIndex,
     setQuery,
+    setScope,
+    toggleScope,
   }
 }

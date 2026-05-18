@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
+import type { DesktopWorkspace } from '@/mocks/workspaces'
 import type { DocsSourceGroup } from '@/types/docs'
 import DesktopDocsSidebarNode from './DesktopDocsSidebarNode.vue'
 
@@ -7,21 +8,29 @@ const props = defineProps<{
   currentDocSlug: string | null
   currentSectionId: string | null
   currentSourceId: string | null
+  currentWorkspaceId: string
   sourceGroups: DocsSourceGroup[]
+  workspaces: DesktopWorkspace[]
 }>()
 
 const emit = defineEmits<{
   selectDoc: [slug: string]
+  selectWorkspace: [workspaceId: string]
 }>()
 
 const openBranchIds = shallowRef<string[]>([])
 const openSectionId = shallowRef<string | null>(null)
+const isWorkspaceMenuOpen = shallowRef(false)
 const sidebarInnerRef = useTemplateRef<HTMLElement>('sidebarInner')
 
 const activePath = computed(() => ({
   sectionId: props.currentSectionId,
   sourceId: props.currentSourceId,
 }))
+const currentWorkspace = computed(
+  () => props.workspaces.find((workspace) => workspace.id === props.currentWorkspaceId) ?? null,
+)
+const totalDocsCount = computed(() => props.sourceGroups.reduce((count, group) => count + countDocs(group), 0))
 
 function toggleNode(id: string, depth: number) {
   const currentId = openBranchIds.value[depth] ?? null
@@ -40,6 +49,11 @@ function toggleNode(id: string, depth: number) {
 
 function toggleSection(sectionId: string) {
   openSectionId.value = openSectionId.value === sectionId ? null : sectionId
+}
+
+function handleSelectWorkspace(workspaceId: string) {
+  emit('selectWorkspace', workspaceId)
+  isWorkspaceMenuOpen.value = false
 }
 
 function syncOpenState() {
@@ -81,6 +95,13 @@ watch(
   { immediate: true },
 )
 
+watch(
+  () => props.currentWorkspaceId,
+  () => {
+    isWorkspaceMenuOpen.value = false
+  },
+)
+
 function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): string[] {
   for (const node of nodes) {
     if (node.sourceId === sourceId) {
@@ -95,14 +116,87 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 
   return []
 }
+
+function countDocs(group: DocsSourceGroup): number {
+  const sectionDocs = group.sections.reduce((count, section) => count + section.docs.length, 0)
+  const childDocs = group.children.reduce((count, child) => count + countDocs(child), 0)
+  return group.rootDocs.length + sectionDocs + childDocs
+}
 </script>
 
 <template>
   <aside class="desktop-docs-sidebar">
-    <div class="desktop-docs-sidebar__inner">
-      <div class="desktop-docs-sidebar__heading">
-        <p class="desktop-docs-sidebar__eyebrow">Library</p>
-        <h2 class="desktop-docs-sidebar__title">目录</h2>
+    <div class="desktop-docs-sidebar__workspace-panel">
+      <p class="desktop-docs-sidebar__panel-label">Workspace</p>
+
+      <div class="desktop-docs-sidebar__workspace-switcher">
+        <button
+          :aria-expanded="isWorkspaceMenuOpen"
+          class="desktop-docs-sidebar__workspace-trigger"
+          type="button"
+          @click="isWorkspaceMenuOpen = !isWorkspaceMenuOpen"
+        >
+          <span
+            class="desktop-docs-sidebar__workspace-avatar"
+            :style="{ '--workspace-color': currentWorkspace?.color ?? '#1f54d9' }"
+          >
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M4 8.5C4 6.57 5.57 5 7.5 5H16.5C18.43 5 20 6.57 20 8.5V15.5C20 17.43 18.43 19 16.5 19H7.5C5.57 19 4 17.43 4 15.5V8.5Z"
+                stroke="currentColor"
+                stroke-width="1.6"
+              />
+              <path d="M8 9.5H16" stroke="currentColor" stroke-linecap="round" stroke-width="1.6" />
+              <path d="M8 13H13" stroke="currentColor" stroke-linecap="round" stroke-width="1.6" />
+            </svg>
+          </span>
+
+          <span class="desktop-docs-sidebar__workspace-copy">
+            <span class="desktop-docs-sidebar__workspace-name">{{ currentWorkspace?.name ?? '未选择工作空间' }}</span>
+            <span class="desktop-docs-sidebar__workspace-summary">
+              {{ currentWorkspace?.description || '当前工作空间的文档目录' }}
+            </span>
+          </span>
+
+          <span
+            :class="[
+              'desktop-docs-sidebar__workspace-chevron',
+              { 'desktop-docs-sidebar__workspace-chevron--open': isWorkspaceMenuOpen },
+            ]"
+          />
+        </button>
+
+        <div
+          v-if="isWorkspaceMenuOpen"
+          class="desktop-docs-sidebar__workspace-menu"
+        >
+          <button
+            v-for="workspace in props.workspaces"
+            :key="workspace.id"
+            :class="[
+              'desktop-docs-sidebar__workspace-option',
+              { 'desktop-docs-sidebar__workspace-option--active': workspace.id === props.currentWorkspaceId },
+            ]"
+            type="button"
+            @click="handleSelectWorkspace(workspace.id)"
+          >
+            <span
+              class="desktop-docs-sidebar__workspace-option-dot"
+              :style="{ backgroundColor: workspace.color }"
+            />
+            <span class="desktop-docs-sidebar__workspace-option-copy">
+              <strong>{{ workspace.name }}</strong>
+              <span>{{ workspace.sources.length }} 个文档源</span>
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="desktop-docs-sidebar__directory-panel">
+      <div class="desktop-docs-sidebar__directory-header">
+        <span class="desktop-docs-sidebar__directory-title">目录</span>
+        <span class="desktop-docs-sidebar__directory-count">{{ totalDocsCount }} 篇</span>
       </div>
 
       <div
@@ -111,11 +205,11 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
       >
         <nav class="desktop-docs-sidebar__nav">
           <DesktopDocsSidebarNode
-            v-for="node in sourceGroups"
+            v-for="node in props.sourceGroups"
             :key="node.id"
-            :current-doc-slug="currentDocSlug"
-            :current-section-id="currentSectionId"
-            :current-source-id="currentSourceId"
+            :current-doc-slug="props.currentDocSlug"
+            :current-section-id="props.currentSectionId"
+            :current-source-id="props.currentSourceId"
             :depth="0"
             :node="node"
             :open-branch-ids="openBranchIds"
@@ -133,42 +227,191 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 <style scoped>
 .desktop-docs-sidebar {
   height: 100%;
-}
-
-.desktop-docs-sidebar__inner {
-  height: 100%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  overflow: hidden;
+  gap: 0.8rem;
+}
+
+.desktop-docs-sidebar__workspace-panel,
+.desktop-docs-sidebar__directory-panel {
   border: 1px solid var(--desktop-line);
   border-radius: var(--desktop-radius-lg);
   background: var(--desktop-surface);
+  box-shadow: var(--shadow-panel);
 }
 
-.desktop-docs-sidebar__heading {
-  padding: 0.95rem 0.95rem 0.7rem;
-  border-bottom: 1px solid var(--desktop-line);
-  background: var(--desktop-surface-strong);
+.desktop-docs-sidebar__workspace-panel {
+  padding: 0.9rem;
 }
 
-.desktop-docs-sidebar__eyebrow {
-  margin: 0 0 0.18rem;
-  font-size: 0.67rem;
+.desktop-docs-sidebar__panel-label,
+.desktop-docs-sidebar__directory-title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--desktop-soft);
 }
 
-.desktop-docs-sidebar__title {
-  margin: 0;
-  font-size: 0.98rem;
+.desktop-docs-sidebar__workspace-switcher {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.7rem;
+}
+
+.desktop-docs-sidebar__workspace-trigger {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.12);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.06), transparent 68%),
+    var(--desktop-surface-strong);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, transform 0.18s ease;
+}
+
+.desktop-docs-sidebar__workspace-trigger:hover {
+  border-color: rgba(var(--desktop-accent-rgb), 0.2);
+  transform: translateY(-1px);
+}
+
+.desktop-docs-sidebar__workspace-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--workspace-color) 14%, transparent);
+  color: var(--workspace-color);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--workspace-color) 18%, transparent);
+}
+
+.desktop-docs-sidebar__workspace-avatar svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.desktop-docs-sidebar__workspace-copy {
+  display: grid;
+  gap: 0.16rem;
+  min-width: 0;
+}
+
+.desktop-docs-sidebar__workspace-name {
+  color: var(--desktop-ink);
+  font-size: 0.95rem;
   font-weight: 650;
+  line-height: 1.2;
+}
+
+.desktop-docs-sidebar__workspace-summary {
+  color: var(--desktop-muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.desktop-docs-sidebar__workspace-chevron {
+  width: 0.62rem;
+  height: 0.62rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  color: var(--desktop-soft);
+  transform: rotate(45deg);
+  transition: transform 0.18s ease;
+}
+
+.desktop-docs-sidebar__workspace-chevron--open {
+  transform: rotate(-135deg);
+}
+
+.desktop-docs-sidebar__workspace-menu {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.35rem;
+  border: 1px solid var(--desktop-line);
+  border-radius: 16px;
+  background: var(--desktop-surface-strong);
+}
+
+.desktop-docs-sidebar__workspace-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.72rem;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.desktop-docs-sidebar__workspace-option:hover,
+.desktop-docs-sidebar__workspace-option--active {
+  border-color: var(--desktop-line-strong);
+  background: rgba(var(--desktop-accent-rgb), 0.06);
+}
+
+.desktop-docs-sidebar__workspace-option-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  box-shadow: 0 0 0 4px rgba(var(--desktop-accent-rgb), 0.06);
+}
+
+.desktop-docs-sidebar__workspace-option-copy {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.desktop-docs-sidebar__workspace-option-copy strong {
+  color: var(--desktop-ink);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.desktop-docs-sidebar__workspace-option-copy span {
+  color: var(--desktop-muted);
+  font-size: 0.74rem;
+}
+
+.desktop-docs-sidebar__directory-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.desktop-docs-sidebar__directory-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.82rem 0.95rem 0.76rem;
+  border-bottom: 1px solid var(--desktop-line);
+  background: rgba(var(--desktop-accent-rgb), 0.025);
+}
+
+.desktop-docs-sidebar__directory-count {
+  color: var(--desktop-soft);
+  font-size: 0.74rem;
 }
 
 .desktop-docs-sidebar__scroll {
   min-height: 0;
   overflow-y: auto;
-  padding: 0.7rem 0.8rem 0.85rem;
+  padding: 0.8rem 0.8rem 0.9rem;
 }
 
 .desktop-docs-sidebar__nav {

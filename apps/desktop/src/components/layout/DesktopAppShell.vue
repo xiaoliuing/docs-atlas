@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, shallowRef, useTemplateRef } from 'vue'
 import DesktopDocReader from '@/components/docs/DesktopDocReader.vue'
 import DesktopDocsSidebar from '@/components/docs/DesktopDocsSidebar.vue'
 import DesktopDocToc from '@/components/docs/DesktopDocToc.vue'
@@ -7,11 +7,8 @@ import DesktopSearchPanel from '@/components/docs/DesktopSearchPanel.vue'
 import { useDesktopActiveHeadings } from '@/composables/useDesktopActiveHeadings'
 import { useDesktopDocsBrowser } from '@/composables/useDesktopDocsBrowser'
 import { useDesktopDocsSearch } from '@/composables/useDesktopDocsSearch'
-import WorkspaceSidebar from '@/components/workspace/WorkspaceSidebar.vue'
 import { useWorkspaceSelection } from '@/composables/useWorkspaceSelection'
-import type { DocsSourceGroup } from '@/types/docs'
 
-const { currentWorkspace, currentWorkspaceId, selectWorkspace, workspaces } = useWorkspaceSelection()
 const {
   currentDoc,
   currentSectionId,
@@ -24,6 +21,8 @@ const {
   selectedDocSlug,
   sourceGroups,
 } = useDesktopDocsBrowser()
+const { currentWorkspace, currentWorkspaceId, currentWorkspaceSourceIds, selectWorkspace, workspaces } =
+  useWorkspaceSelection(sourceGroups)
 const {
   activeResult,
   close: closeSearch,
@@ -32,37 +31,57 @@ const {
   open: openSearch,
   query,
   results,
+  scope,
   selectedIndex,
   setQuery,
-} = useDesktopDocsSearch()
+  toggleScope,
+} = useDesktopDocsSearch({
+  workspaceSourceIds: currentWorkspaceSourceIds,
+})
 const { activeId, scrollToHeading } = useDesktopActiveHeadings(headings)
 
-const sourceCount = computed(() => currentWorkspace.value?.sources.length ?? 0)
-const workspaceLabel = computed(() => currentWorkspace.value?.name ?? '未选择工作环境')
-const totalDocsCount = computed(() => sourceGroups.reduce((count, group) => count + countDocs(group), 0))
-const currentDocPathLabel = computed(() => {
-  if (!currentDoc.value) {
-    return '选择一篇文档开始阅读'
-  }
+const isSettingsOpen = shallowRef(false)
+const searchPanelRef = useTemplateRef<InstanceType<typeof DesktopSearchPanel>>('searchPanel')
 
-  return currentDoc.value.sectionTitle
-    ? `${currentDoc.value.sourceLabel} / ${currentDoc.value.sectionTitle}`
-    : currentDoc.value.sourceLabel
-})
+const floatingPanelVisible = computed(() => isOpen.value || isSettingsOpen.value)
 const searchQuery = computed({
   get: () => query.value,
   set: (value: string) => {
     setQuery(value)
   },
 })
+const sourceCount = computed(() => currentWorkspaceSourceIds.value.length)
+const docCount = computed(() => countDocs(sourceGroups))
 
 function handleSelectWorkspace(workspaceId: string) {
   selectWorkspace(workspaceId)
   selectFirstDoc()
+  isSettingsOpen.value = false
 }
 
 function handleSelectDoc(slug: string) {
   selectDoc(slug)
+}
+
+async function toggleSearchPanel() {
+  if (isOpen.value) {
+    closeSearch()
+    return
+  }
+
+  isSettingsOpen.value = false
+  openSearch()
+  await nextTick()
+  searchPanelRef.value?.focusInput()
+}
+
+function toggleSettingsPanel() {
+  const nextOpen = !isSettingsOpen.value
+  isSettingsOpen.value = nextOpen
+
+  if (nextOpen) {
+    closeSearch()
+  }
 }
 
 function handleSubmitSearch(slug?: string) {
@@ -75,339 +94,369 @@ function handleSubmitSearch(slug?: string) {
   closeSearch()
 }
 
-function countDocs(group: DocsSourceGroup): number {
-  const sectionDocs = group.sections.reduce((count, section) => count + section.docs.length, 0)
-  const childDocs = group.children.reduce((count, child) => count + countDocs(child), 0)
-  return group.rootDocs.length + sectionDocs + childDocs
+function closeFloatingPanels() {
+  closeSearch()
+  isSettingsOpen.value = false
+}
+
+function countDocs(groups: typeof sourceGroups): number {
+  return groups.reduce((count, group) => {
+    const sectionDocs = group.sections.reduce((sectionCount, section) => sectionCount + section.docs.length, 0)
+    const childDocs = countDocs(group.children)
+    return count + group.rootDocs.length + sectionDocs + childDocs
+  }, 0)
 }
 </script>
 
 <template>
   <div class="desktop-app-shell">
-    <aside class="desktop-app-shell__workspace">
-      <WorkspaceSidebar
-        :current-workspace-id="currentWorkspaceId"
-        :workspaces="workspaces"
-        @select-workspace="handleSelectWorkspace"
-      />
-    </aside>
+    <header class="desktop-titlebar">
+      <div
+        class="desktop-titlebar__brand"
+        data-tauri-drag-region
+      >
+        <span class="desktop-titlebar__traffic-gap" />
+        <span class="desktop-titlebar__brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path
+              d="M5 8.5C5 6.57 6.57 5 8.5 5H15.5C17.43 5 19 6.57 19 8.5V15.5C19 17.43 17.43 19 15.5 19H8.5C6.57 19 5 17.43 5 15.5V8.5Z"
+              stroke="currentColor"
+              stroke-width="1.6"
+            />
+            <path d="M8.5 9.5H15.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.6" />
+            <path d="M8.5 13H13.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.6" />
+          </svg>
+        </span>
+        <span class="desktop-titlebar__brand-copy">
+          <strong>Docs Atlas</strong>
+          <span>{{ currentWorkspace?.name ?? 'Desktop' }}</span>
+        </span>
+      </div>
 
-    <section class="desktop-app-shell__catalog">
-      <DesktopDocsSidebar
-        :current-doc-slug="selectedDocSlug || null"
-        :current-section-id="currentSectionId"
-        :current-source-id="currentSourceId"
-        :source-groups="sourceGroups"
-        @select-doc="handleSelectDoc"
-      />
-    </section>
+      <div class="desktop-titlebar__actions">
+        <button
+          aria-label="打开搜索"
+          :class="['desktop-titlebar__icon-button', { 'desktop-titlebar__icon-button--active': isOpen }]"
+          type="button"
+          @click="toggleSearchPanel"
+        >
+          <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" />
+            <path d="M16 16L20.5 20.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" />
+          </svg>
+        </button>
 
-    <main class="desktop-app-shell__content">
-      <header class="desktop-app-shell__topbar">
-        <div class="desktop-app-shell__topbar-copy">
-          <p class="desktop-app-shell__eyebrow">Docs Atlas Desktop</p>
-          <h1 class="desktop-app-shell__title">{{ workspaceLabel }}</h1>
-          <p class="desktop-app-shell__subtitle">{{ currentDocPathLabel }}</p>
-        </div>
+        <button
+          aria-label="打开设置"
+          :class="['desktop-titlebar__icon-button', { 'desktop-titlebar__icon-button--active': isSettingsOpen }]"
+          type="button"
+          @click="toggleSettingsPanel"
+        >
+          <svg viewBox="0 0 24 24" fill="none">
+            <path
+              d="M12 4.75L13.12 6.92C13.33 7.33 13.73 7.61 14.19 7.67L16.61 8.01L15.02 9.67C14.7 10 14.56 10.46 14.64 10.91L15.03 13.31L12.86 12.21C12.45 12 11.97 12 11.56 12.21L9.39 13.31L9.78 10.91C9.86 10.46 9.72 10 9.4 9.67L7.81 8.01L10.23 7.67C10.69 7.61 11.09 7.33 11.3 6.92L12 4.75Z"
+              stroke="currentColor"
+              stroke-linejoin="round"
+              stroke-width="1.45"
+            />
+            <circle cx="12" cy="12" r="2.2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M12 3.5V5.2" stroke="currentColor" stroke-linecap="round" stroke-width="1.6" />
+            <path d="M12 18.8V20.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.6" />
+            <path d="M20.5 12H18.8" stroke="currentColor" stroke-linecap="round" stroke-width="1.6" />
+            <path d="M5.2 12H3.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.6" />
+          </svg>
+        </button>
+      </div>
+    </header>
 
-        <div class="desktop-app-shell__topbar-meta">
-          <span class="desktop-app-shell__chip">{{ workspaces.length }} 个工作区</span>
-          <span class="desktop-app-shell__chip">{{ sourceCount }} 个来源</span>
-          <span class="desktop-app-shell__chip">{{ totalDocsCount }} 篇文档</span>
-        </div>
-      </header>
-
-      <DesktopDocReader
-        :doc="currentDoc"
-        :highlight-query="query"
-        :next-doc="nextDoc"
-        :prev-doc="prevDoc"
-        @select-doc="handleSelectDoc"
-      />
-    </main>
-
-    <aside class="desktop-app-shell__context">
-      <section class="desktop-app-shell__search-card">
-        <div class="desktop-app-shell__panel-heading">
-          <p class="desktop-app-shell__panel-eyebrow">Search</p>
-          <h2 class="desktop-app-shell__panel-title">快速检索</h2>
-        </div>
-
+    <div
+      v-if="floatingPanelVisible"
+      class="desktop-floating-layer"
+      @click="closeFloatingPanels"
+    >
+      <div
+        v-if="isOpen"
+        class="desktop-floating-layer__search"
+      >
         <DesktopSearchPanel
+          ref="searchPanel"
           v-model="searchQuery"
-          class="desktop-app-shell__toolbar-search"
-          :is-open="isOpen"
           :results="results"
+          :scope="scope"
           :selected-index="selectedIndex"
+          :workspace-name="currentWorkspace?.name ?? '当前工作区'"
           @close="closeSearch"
           @move-selection="moveSelection"
-          @open="openSearch"
           @submit="handleSubmitSearch"
-        />
-      </section>
-
-      <section class="desktop-app-shell__meta-card">
-        <div class="desktop-app-shell__panel-heading">
-          <p class="desktop-app-shell__panel-eyebrow">Context</p>
-          <h2 class="desktop-app-shell__panel-title">当前文档</h2>
-        </div>
-        <dl class="desktop-app-shell__facts">
-          <div class="desktop-app-shell__fact">
-            <dt>标题</dt>
-            <dd>{{ currentDoc?.title ?? '未选择' }}</dd>
-          </div>
-          <div class="desktop-app-shell__fact">
-            <dt>来源</dt>
-            <dd>{{ currentDoc?.sourceLabel ?? '未选择' }}</dd>
-          </div>
-          <div class="desktop-app-shell__fact">
-            <dt>章节</dt>
-            <dd>{{ currentDoc?.sectionTitle ?? '根目录文档' }}</dd>
-          </div>
-          <div class="desktop-app-shell__fact">
-            <dt>大纲</dt>
-            <dd>{{ headings.length }} 个标题</dd>
-          </div>
-        </dl>
-      </section>
-
-      <div class="desktop-app-shell__toc-card">
-        <DesktopDocToc
-          :active-id="activeId"
-          :headings="headings"
-          @select="scrollToHeading"
+          @toggle-scope="toggleScope"
         />
       </div>
-    </aside>
+
+      <div
+        v-if="isSettingsOpen"
+        class="desktop-titlebar__settings-popover"
+        @click.stop
+      >
+        <div class="desktop-titlebar__settings-item">
+          <span>工作空间</span>
+          <strong>{{ currentWorkspace?.name ?? '未选择' }}</strong>
+        </div>
+        <div class="desktop-titlebar__settings-item">
+          <span>文档来源</span>
+          <strong>{{ sourceCount }}</strong>
+        </div>
+        <div class="desktop-titlebar__settings-item">
+          <span>文档总数</span>
+          <strong>{{ docCount }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="desktop-workbench">
+      <aside class="desktop-workbench__sidebar">
+        <DesktopDocsSidebar
+          :current-doc-slug="selectedDocSlug || null"
+          :current-section-id="currentSectionId"
+          :current-source-id="currentSourceId"
+          :current-workspace-id="currentWorkspaceId"
+          :source-groups="sourceGroups"
+          :workspaces="workspaces"
+          @select-doc="handleSelectDoc"
+          @select-workspace="handleSelectWorkspace"
+        />
+      </aside>
+
+      <main
+        class="desktop-workbench__main"
+        :class="{ 'desktop-workbench__main--with-toc': headings.length > 0 }"
+      >
+        <DesktopDocReader
+          :doc="currentDoc"
+          :highlight-query="query"
+          :next-doc="nextDoc"
+          :prev-doc="prevDoc"
+          @select-doc="handleSelectDoc"
+        />
+
+        <aside
+          v-if="headings.length > 0"
+          class="desktop-workbench__toc"
+        >
+          <DesktopDocToc
+            :active-id="activeId"
+            :headings="headings"
+            @select="scrollToHeading"
+          />
+        </aside>
+      </main>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .desktop-app-shell {
+  position: relative;
   display: grid;
-  grid-template-columns: 88px 310px minmax(0, 1fr) 296px;
-  gap: 0.8rem;
+  grid-template-rows: 46px minmax(0, 1fr);
   height: 100vh;
-  padding: 0.8rem;
-  align-items: start;
   overflow: hidden;
 }
 
-.desktop-app-shell__workspace,
-.desktop-app-shell__catalog,
-.desktop-app-shell__topbar,
-.desktop-app-shell__search-card,
-.desktop-app-shell__meta-card,
-.desktop-app-shell__toc-card {
-  border: 1px solid var(--desktop-line);
-  background: var(--desktop-surface);
-  box-shadow: var(--shadow-panel);
-}
-
-.desktop-app-shell__workspace,
-.desktop-app-shell__catalog,
-.desktop-app-shell__content,
-.desktop-app-shell__context {
-  min-height: calc(100vh - 1.6rem);
-}
-
-.desktop-app-shell__workspace,
-.desktop-app-shell__catalog {
-  border-radius: var(--desktop-radius-lg);
-  overflow: hidden;
-}
-
-.desktop-app-shell__content,
-.desktop-app-shell__context {
-  display: grid;
-  gap: 0.8rem;
-  min-width: 0;
-  min-height: 0;
-}
-
-.desktop-app-shell__content {
-  grid-template-rows: auto minmax(0, 1fr);
-  overflow: hidden;
-}
-
-.desktop-app-shell__context {
-  grid-template-rows: auto auto minmax(0, 1fr);
-  overflow: hidden;
-}
-
-.desktop-app-shell__topbar,
-.desktop-app-shell__search-card,
-.desktop-app-shell__meta-card,
-.desktop-app-shell__toc-card {
-  border-radius: var(--desktop-radius-lg);
-}
-
-.desktop-app-shell__topbar {
+.desktop-titlebar {
+  position: relative;
+  z-index: 10;
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 1.2rem;
-  align-items: flex-start;
-  padding: 1rem 1.1rem;
+  gap: 1rem;
+  padding: 0 0.9rem 0 0.2rem;
+  background: rgba(226, 234, 247, 0.82);
+  border-bottom: 1px solid var(--desktop-line);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
-.desktop-app-shell__topbar-copy {
-  display: grid;
-  gap: 0.24rem;
-  min-width: 0;
-}
-
-.desktop-app-shell__eyebrow {
-  margin: 0 0 0.05rem;
-  color: var(--desktop-accent);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.desktop-app-shell__title {
-  margin: 0;
-  font-size: 1.38rem;
-  line-height: 1.15;
-  font-weight: 650;
-}
-
-.desktop-app-shell__subtitle {
-  margin: 0;
-  color: var(--desktop-muted);
-  font-size: 0.86rem;
-  line-height: 1.5;
-}
-
-.desktop-app-shell__topbar-meta {
+.desktop-titlebar__brand {
   display: flex;
-  gap: 0.45rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 0.72rem;
+  min-width: 0;
+  height: 100%;
 }
 
-.desktop-app-shell__chip {
+.desktop-titlebar__traffic-gap {
+  flex: none;
+  width: 72px;
+  height: 100%;
+}
+
+.desktop-titlebar__brand-mark {
   display: inline-flex;
   align-items: center;
-  min-height: 30px;
-  padding: 0.28rem 0.68rem;
-  border: 1px solid var(--desktop-line);
-  border-radius: 999px;
-  background: var(--desktop-surface-strong);
-  color: var(--desktop-soft);
-  font-size: 0.78rem;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 12px;
+  background: rgba(var(--desktop-accent-rgb), 0.1);
+  color: var(--desktop-accent);
 }
 
-.desktop-app-shell__panel-heading {
+.desktop-titlebar__brand-mark svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.desktop-titlebar__brand-copy {
   display: grid;
-  gap: 0.15rem;
-  padding: 0.95rem 1rem 0;
+  gap: 0.05rem;
+  min-width: 0;
 }
 
-.desktop-app-shell__panel-eyebrow {
-  margin: 0;
-  color: var(--desktop-soft);
-  font-size: 0.68rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+.desktop-titlebar__brand-copy strong,
+.desktop-titlebar__brand-copy span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.desktop-app-shell__panel-title {
-  margin: 0;
-  font-size: 0.98rem;
+.desktop-titlebar__brand-copy strong {
+  color: var(--desktop-ink);
+  font-size: 0.82rem;
   font-weight: 650;
 }
 
-.desktop-app-shell__search-card {
-  display: grid;
-  gap: 0.7rem;
-  padding-bottom: 0.95rem;
-}
-
-.desktop-app-shell__toolbar-search {
-  min-width: 0;
-  padding-inline: 1rem;
-}
-
-.desktop-app-shell__meta-card {
-  display: grid;
-  gap: 0.8rem;
-  padding-bottom: 0.95rem;
-}
-
-.desktop-app-shell__facts {
-  display: grid;
-  gap: 0.55rem;
-  margin: 0;
-  padding: 0 1rem;
-}
-
-.desktop-app-shell__fact {
-  display: grid;
-  gap: 0.16rem;
-  padding: 0.72rem 0.78rem;
-  border: 1px solid var(--desktop-line);
-  border-radius: var(--desktop-radius-md);
-  background: var(--desktop-surface-strong);
-}
-
-.desktop-app-shell__fact dt {
+.desktop-titlebar__brand-copy span {
   color: var(--desktop-soft);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 0.68rem;
 }
 
-.desktop-app-shell__fact dd {
-  margin: 0;
+.desktop-titlebar__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.desktop-titlebar__icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.05rem;
+  height: 2.05rem;
+  border: 1px solid var(--desktop-line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.64);
+  color: var(--desktop-muted);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.desktop-titlebar__icon-button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.desktop-titlebar__icon-button:hover,
+.desktop-titlebar__icon-button--active {
+  border-color: var(--desktop-line-strong);
+  background: rgba(var(--desktop-accent-rgb), 0.12);
+  color: var(--desktop-accent);
+  transform: translateY(-1px);
+}
+
+.desktop-floating-layer {
+  position: absolute;
+  inset: 46px 0 0;
+  z-index: 25;
+}
+
+.desktop-floating-layer__search {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.95rem;
+}
+
+.desktop-titlebar__settings-popover {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.95rem;
+  display: grid;
+  gap: 0.45rem;
+  min-width: 220px;
+  padding: 0.75rem;
+  border: 1px solid var(--desktop-line);
+  border-radius: 16px;
+  background: var(--desktop-surface-strong);
+  box-shadow: 0 16px 32px rgba(var(--desktop-shadow), 0.12);
+}
+
+.desktop-titlebar__settings-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 10px;
+  background: rgba(var(--desktop-accent-rgb), 0.04);
+  color: var(--desktop-muted);
+  font-size: 0.8rem;
+}
+
+.desktop-titlebar__settings-item strong {
   color: var(--desktop-ink);
-  font-size: 0.86rem;
-  line-height: 1.45;
-  word-break: break-word;
+  font-size: 0.82rem;
 }
 
-.desktop-app-shell__toc-card {
+.desktop-workbench {
+  display: grid;
+  grid-template-columns: 318px minmax(0, 1fr);
+  gap: 0.9rem;
   min-height: 0;
+  padding: 0.9rem;
   overflow: hidden;
 }
 
-@media (max-width: 1480px) {
-  .desktop-app-shell {
-    grid-template-columns: 88px 280px minmax(0, 1fr) 272px;
+.desktop-workbench__sidebar,
+.desktop-workbench__main {
+  min-height: 0;
+}
+
+.desktop-workbench__main {
+  display: grid;
+  min-width: 0;
+}
+
+.desktop-workbench__main--with-toc {
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 0.9rem;
+}
+
+.desktop-workbench__toc {
+  min-height: 0;
+  border: 1px solid var(--desktop-line);
+  border-radius: var(--desktop-radius-lg);
+  background: var(--desktop-surface);
+  box-shadow: var(--shadow-panel);
+  overflow: hidden;
+}
+
+@media (prefers-color-scheme: dark) {
+  .desktop-titlebar {
+    background: rgba(18, 27, 42, 0.86);
+  }
+
+  .desktop-titlebar__icon-button {
+    background: rgba(20, 30, 46, 0.8);
   }
 }
 
-@media (max-width: 1260px) {
-  .desktop-app-shell {
-    grid-template-columns: 88px 280px minmax(0, 1fr);
-  }
-
-  .desktop-app-shell__context {
-    grid-column: 2 / span 2;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    min-height: auto;
+@media (max-width: 1320px) {
+  .desktop-workbench {
+    grid-template-columns: 300px minmax(0, 1fr);
   }
 }
 
-@media (max-width: 1040px) {
-  .desktop-app-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .desktop-app-shell__workspace,
-  .desktop-app-shell__catalog,
-  .desktop-app-shell__content,
-  .desktop-app-shell__context {
-    min-height: auto;
-  }
-
-  .desktop-app-shell__context {
-    grid-column: auto;
-    grid-template-columns: 1fr;
-  }
-
-  .desktop-app-shell__topbar {
-    display: grid;
+@media (max-width: 1180px) {
+  .desktop-workbench {
+    grid-template-columns: 290px minmax(0, 1fr);
   }
 }
 </style>
