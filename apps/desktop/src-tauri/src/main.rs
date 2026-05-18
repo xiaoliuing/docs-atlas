@@ -362,6 +362,16 @@ fn pick_folder_path() -> Option<String> {
 }
 
 #[tauri::command]
+fn pick_folder_paths() -> Vec<String> {
+  rfd::FileDialog::new()
+    .pick_folders()
+    .unwrap_or_default()
+    .into_iter()
+    .map(|path| path.to_string_lossy().to_string())
+    .collect()
+}
+
+#[tauri::command]
 fn validate_source_path(path: String) -> SourcePathValidationPayload {
   let metadata = std::fs::metadata(Path::new(&path));
 
@@ -427,6 +437,7 @@ fn main() {
       list_workspace_details,
       mark_workspace_opened,
       pick_folder_path,
+      pick_folder_paths,
       scan_workspace_sources,
       validate_source_path,
       upsert_workspace

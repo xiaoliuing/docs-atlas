@@ -116,6 +116,26 @@ export async function pickFolderPath(): Promise<string | null> {
   return window.prompt('输入文档目录路径')
 }
 
+export async function pickFolderPaths(): Promise<string[]> {
+  if (isTauriRuntime()) {
+    return invoke<string[]>('pick_folder_paths')
+  }
+
+  if (typeof window === 'undefined') {
+    return []
+  }
+
+  const rawValue = window.prompt('输入多个文档目录路径，使用换行、逗号或分号分隔')
+  if (!rawValue) {
+    return []
+  }
+
+  return rawValue
+    .split(/[\n,;]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
 export async function validateSourcePath(path: string): Promise<SourcePathValidation> {
   if (isTauriRuntime()) {
     return invoke<SourcePathValidation>('validate_source_path', { path })

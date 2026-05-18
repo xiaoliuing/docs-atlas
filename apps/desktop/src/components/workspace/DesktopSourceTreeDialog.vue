@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue'
 import type { WorkspaceDetail, WorkspaceSourceStatus } from '@docs-atlas/shared-types/workspace'
-import { pickFolderPath, validateSourcePath } from '@/api/workspaces'
+import { pickFolderPath, pickFolderPaths, validateSourcePath } from '@/api/workspaces'
 import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
 import DesktopSourceTreeNodeEditor from './DesktopSourceTreeNodeEditor.vue'
 import {
@@ -39,6 +39,7 @@ const emit = defineEmits<{
 
 const state = reactive({
   draftNodes: [] as WorkspaceSourceNodeDraft[],
+  importSummary: '',
   pathStatuses: {} as Record<string, { exists: boolean; isDirectory: boolean } | undefined>,
   pathValidationTokens: {} as Record<string, number>,
   validatingPathIds: {} as Record<string, boolean | undefined>,
@@ -72,6 +73,7 @@ watch(
     }
 
     state.draftNodes = cloneSourceNodes(props.workspace.sources)
+    state.importSummary = ''
     state.pathStatuses = {}
     void validateAllFolderNodes()
   },
@@ -111,6 +113,26 @@ function handleAddRootFolder() {
   addFolderNode(null)
 }
 
+async function handleAddRootFolders() {
+  const folderPaths = await pickFolderPaths()
+  if (folderPaths.length === 0) {
+    return
+  }
+
+  const { addedCount, skippedCount } = appendFolderNodes(null, folderPaths)
+  if (addedCount === 0 && skippedCount > 0) {
+    state.importSummary = `没有导入新目录，已跳过 ${skippedCount} 个重复路径。`
+    return
+  }
+
+  state.importSummary =
+    skippedCount > 0
+      ? `已导入 ${addedCount} 个目录，跳过 ${skippedCount} 个重复路径。`
+      : `已导入 ${addedCount} 个目录。`
+
+  await validateAllFolderNodes()
+}
+
 async function handleAddNestedGroup(parentId: string) {
   state.draftNodes = insertDraftChild(state.draftNodes, parentId, (index) => createGroupDraft(parentId, index))
   syncDraftParentIds(state.draftNodes)
@@ -133,7 +155,7 @@ async function handleBrowseFolder(nodeId: string) {
 
   target.path = folderPath
   if (!target.name.trim() || target.name === '新文档源') {
-    target.name = inferFolderDisplayName(folderPath)
+    target.name = inferUniqueFolderName(folderPath, target.parentId, target.id)
   }
   await validateFolderNode(target.id, target.path)
 }
@@ -171,6 +193,33 @@ function addFolderNode(parentId: string | null) {
   syncDraftParentIds(state.draftNodes)
 }
 
+function appendFolderNodes(parentId: string | null, folderPaths: string[]) {
+  let addedCount = 0
+  let skippedCount = 0
+  const normalizedExistingPaths = new Set(
+    flattenDraftNodes(state.draftNodes)
+      .filter((node) => node.kind === 'folder')
+      .map((node) => normalizePathValue(node.path)),
+  )
+
+  for (const rawPath of folderPaths) {
+    const normalizedPath = normalizePathValue(rawPath)
+    if (!normalizedPath || normalizedExistingPaths.has(normalizedPath)) {
+      skippedCount += 1
+      continue
+    }
+
+    normalizedExistingPaths.add(normalizedPath)
+    state.draftNodes = insertDraftChild(state.draftNodes, parentId, (index) =>
+      createFolderDraft(parentId, index, rawPath, inferUniqueFolderName(rawPath, parentId)),
+    )
+    syncDraftParentIds(state.draftNodes)
+    addedCount += 1
+  }
+
+  return { addedCount, skippedCount }
+}
+
 async function validateAllFolderNodes() {
   const folderNodes = flattenDraftNodes(state.draftNodes).filter((node) => node.kind === 'folder')
   await Promise.all(folderNodes.map((node) => validateFolderNode(node.id, node.path)))
@@ -188,7 +237,9 @@ function syncFolderNameFromPath(nodeId: string, nextPath: string, previousPath: 
   const previousAutoName = normalizedPreviousPath ? inferFolderDisplayName(normalizedPreviousPath) : '新文档源'
 
   if (!target.name.trim() || target.name === '新文档源' || target.name === previousAutoName) {
-    target.name = nextName
+    target.name = normalizedNextPath
+      ? inferUniqueFolderName(normalizedNextPath, target.parentId, target.id)
+      : nextName
   }
 }
 
@@ -213,6 +264,50 @@ async function validateFolderNode(nodeId: string, pathValue: string) {
 
   state.pathStatuses[nodeId] = status
   delete state.validatingPathIds[nodeId]
+}
+
+function inferUniqueFolderName(pathValue: string, parentId: string | null, excludeNodeId?: string) {
+  const normalizedPath = pathValue.trim().replace(/[\\/]+$/, '')
+  const segments = normalizedPath.split(/[\\/]/).filter(Boolean)
+  const baseName = inferFolderDisplayName(normalizedPath)
+  const siblingNames = new Set(
+    getSiblingNodes(parentId)
+      .filter((node) => node.id !== excludeNodeId)
+      .map((node) => node.name.trim())
+      .filter(Boolean),
+  )
+
+  if (!siblingNames.has(baseName)) {
+    return baseName
+  }
+
+  const parentSegment = segments.at(-2)
+  const compositeName = parentSegment ? `${parentSegment} / ${baseName}` : baseName
+  if (!siblingNames.has(compositeName)) {
+    return compositeName
+  }
+
+  let counter = 2
+  let candidate = `${baseName} (${counter})`
+  while (siblingNames.has(candidate)) {
+    counter += 1
+    candidate = `${baseName} (${counter})`
+  }
+
+  return candidate
+}
+
+function getSiblingNodes(parentId: string | null) {
+  if (!parentId) {
+    return state.draftNodes
+  }
+
+  const parentNode = findDraftNode(state.draftNodes, parentId)
+  return parentNode?.children ?? []
+}
+
+function normalizePathValue(pathValue: string) {
+  return pathValue.replace(/\\/g, '/').replace(/\/+$/, '').trim().toLowerCase()
 }
 </script>
 
@@ -264,6 +359,21 @@ async function validateFolderNode(nodeId: string, pathValue: string) {
         >
           新建根目录卡片
         </button>
+        <button
+          :disabled="props.isSaving"
+          class="desktop-source-tree-dialog__tool"
+          type="button"
+          @click="handleAddRootFolders"
+        >
+          批量导入目录
+        </button>
+      </div>
+
+      <div
+        v-if="state.importSummary"
+        class="desktop-source-tree-dialog__toolbar-note"
+      >
+        {{ state.importSummary }}
       </div>
 
       <div
@@ -341,7 +451,7 @@ async function validateFolderNode(nodeId: string, pathValue: string) {
   width: min(62rem, calc(100vw - 2rem));
   max-height: min(82vh, 56rem);
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
   gap: 0.95rem;
   padding: 1rem;
   border: 1px solid var(--desktop-line);
@@ -359,6 +469,13 @@ async function validateFolderNode(nodeId: string, pathValue: string) {
   align-items: center;
   justify-content: space-between;
   gap: 0.85rem;
+}
+
+.desktop-source-tree-dialog__toolbar-note {
+  margin-top: -0.2rem;
+  color: var(--desktop-soft);
+  font-size: 0.74rem;
+  line-height: 1.45;
 }
 
 .desktop-source-tree-dialog__header-copy {

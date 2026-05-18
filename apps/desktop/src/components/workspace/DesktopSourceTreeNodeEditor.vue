@@ -38,7 +38,7 @@ const pathStatusLabel = computed(() => {
   }
 
   if (!node.value.path.trim()) {
-    return '支持手动输入目录，或点击右侧选择目录。'
+    return '支持手动输入目录，也可以在上方批量导入多个目录。'
   }
 
   if (isValidatingPath.value) {
@@ -57,7 +57,7 @@ const pathStatusLabel = computed(() => {
     return '路径不是目录'
   }
 
-  return '目录有效'
+  return '目录有效，保存后会参与文档扫描。'
 })
 
 const pathStatusTone = computed(() => {

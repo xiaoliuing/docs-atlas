@@ -183,7 +183,7 @@ export function collectSourceTreeIssues(
     if (!normalizedPath) {
       issues.push({
         nodeId: node.id,
-        message: '请选择文档目录',
+        message: '请选择包含 Markdown 文档的目录',
         severity: 'error',
       })
     } else {
@@ -226,7 +226,7 @@ export function collectSourceTreeIssues(
     nodeIds.forEach((nodeId) => {
       issues.push({
         nodeId,
-        message: '目录路径重复',
+        message: '目录路径重复，请保留一个目录源或调整路径',
         severity: 'error',
       })
     })
