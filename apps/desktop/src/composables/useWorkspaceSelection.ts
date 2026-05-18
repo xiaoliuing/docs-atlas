@@ -1,5 +1,5 @@
 import { computed, shallowRef } from 'vue'
-import type { WorkspaceDetail, WorkspaceSourceNodeInput, WorkspaceUpsertInput } from '@docs-atlas/shared-types/workspace'
+import type { WorkspaceDetail, WorkspaceSearchScope, WorkspaceSourceNodeInput, WorkspaceUpsertInput } from '@docs-atlas/shared-types/workspace'
 import type { DocsSourceGroup } from '@/types/docs'
 import { listWorkspaceDetails, markWorkspaceOpened, upsertWorkspace, type WorkspaceSaveInput } from '@/api/workspaces'
 import { mockWorkspaces } from '@/mocks/workspaces'
@@ -9,6 +9,7 @@ const currentWorkspaceId = shallowRef('')
 const isLoadingWorkspaces = shallowRef(false)
 const isSavingWorkspace = shallowRef(false)
 const isSavingWorkspaceSources = shallowRef(false)
+const isReorderingWorkspaces = shallowRef(false)
 let loadTask: Promise<void> | null = null
 
 export function useWorkspaceSelection(sourceGroups: DocsSourceGroup[]) {
@@ -64,6 +65,8 @@ export function useWorkspaceSelection(sourceGroups: DocsSourceGroup[]) {
       const workspace = await upsertWorkspace({
         id: `workspace:${crypto.randomUUID()}`,
         ...input,
+        defaultSearchScope: input.defaultSearchScope ?? 'global',
+        sortOrder: workspaces.value.length,
         sources: [],
       })
       mergeWorkspace(workspace)
@@ -89,6 +92,8 @@ export function useWorkspaceSelection(sourceGroups: DocsSourceGroup[]) {
         description: workspace.description,
         icon: workspace.icon,
         color: workspace.color,
+        defaultSearchScope: workspace.defaultSearchScope,
+        sortOrder: workspace.sortOrder,
         lastOpenedAt: workspace.lastOpenedAt,
         sources,
       })
@@ -99,6 +104,88 @@ export function useWorkspaceSelection(sourceGroups: DocsSourceGroup[]) {
     }
   }
 
+  async function updateWorkspaceMeta(
+    workspaceId: string,
+    input: {
+      name: string
+      description: string
+      color: string
+      defaultSearchScope: WorkspaceSearchScope
+    },
+  ) {
+    const workspace = workspaces.value.find((item) => item.id === workspaceId)
+    if (!workspace) {
+      return null
+    }
+
+    isSavingWorkspace.value = true
+
+    try {
+      const updated = await upsertWorkspace({
+        id: workspace.id,
+        name: input.name,
+        description: input.description,
+        icon: workspace.icon,
+        color: input.color,
+        defaultSearchScope: input.defaultSearchScope,
+        sortOrder: workspace.sortOrder,
+        lastOpenedAt: workspace.lastOpenedAt,
+        sources: toSourceInputs(workspace.sources),
+      })
+      mergeWorkspace(updated)
+      return updated
+    } finally {
+      isSavingWorkspace.value = false
+    }
+  }
+
+  async function moveWorkspace(workspaceId: string, direction: -1 | 1) {
+    const ordered = [...workspaces.value].sort((left, right) => left.sortOrder - right.sortOrder)
+    const index = ordered.findIndex((workspace) => workspace.id === workspaceId)
+    const targetIndex = index + direction
+
+    if (index < 0 || targetIndex < 0 || targetIndex >= ordered.length) {
+      return false
+    }
+
+    const current = ordered[index]
+    const target = ordered[targetIndex]
+
+    isReorderingWorkspaces.value = true
+
+    try {
+      await upsertWorkspace({
+        id: current.id,
+        name: current.name,
+        description: current.description,
+        icon: current.icon,
+        color: current.color,
+        defaultSearchScope: current.defaultSearchScope,
+        sortOrder: target.sortOrder,
+        lastOpenedAt: current.lastOpenedAt,
+        sources: toSourceInputs(current.sources),
+      })
+
+      await upsertWorkspace({
+        id: target.id,
+        name: target.name,
+        description: target.description,
+        icon: target.icon,
+        color: target.color,
+        defaultSearchScope: target.defaultSearchScope,
+        sortOrder: current.sortOrder,
+        lastOpenedAt: target.lastOpenedAt,
+        sources: toSourceInputs(target.sources),
+      })
+
+      const records = await listWorkspaceDetails()
+      workspaces.value = normalizeWorkspaces(records)
+      return true
+    } finally {
+      isReorderingWorkspaces.value = false
+    }
+  }
+
   return {
     createWorkspace,
     currentWorkspace,
@@ -106,10 +193,13 @@ export function useWorkspaceSelection(sourceGroups: DocsSourceGroup[]) {
     currentWorkspaceSourceIds,
     ensureLoaded,
     isLoadingWorkspaces,
+    isReorderingWorkspaces,
     isSavingWorkspace,
     isSavingWorkspaceSources,
+    moveWorkspace,
     saveWorkspaceSources,
     selectWorkspace,
+    updateWorkspaceMeta,
     workspaces,
   }
 }
@@ -126,7 +216,7 @@ async function loadWorkspaces() {
       records = await listWorkspaceDetails()
     }
 
-    workspaces.value = records
+    workspaces.value = normalizeWorkspaces(records)
     currentWorkspaceId.value = currentWorkspaceId.value || records[0]?.id || ''
   } finally {
     isLoadingWorkspaces.value = false
@@ -134,7 +224,16 @@ async function loadWorkspaces() {
 }
 
 function mergeWorkspace(workspace: WorkspaceDetail) {
-  workspaces.value = [workspace, ...workspaces.value.filter((item) => item.id !== workspace.id)]
+  const existingIndex = workspaces.value.findIndex((item) => item.id === workspace.id)
+
+  if (existingIndex < 0) {
+    workspaces.value = normalizeWorkspaces([...workspaces.value, workspace])
+    return
+  }
+
+  const next = [...workspaces.value]
+  next.splice(existingIndex, 1, workspace)
+  workspaces.value = normalizeWorkspaces(next)
 }
 
 function collectWorkspaceSourceHints(nodes: WorkspaceDetail['sources']): string[] {
@@ -158,6 +257,8 @@ function toWorkspaceSaveInput(workspace: WorkspaceDetail): WorkspaceSaveInput {
     description: workspace.description,
     icon: workspace.icon,
     color: workspace.color,
+    defaultSearchScope: workspace.defaultSearchScope,
+    sortOrder: workspace.sortOrder,
     lastOpenedAt: workspace.lastOpenedAt,
     sources: workspace.sources.map((source) => ({
       id: source.id,
@@ -183,4 +284,14 @@ function toSourceInputs(nodes: WorkspaceDetail['sources']) {
     position: node.position,
     children: toSourceInputs(node.children),
   }))
+}
+
+function normalizeWorkspaces(workspaces: WorkspaceDetail[]) {
+  return [...workspaces]
+    .map((workspace, index) => ({
+      ...workspace,
+      defaultSearchScope: workspace.defaultSearchScope ?? 'global',
+      sortOrder: workspace.sortOrder ?? index,
+    }))
+    .sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, 'zh-Hans-CN'))
 }

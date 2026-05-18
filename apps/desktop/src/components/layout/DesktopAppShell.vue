@@ -35,10 +35,13 @@ const {
   currentWorkspaceSourceIds,
   ensureLoaded,
   isLoadingWorkspaces,
+  isReorderingWorkspaces,
   isSavingWorkspace,
   isSavingWorkspaceSources,
+  moveWorkspace,
   saveWorkspaceSources,
   selectWorkspace,
+  updateWorkspaceMeta,
   workspaces,
 } =
   useWorkspaceSelection(sourceGroups)
@@ -63,6 +66,7 @@ const { activeId, scrollToHeading } = useDesktopActiveHeadings(headings)
 const isSettingsOpen = shallowRef(false)
 const isSourceTreeDialogOpen = shallowRef(false)
 const isWorkspaceDialogOpen = shallowRef(false)
+const workspaceDialogMode = shallowRef<'create' | 'edit'>('create')
 const searchPanelRef = useTemplateRef<InstanceType<typeof DesktopSearchPanel>>('searchPanel')
 
 const floatingPanelVisible = computed(() => isOpen.value || isSettingsOpen.value)
@@ -75,6 +79,7 @@ const searchQuery = computed({
 const sourceCount = computed(() => countWorkspaceFolderSources(currentWorkspace.value?.sources ?? []))
 const visibleSourceGroups = computed(() => filterSourceGroups(sourceGroups, new Set(currentWorkspaceSourceIds.value)))
 const docCount = computed(() => countDocs(visibleSourceGroups.value))
+const workspaceDialogWorkspace = computed(() => (workspaceDialogMode.value === 'edit' ? currentWorkspace.value : null))
 
 function handleSelectWorkspace(workspaceId: string) {
   void selectWorkspace(workspaceId)
@@ -130,20 +135,51 @@ function closeFloatingPanels() {
   isSettingsOpen.value = false
 }
 
-async function handleCreateWorkspace(payload: { name: string; description: string; color: string }) {
-  const workspace = await createWorkspace({
-    name: payload.name,
-    description: payload.description,
-    color: payload.color,
-    icon: 'folder',
-    lastOpenedAt: new Date().toISOString(),
-  })
+async function handleCreateWorkspace(payload: {
+  name: string
+  description: string
+  color: string
+  defaultSearchScope: 'global' | 'workspace'
+}) {
+  const workspace =
+    workspaceDialogMode.value === 'edit' && currentWorkspace.value
+      ? await updateWorkspaceMeta(currentWorkspace.value.id, payload)
+      : await createWorkspace({
+          name: payload.name,
+          description: payload.description,
+          color: payload.color,
+          defaultSearchScope: payload.defaultSearchScope,
+          icon: 'folder',
+          lastOpenedAt: new Date().toISOString(),
+        })
 
   if (!workspace) {
     return
   }
 
   isWorkspaceDialogOpen.value = false
+}
+
+function openCreateWorkspaceDialog() {
+  workspaceDialogMode.value = 'create'
+  isWorkspaceDialogOpen.value = true
+}
+
+function openEditWorkspaceDialog() {
+  if (!currentWorkspace.value) {
+    return
+  }
+
+  workspaceDialogMode.value = 'edit'
+  isWorkspaceDialogOpen.value = true
+}
+
+async function handleMoveWorkspace(direction: -1 | 1) {
+  if (!currentWorkspace.value) {
+    return
+  }
+
+  await moveWorkspace(currentWorkspace.value.id, direction)
 }
 
 async function handleSaveWorkspaceSources(sources: Parameters<typeof saveWorkspaceSources>[1]) {
@@ -178,6 +214,14 @@ watch(
     if (!activeSourceId || !sourceIds.includes(activeSourceId)) {
       selectFirstDocBySourceIds(sourceIds)
     }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => currentWorkspace.value?.defaultSearchScope,
+  (defaultScope) => {
+    setScope(defaultScope ?? 'global')
   },
   { immediate: true },
 )
@@ -319,10 +363,13 @@ function filterSourceGroups(groups: typeof sourceGroups, allowedSourceIds: Set<s
           :current-source-id="currentSourceId"
           :current-workspace-id="currentWorkspaceId"
           :current-workspace-source-count="sourceCount"
+          :is-reordering-workspaces="isReorderingWorkspaces"
           :source-groups="visibleSourceGroups"
           :workspaces="workspaces"
-          @create-workspace="isWorkspaceDialogOpen = true"
+          @create-workspace="openCreateWorkspaceDialog"
+          @edit-workspace="openEditWorkspaceDialog"
           @edit-sources="openSourceTreeDialog"
+          @move-workspace="handleMoveWorkspace"
           @select-doc="handleSelectDoc"
           @select-workspace="handleSelectWorkspace"
         />
@@ -355,7 +402,10 @@ function filterSourceGroups(groups: typeof sourceGroups, allowedSourceIds: Set<s
 
     <DesktopWorkspaceDialog
       v-model:open="isWorkspaceDialogOpen"
+      :accent-options="accentOptions"
       :is-saving="isSavingWorkspace"
+      :mode="workspaceDialogMode"
+      :workspace="workspaceDialogWorkspace"
       @close="isWorkspaceDialogOpen = false"
       @submit="handleCreateWorkspace"
     />

@@ -12,6 +12,8 @@ create table if not exists workspaces (
   description text not null default '',
   icon text not null default '',
   color text not null default '',
+  default_search_scope text not null default 'global',
+  sort_order integer not null default 0,
   created_at text not null,
   updated_at text not null,
   last_opened_at text
@@ -52,6 +54,8 @@ struct WorkspaceDetailPayload {
   description: String,
   icon: String,
   color: String,
+  default_search_scope: String,
+  sort_order: i64,
   created_at: String,
   updated_at: String,
   last_opened_at: Option<String>,
@@ -80,6 +84,8 @@ struct WorkspaceSaveInput {
   description: Option<String>,
   icon: Option<String>,
   color: Option<String>,
+  default_search_scope: Option<String>,
+  sort_order: Option<i64>,
   last_opened_at: Option<String>,
   sources: Option<Vec<WorkspaceSourceNodeInput>>,
 }
@@ -116,6 +122,8 @@ struct WorkspaceSummaryRow {
   description: String,
   icon: String,
   color: String,
+  default_search_scope: String,
+  sort_order: i64,
   created_at: String,
   updated_at: String,
   last_opened_at: Option<String>,
@@ -140,11 +148,13 @@ fn list_workspace_details(app: AppHandle) -> Result<Vec<WorkspaceDetailPayload>,
         description,
         icon,
         color,
+        default_search_scope,
+        sort_order,
         created_at,
         updated_at,
         last_opened_at
       from workspaces
-      order by coalesce(last_opened_at, updated_at) desc, name asc
+      order by sort_order asc, name asc
       "#,
     )
     .map_err(|error| error.to_string())?;
@@ -157,9 +167,11 @@ fn list_workspace_details(app: AppHandle) -> Result<Vec<WorkspaceDetailPayload>,
         description: row.get(2)?,
         icon: row.get(3)?,
         color: row.get(4)?,
-        created_at: row.get(5)?,
-        updated_at: row.get(6)?,
-        last_opened_at: row.get(7)?,
+        default_search_scope: row.get(5)?,
+        sort_order: row.get(6)?,
+        created_at: row.get(7)?,
+        updated_at: row.get(8)?,
+        last_opened_at: row.get(9)?,
       })
     })
     .map_err(|error| error.to_string())?;
@@ -197,16 +209,20 @@ fn upsert_workspace(app: AppHandle, input: WorkspaceSaveInput) -> Result<Workspa
         description,
         icon,
         color,
+        default_search_scope,
+        sort_order,
         created_at,
         updated_at,
         last_opened_at
       )
-      values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+      values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
       on conflict(id) do update set
         name = excluded.name,
         description = excluded.description,
         icon = excluded.icon,
         color = excluded.color,
+        default_search_scope = excluded.default_search_scope,
+        sort_order = excluded.sort_order,
         updated_at = excluded.updated_at,
         last_opened_at = excluded.last_opened_at
       "#,
@@ -216,6 +232,8 @@ fn upsert_workspace(app: AppHandle, input: WorkspaceSaveInput) -> Result<Workspa
         input.description.clone().unwrap_or_default(),
         input.icon.clone().unwrap_or_default(),
         input.color.clone().unwrap_or_else(|| "#1f54d9".to_string()),
+        input.default_search_scope.clone().unwrap_or_else(|| "global".to_string()),
+        input.sort_order.unwrap_or(0),
         created_at,
         now,
         input.last_opened_at.clone()
@@ -305,7 +323,34 @@ fn open_workspace_database(app: &AppHandle) -> Result<Connection, String> {
   connection
     .execute_batch(WORKSPACE_DB_SCHEMA)
     .map_err(|error| error.to_string())?;
+  migrate_workspace_database(&connection)?;
   Ok(connection)
+}
+
+fn migrate_workspace_database(connection: &Connection) -> Result<(), String> {
+  add_column_if_missing(
+    connection,
+    "alter table workspaces add column default_search_scope text not null default 'global'",
+  )?;
+  add_column_if_missing(
+    connection,
+    "alter table workspaces add column sort_order integer not null default 0",
+  )?;
+  Ok(())
+}
+
+fn add_column_if_missing(connection: &Connection, statement: &str) -> Result<(), String> {
+  match connection.execute(statement, []) {
+    Ok(_) => Ok(()),
+    Err(error) => {
+      let message = error.to_string();
+      if message.contains("duplicate column name") {
+        Ok(())
+      } else {
+        Err(message)
+      }
+    }
+  }
 }
 
 fn load_workspace_summary(connection: &Connection, workspace_id: &str) -> Result<WorkspaceSummaryRow, String> {
@@ -318,6 +363,8 @@ fn load_workspace_summary(connection: &Connection, workspace_id: &str) -> Result
         description,
         icon,
         color,
+        default_search_scope,
+        sort_order,
         created_at,
         updated_at,
         last_opened_at
@@ -332,9 +379,11 @@ fn load_workspace_summary(connection: &Connection, workspace_id: &str) -> Result
           description: row.get(2)?,
           icon: row.get(3)?,
           color: row.get(4)?,
-          created_at: row.get(5)?,
-          updated_at: row.get(6)?,
-          last_opened_at: row.get(7)?,
+          default_search_scope: row.get(5)?,
+          sort_order: row.get(6)?,
+          created_at: row.get(7)?,
+          updated_at: row.get(8)?,
+          last_opened_at: row.get(9)?,
         })
       },
     )
@@ -390,6 +439,8 @@ fn load_workspace_detail(
     description: workspace.description,
     icon: workspace.icon,
     color: workspace.color,
+    default_search_scope: workspace.default_search_scope,
+    sort_order: workspace.sort_order,
     created_at: workspace.created_at,
     updated_at: workspace.updated_at,
     last_opened_at: workspace.last_opened_at,

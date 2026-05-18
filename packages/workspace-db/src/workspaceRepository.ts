@@ -23,11 +23,13 @@ export class WorkspaceRepository {
         description,
         icon,
         color,
+        default_search_scope as defaultSearchScope,
+        sort_order as sortOrder,
         created_at as createdAt,
         updated_at as updatedAt,
         last_opened_at as lastOpenedAt
       from workspaces
-      order by coalesce(last_opened_at, updated_at) desc, name asc
+      order by sort_order asc, name asc
     `)
 
     return statement.all() as WorkspaceRecord[]
@@ -41,6 +43,8 @@ export class WorkspaceRepository {
         description,
         icon,
         color,
+        default_search_scope as defaultSearchScope,
+        sort_order as sortOrder,
         created_at as createdAt,
         updated_at as updatedAt,
         last_opened_at as lastOpenedAt
@@ -97,16 +101,20 @@ export class WorkspaceRepository {
         description,
         icon,
         color,
+        default_search_scope,
+        sort_order,
         created_at,
         updated_at,
         last_opened_at
       )
-      values (?, ?, ?, ?, ?, ?, ?, ?)
+      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       on conflict(id) do update set
         name = excluded.name,
         description = excluded.description,
         icon = excluded.icon,
         color = excluded.color,
+        default_search_scope = excluded.default_search_scope,
+        sort_order = excluded.sort_order,
         updated_at = excluded.updated_at,
         last_opened_at = excluded.last_opened_at
     `)
@@ -117,6 +125,8 @@ export class WorkspaceRepository {
       input.description ?? '',
       input.icon ?? '',
       input.color ?? '#1f54d9',
+      input.defaultSearchScope ?? 'global',
+      input.sortOrder ?? 0,
       createdAt,
       now,
       input.lastOpenedAt ?? null,
@@ -128,6 +138,8 @@ export class WorkspaceRepository {
       description: input.description ?? '',
       icon: input.icon ?? '',
       color: input.color ?? '#1f54d9',
+      defaultSearchScope: input.defaultSearchScope ?? 'global',
+      sortOrder: input.sortOrder ?? 0,
       createdAt,
       updatedAt: now,
       lastOpenedAt: input.lastOpenedAt ?? null,

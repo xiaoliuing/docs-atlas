@@ -11,13 +11,16 @@ const props = defineProps<{
   currentWorkspaceDocCount: number
   currentWorkspaceId: string
   currentWorkspaceSourceCount: number
+  isReorderingWorkspaces?: boolean
   sourceGroups: DocsSourceGroup[]
   workspaces: WorkspaceDetail[]
 }>()
 
 const emit = defineEmits<{
   createWorkspace: []
+  editWorkspace: []
   editSources: []
+  moveWorkspace: [direction: -1 | 1]
   selectDoc: [slug: string]
   selectWorkspace: [workspaceId: string]
 }>()
@@ -244,13 +247,43 @@ function countDocs(group: DocsSourceGroup): number {
           </div>
         </div>
 
-        <button
-          class="desktop-docs-sidebar__workspace-action"
-          type="button"
-          @click="emit('editSources')"
-        >
-          管理文档源
-        </button>
+        <div class="desktop-docs-sidebar__workspace-actions">
+          <button
+            aria-label="上移当前工作区"
+            class="desktop-docs-sidebar__workspace-icon-action"
+            :disabled="props.isReorderingWorkspaces"
+            type="button"
+            @click="emit('moveWorkspace', -1)"
+          >
+            <span class="desktop-docs-sidebar__workspace-arrow desktop-docs-sidebar__workspace-arrow--up" />
+          </button>
+
+          <button
+            aria-label="下移当前工作区"
+            class="desktop-docs-sidebar__workspace-icon-action"
+            :disabled="props.isReorderingWorkspaces"
+            type="button"
+            @click="emit('moveWorkspace', 1)"
+          >
+            <span class="desktop-docs-sidebar__workspace-arrow desktop-docs-sidebar__workspace-arrow--down" />
+          </button>
+
+          <button
+            class="desktop-docs-sidebar__workspace-action"
+            type="button"
+            @click="emit('editWorkspace')"
+          >
+            设置
+          </button>
+
+          <button
+            class="desktop-docs-sidebar__workspace-action desktop-docs-sidebar__workspace-action--secondary"
+            type="button"
+            @click="emit('editSources')"
+          >
+            文档源
+          </button>
+        </div>
       </div>
     </div>
 
@@ -551,10 +584,56 @@ function countDocs(group: DocsSourceGroup): number {
   transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
 }
 
-.desktop-docs-sidebar__workspace-action:hover {
+.desktop-docs-sidebar__workspace-action:hover,
+.desktop-docs-sidebar__workspace-icon-action:hover:not(:disabled) {
   border-color: rgba(var(--desktop-accent-rgb), 0.28);
   background: rgba(var(--desktop-accent-rgb), 0.12);
   transform: translateY(-1px);
+}
+
+.desktop-docs-sidebar__workspace-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+}
+
+.desktop-docs-sidebar__workspace-action--secondary {
+  background: rgba(var(--desktop-accent-rgb), 0.04);
+  color: var(--desktop-muted);
+}
+
+.desktop-docs-sidebar__workspace-icon-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.95rem;
+  min-height: 1.95rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.18);
+  border-radius: 10px;
+  background: rgba(var(--desktop-accent-rgb), 0.07);
+  color: var(--desktop-accent);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+}
+
+.desktop-docs-sidebar__workspace-icon-action:disabled {
+  opacity: 0.46;
+  cursor: not-allowed;
+}
+
+.desktop-docs-sidebar__workspace-arrow {
+  width: 0.44rem;
+  height: 0.44rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+}
+
+.desktop-docs-sidebar__workspace-arrow--up {
+  transform: rotate(-135deg);
+}
+
+.desktop-docs-sidebar__workspace-arrow--down {
+  transform: rotate(45deg);
 }
 
 .desktop-docs-sidebar__directory-panel {

@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue'
+import type { WorkspaceDetail, WorkspaceSearchScope } from '@docs-atlas/shared-types/workspace'
+import type { DesktopAccentOption } from '@/composables/useDesktopPreferences'
 
 type WorkspaceForm = {
   name: string
   description: string
   color: string
+  defaultSearchScope: WorkspaceSearchScope
 }
 
 const isOpen = defineModel<boolean>('open', { default: false })
 
 const props = defineProps<{
+  accentOptions: DesktopAccentOption[]
   isSaving: boolean
+  mode: 'create' | 'edit'
+  workspace?: WorkspaceDetail | null
 }>()
 
 const emit = defineEmits<{
@@ -18,27 +24,58 @@ const emit = defineEmits<{
   submit: [payload: WorkspaceForm]
 }>()
 
-const colorOptions = ['#1f54d9', '#2f7b5f', '#7a5af8', '#d97706', '#d9485f']
+const scopeOptions: Array<{ id: WorkspaceSearchScope; label: string; description: string }> = [
+  { id: 'global', label: '全局', description: '默认跨全部工作区文档搜索' },
+  { id: 'workspace', label: '当前工作区', description: '默认只检索当前工作区内容' },
+]
+
 const form = reactive<WorkspaceForm>({
   name: '',
   description: '',
-  color: colorOptions[0],
+  color: '#1f54d9',
+  defaultSearchScope: 'global',
 })
+
 const isValid = computed(() => form.name.trim().length > 0)
+const dialogTitle = computed(() => (props.mode === 'edit' ? '工作区设置' : '新建工作区'))
+const submitLabel = computed(() => {
+  if (props.isSaving) {
+    return props.mode === 'edit' ? '保存中...' : '创建中...'
+  }
+
+  return props.mode === 'edit' ? '保存设置' : '创建工作区'
+})
 
 watch(
-  isOpen,
-  (open) => {
-    if (!open) {
-      resetForm()
+  () => [isOpen.value, props.mode, props.workspace?.id] as const,
+  ([open]) => {
+    if (open) {
+      fillForm()
+      return
     }
+
+    resetForm()
   },
+  { immediate: true },
 )
 
 function resetForm() {
   form.name = ''
   form.description = ''
-  form.color = colorOptions[0]
+  form.color = props.accentOptions[0]?.hex ?? '#1f54d9'
+  form.defaultSearchScope = 'global'
+}
+
+function fillForm() {
+  if (props.mode === 'edit' && props.workspace) {
+    form.name = props.workspace.name
+    form.description = props.workspace.description
+    form.color = props.workspace.color
+    form.defaultSearchScope = props.workspace.defaultSearchScope
+    return
+  }
+
+  resetForm()
 }
 
 function handleSubmit() {
@@ -50,6 +87,7 @@ function handleSubmit() {
     name: form.name.trim(),
     description: form.description.trim(),
     color: form.color,
+    defaultSearchScope: form.defaultSearchScope,
   })
 }
 
@@ -72,11 +110,11 @@ function handleClose() {
       <header class="desktop-workspace-dialog__header">
         <div>
           <p class="desktop-workspace-dialog__eyebrow">Workspace</p>
-          <h2 class="desktop-workspace-dialog__title">新建工作区</h2>
+          <h2 class="desktop-workspace-dialog__title">{{ dialogTitle }}</h2>
         </div>
 
         <button
-          aria-label="关闭新建工作区对话框"
+          :aria-label="props.mode === 'edit' ? '关闭工作区设置对话框' : '关闭新建工作区对话框'"
           class="desktop-workspace-dialog__close"
           type="button"
           @click="handleClose"
@@ -113,17 +151,36 @@ function handleClose() {
           <span>主题色</span>
           <div class="desktop-workspace-dialog__colors">
             <button
-              v-for="color in colorOptions"
-              :key="color"
-              :aria-label="`选择主题色 ${color}`"
+              v-for="accent in props.accentOptions"
+              :key="accent.id"
+              :aria-label="`选择主题色 ${accent.label}`"
               :class="[
                 'desktop-workspace-dialog__color',
-                { 'desktop-workspace-dialog__color--active': form.color === color },
+                { 'desktop-workspace-dialog__color--active': form.color === accent.hex },
               ]"
-              :style="{ '--workspace-color': color }"
+              :style="{ '--workspace-color': accent.hex }"
               type="button"
-              @click="form.color = color"
+              @click="form.color = accent.hex"
             />
+          </div>
+        </div>
+
+        <div class="desktop-workspace-dialog__field">
+          <span>默认搜索范围</span>
+          <div class="desktop-workspace-dialog__scope-grid">
+            <button
+              v-for="option in scopeOptions"
+              :key="option.id"
+              :class="[
+                'desktop-workspace-dialog__scope-option',
+                { 'desktop-workspace-dialog__scope-option--active': form.defaultSearchScope === option.id },
+              ]"
+              type="button"
+              @click="form.defaultSearchScope = option.id"
+            >
+              <strong>{{ option.label }}</strong>
+              <span>{{ option.description }}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -142,7 +199,7 @@ function handleClose() {
           type="button"
           @click="handleSubmit"
         >
-          {{ props.isSaving ? '创建中...' : '创建工作区' }}
+          {{ submitLabel }}
         </button>
       </footer>
     </section>
@@ -162,7 +219,7 @@ function handleClose() {
 }
 
 .desktop-workspace-dialog__panel {
-  width: min(31rem, calc(100vw - 2rem));
+  width: min(34rem, calc(100vw - 2rem));
   display: grid;
   gap: 1rem;
   padding: 1rem;
@@ -279,6 +336,43 @@ function handleClose() {
   box-shadow:
     0 0 0 3px rgba(var(--desktop-accent-rgb), 0.18),
     inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+}
+
+.desktop-workspace-dialog__scope-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.desktop-workspace-dialog__scope-option {
+  display: grid;
+  gap: 0.14rem;
+  padding: 0.7rem 0.78rem;
+  border: 1px solid var(--desktop-line);
+  border-radius: 14px;
+  background: rgba(var(--desktop-accent-rgb), 0.03);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+}
+
+.desktop-workspace-dialog__scope-option strong {
+  color: var(--desktop-ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.desktop-workspace-dialog__scope-option span {
+  color: var(--desktop-muted);
+  font-size: 0.71rem;
+  line-height: 1.4;
+}
+
+.desktop-workspace-dialog__scope-option:hover,
+.desktop-workspace-dialog__scope-option--active {
+  border-color: var(--desktop-line-strong);
+  background: rgba(var(--desktop-accent-rgb), 0.08);
+  transform: translateY(-1px);
 }
 
 .desktop-workspace-dialog__footer {

@@ -34,16 +34,18 @@ export async function upsertWorkspace(input: WorkspaceSaveInput): Promise<Worksp
     description: input.description ?? '',
     icon: input.icon ?? '',
     color: input.color ?? '#1f54d9',
+    defaultSearchScope: input.defaultSearchScope ?? workspaces.find((workspace) => workspace.id === input.id)?.defaultSearchScope ?? 'global',
+    sortOrder: input.sortOrder ?? workspaces.find((workspace) => workspace.id === input.id)?.sortOrder ?? workspaces.length,
     createdAt: workspaces.find((workspace) => workspace.id === input.id)?.createdAt ?? now,
     updatedAt: now,
     lastOpenedAt: input.lastOpenedAt ?? null,
     sources: cloneSources(input.sources ?? workspaces.find((workspace) => workspace.id === input.id)?.sources ?? []),
   }
 
-  const nextWorkspaces = [
+  const nextWorkspaces = sortWorkspaces([
     nextWorkspace,
     ...workspaces.filter((workspace) => workspace.id !== input.id),
-  ]
+  ])
   writeBrowserWorkspaces(nextWorkspaces)
   return nextWorkspace
 }
@@ -65,7 +67,7 @@ export async function markWorkspaceOpened(workspaceId: string): Promise<Workspac
     updatedAt: now,
     lastOpenedAt: now,
   }
-  writeBrowserWorkspaces([updated, ...workspaces.filter((workspace) => workspace.id !== workspaceId)])
+  writeBrowserWorkspaces(sortWorkspaces([updated, ...workspaces.filter((workspace) => workspace.id !== workspaceId)]))
   return updated
 }
 
@@ -127,10 +129,14 @@ function isTauriRuntime() {
 }
 
 function cloneWorkspaces(workspaces: WorkspaceDetail[]): WorkspaceDetail[] {
-  return workspaces.map((workspace) => ({
-    ...workspace,
-    sources: cloneSources(workspace.sources),
-  }))
+  return sortWorkspaces(
+    workspaces.map((workspace, index) => ({
+      ...workspace,
+      defaultSearchScope: workspace.defaultSearchScope ?? 'global',
+      sortOrder: workspace.sortOrder ?? index,
+      sources: cloneSources(workspace.sources),
+    })),
+  )
 }
 
 function cloneSources(sources: WorkspaceDetail['sources']): WorkspaceDetail['sources'] {
@@ -138,4 +144,10 @@ function cloneSources(sources: WorkspaceDetail['sources']): WorkspaceDetail['sou
     ...source,
     children: cloneSources(source.children),
   }))
+}
+
+function sortWorkspaces(workspaces: WorkspaceDetail[]) {
+  return [...workspaces].sort((left, right) => {
+    return left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, 'zh-Hans-CN')
+  })
 }

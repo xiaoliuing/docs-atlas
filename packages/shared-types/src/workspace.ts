@@ -1,4 +1,5 @@
 export type WorkspaceSourceNodeKind = 'group' | 'folder'
+export type WorkspaceSearchScope = 'global' | 'workspace'
 
 export type WorkspaceSummary = {
   id: string
@@ -6,6 +7,8 @@ export type WorkspaceSummary = {
   description: string
   icon: string
   color: string
+  defaultSearchScope: WorkspaceSearchScope
+  sortOrder: number
   createdAt: string
   updatedAt: string
   lastOpenedAt: string | null
@@ -37,6 +40,8 @@ export type WorkspaceUpsertInput = {
   description?: string
   icon?: string
   color?: string
+  defaultSearchScope?: WorkspaceSearchScope
+  sortOrder?: number
   lastOpenedAt?: string | null
 }
 
