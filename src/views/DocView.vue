@@ -9,10 +9,12 @@ import { useDocsCatalog } from '@/composables/useDocsCatalog'
 import { useDocRoute } from '@/composables/useDocRoute'
 
 const router = useRouter()
-const { currentDoc } = useDocRoute()
+const { currentDoc, route } = useDocRoute()
 const { docsBySlug } = useDocsCatalog()
 
 const headings = computed(() => currentDoc.value?.headings ?? [])
+const highlightQuery = computed(() => normalizeRouteQuery(route.query.q))
+const shouldAutoScrollToHighlight = computed(() => !route.hash)
 const prevDoc = computed(() => {
   const slug = currentDoc.value?.prevSlug
   return slug ? docsBySlug[slug] ?? null : null
@@ -32,6 +34,18 @@ watch(
   },
   { immediate: true },
 )
+
+function normalizeRouteQuery(value: unknown): string {
+  if (typeof value === 'string') {
+    return value
+  }
+
+  if (Array.isArray(value)) {
+    return typeof value[0] === 'string' ? value[0] : ''
+  }
+
+  return ''
+}
 </script>
 
 <template>
@@ -40,7 +54,11 @@ watch(
     class="doc-view"
   >
     <div class="doc-view__content">
-      <DocContent :doc="currentDoc" />
+      <DocContent
+        :doc="currentDoc"
+        :highlight-query="highlightQuery"
+        :should-auto-scroll-to-highlight="shouldAutoScrollToHighlight"
+      />
       <DocPager
         :next-doc="nextDoc"
         :prev-doc="prevDoc"

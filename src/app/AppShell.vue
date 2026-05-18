@@ -72,7 +72,10 @@
       return;
     }
 
-    router.push(target);
+    router.push({
+      path: target,
+      query: query.value.trim() ? { q: query.value.trim() } : undefined,
+    });
     reset();
     closeSidebar();
   }

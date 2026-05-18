@@ -2,6 +2,7 @@ import { computed, shallowRef } from 'vue'
 import type { SearchResult } from '@/types/docs'
 import { useDocsCatalog } from './useDocsCatalog'
 import { useDocsContent } from './useDocsContent'
+import { getSearchMatchMeta, normalizeSearchTerm } from '@/utils/search'
 
 const RESULT_LIMIT = 10
 
@@ -12,7 +13,7 @@ export function useDocsSearch() {
   const { docsBySlug } = useDocsCatalog()
   const { ensureSearchIndex, searchIndex } = useDocsContent()
 
-  const normalizedQuery = computed(() => query.value.trim().toLowerCase())
+  const normalizedQuery = computed(() => normalizeSearchTerm(query.value))
 
   const results = computed<SearchResult[]>(() => {
     if (!normalizedQuery.value) {
@@ -21,15 +22,17 @@ export function useDocsSearch() {
 
     return (searchIndex.value ?? [])
       .map((record) => {
-        const score = scoreRecord(record, normalizedQuery.value)
-        if (score === 0) {
+        const matchMeta = getSearchMatchMeta(record, normalizedQuery.value)
+        if (!matchMeta) {
           return null
         }
 
         return {
           ...record,
+          matchField: matchMeta.field,
           routePath: docsBySlug[record.slug]?.routePath ?? `/docs/${record.slug}/`,
-          score,
+          score: matchMeta.score,
+          snippet: matchMeta.snippet || record.summary,
         }
       })
       .filter((item): item is SearchResult => item !== null)
@@ -96,43 +99,4 @@ export function useDocsSearch() {
     selectedIndex,
     setQuery,
   }
-}
-
-function scoreRecord(
-  record: {
-    headings: string[]
-    plainText: string
-    section: string
-    summary: string
-    title: string
-  },
-  query: string,
-): number {
-  const title = record.title.toLowerCase()
-  const headings = record.headings.join(' ').toLowerCase()
-  const summary = record.summary.toLowerCase()
-  const body = record.plainText.toLowerCase()
-  const section = record.section.toLowerCase()
-
-  if (title.includes(query)) {
-    return title.startsWith(query) ? 400 : 320
-  }
-
-  if (headings.includes(query)) {
-    return 240
-  }
-
-  if (summary.includes(query)) {
-    return 160
-  }
-
-  if (section.includes(query)) {
-    return 120
-  }
-
-  if (body.includes(query)) {
-    return 80
-  }
-
-  return 0
 }

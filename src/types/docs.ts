@@ -60,7 +60,11 @@ export type SearchRecord = {
   plainText: string
 }
 
+export type SearchMatchField = 'title' | 'heading' | 'summary' | 'section' | 'body'
+
 export type SearchResult = SearchRecord & {
   routePath: string
+  snippet: string
+  matchField: SearchMatchField
   score: number
 }

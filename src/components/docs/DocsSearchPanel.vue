@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, useTemplateRef } from 'vue'
+import SearchHighlightedText from '@/components/docs/SearchHighlightedText.vue'
 import type { SearchResult } from '@/types/docs'
 
 const query = defineModel<string>({ default: '' })
@@ -20,6 +21,7 @@ const emit = defineEmits<{
 const inputRef = useTemplateRef<HTMLInputElement>('input')
 
 const hasResults = computed(() => props.results.length > 0)
+const normalizedQuery = computed(() => query.value.trim())
 
 function onInput() {
   emit('open')
@@ -103,9 +105,24 @@ defineExpose({
         type="button"
         @click="emit('submit', result.routePath)"
       >
-        <span class="search-panel__result-section">{{ result.section }}</span>
-        <strong class="search-panel__result-title">{{ result.title }}</strong>
-        <span class="search-panel__result-summary">{{ result.summary }}</span>
+        <span class="search-panel__result-section">
+          <SearchHighlightedText
+            :query="normalizedQuery"
+            :text="result.section"
+          />
+        </span>
+        <SearchHighlightedText
+          tag="strong"
+          class="search-panel__result-title"
+          :query="normalizedQuery"
+          :text="result.title"
+        />
+        <span class="search-panel__result-summary">
+          <SearchHighlightedText
+            :query="normalizedQuery"
+            :text="result.snippet || result.summary"
+          />
+        </span>
       </button>
     </div>
   </div>
@@ -220,7 +237,13 @@ defineExpose({
 
 .search-panel__result-summary {
   color: var(--color-muted);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.search-panel__result :deep(.search-highlighted-text__mark) {
+  background: rgba(var(--color-accent-rgb), 0.16);
+  color: var(--color-accent-deep);
 }
 
 @media (max-width: 960px) {

@@ -1,11 +1,20 @@
 <script setup lang="ts">
-import { shallowRef } from 'vue'
+import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
 import DocImagePreview from '@/components/docs/DocImagePreview.vue'
 import type { DocDetail } from '@/types/docs'
+import { highlightSearchMatches } from '@/utils/search'
 
-const props = defineProps<{
-  doc: DocDetail
-}>()
+const props = withDefaults(
+  defineProps<{
+    doc: DocDetail
+    highlightQuery?: string
+    shouldAutoScrollToHighlight?: boolean
+  }>(),
+  {
+    highlightQuery: '',
+    shouldAutoScrollToHighlight: true,
+  },
+)
 
 type PreviewImage = {
   alt: string
@@ -13,8 +22,30 @@ type PreviewImage = {
   title: string
 }
 
+const bodyRef = useTemplateRef<HTMLElement>('body')
 const previewImages = shallowRef<PreviewImage[]>([])
 const previewIndex = shallowRef(0)
+const contentKey = computed(() => `${props.doc.slug}:${props.highlightQuery}`)
+
+watch(
+  () => [props.doc.slug, props.highlightQuery, props.shouldAutoScrollToHighlight] as const,
+  async ([, highlightQuery, shouldAutoScroll]) => {
+    await nextTick()
+
+    const bodyElement = bodyRef.value
+    if (!bodyElement || !highlightQuery.trim()) {
+      return
+    }
+
+    const { firstMatchElement } = highlightSearchMatches(bodyElement, highlightQuery)
+    if (!firstMatchElement || !shouldAutoScroll) {
+      return
+    }
+
+    scrollToHighlight(firstMatchElement)
+  },
+  { immediate: true },
+)
 
 function closePreview() {
   previewImages.value = []
@@ -67,6 +98,20 @@ function handleBodyClick(event: MouseEvent) {
   }))
   previewIndex.value = Math.max(imageElements.indexOf(image), 0)
 }
+
+function scrollToHighlight(element: HTMLElement) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.requestAnimationFrame(() => {
+    const top = window.scrollY + element.getBoundingClientRect().top - 132
+    window.scrollTo({
+      top: Math.max(0, top),
+      behavior: 'smooth',
+    })
+  })
+}
 </script>
 
 <template>
@@ -84,7 +129,13 @@ function handleBodyClick(event: MouseEvent) {
     </header>
 
     <div class="doc-content__body-shell">
-      <div class="doc-content__body prose" v-html="doc.html" @click="handleBodyClick" />
+      <div
+        :key="contentKey"
+        ref="body"
+        class="doc-content__body prose"
+        v-html="doc.html"
+        @click="handleBodyClick"
+      />
     </div>
   </article>
 
@@ -167,6 +218,22 @@ function handleBodyClick(event: MouseEvent) {
   .doc-content__source {
     color: var(--color-soft);
     font-size: 0.78rem;
+  }
+
+  .doc-content__body :deep(mark.doc-search-mark) {
+    padding: 0.1em 0.22em;
+    border-radius: 0.36em;
+    background: rgba(var(--color-accent-rgb), 0.14);
+    color: var(--color-accent-deep);
+    box-shadow: inset 0 -1px 0 rgba(var(--color-accent-rgb), 0.16);
+    scroll-margin-top: 8rem;
+  }
+
+  .doc-content__body :deep(mark.doc-search-mark--active) {
+    background: rgba(var(--color-accent-rgb), 0.2);
+    box-shadow:
+      inset 0 -1px 0 rgba(var(--color-accent-rgb), 0.22),
+      0 0 0 1px rgba(var(--color-accent-rgb), 0.16);
   }
 
   @media (max-width: 960px) {
