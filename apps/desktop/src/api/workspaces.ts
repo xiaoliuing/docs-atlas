@@ -3,8 +3,10 @@ import type {
   WorkspaceDetail,
   WorkspaceSourceNodeInput,
   WorkspaceSourceScanPayload,
+  WorkspaceSourceWatchEvent,
   WorkspaceUpsertInput,
 } from '@docs-atlas/shared-types/workspace'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { browserDefaultWorkspaces, createDefaultWorkspaces } from '@/mocks/workspaces'
 
 const STORAGE_KEY = 'docs-atlas.desktop.workspaces.v1'
@@ -19,6 +21,8 @@ export type SourcePathValidation = {
   exists: boolean
   isDirectory: boolean
 }
+
+export type WorkspaceSourceWatchHandler = (payload: WorkspaceSourceWatchEvent) => void
 
 export async function listWorkspaceDetails(): Promise<WorkspaceDetail[]> {
   if (isTauriRuntime()) {
@@ -156,6 +160,32 @@ export async function scanWorkspaceSources(sources: WorkspaceSourceNodeInput[]):
     documents: [],
     sourceStatuses: [],
   }
+}
+
+export async function watchWorkspaceSources(workspaceId: string, sources: WorkspaceSourceNodeInput[]): Promise<void> {
+  if (!isTauriRuntime()) {
+    return
+  }
+
+  await invoke('watch_workspace_sources', { workspaceId, sources })
+}
+
+export async function unwatchWorkspaceSources(): Promise<void> {
+  if (!isTauriRuntime()) {
+    return
+  }
+
+  await invoke('unwatch_workspace_sources')
+}
+
+export async function listenWorkspaceSourceWatch(handler: WorkspaceSourceWatchHandler): Promise<UnlistenFn> {
+  if (!isTauriRuntime()) {
+    return () => {}
+  }
+
+  return listen<WorkspaceSourceWatchEvent>('workspace-sources-changed', (event) => {
+    handler(event.payload)
+  })
 }
 
 export async function getDefaultDocsPath(): Promise<string> {

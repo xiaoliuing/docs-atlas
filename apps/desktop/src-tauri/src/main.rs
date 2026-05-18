@@ -5,10 +5,15 @@ use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Manager};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+use tauri::{AppHandle, Emitter, Manager, State};
 
 const DESKTOP_SEED_VERSION_KEY: &str = "desktop_seed_version";
 const CURRENT_DESKTOP_SEED_VERSION: &str = "2";
+const WORKSPACE_SOURCES_CHANGED_EVENT: &str = "workspace-sources-changed";
+const WORKSPACE_SOURCE_WATCH_INTERVAL_MS: u64 = 1_500;
 
 const WORKSPACE_DB_SCHEMA: &str = r#"
 create table if not exists workspaces (
@@ -177,6 +182,13 @@ struct WorkspaceSourceScanPayload {
   source_statuses: Vec<WorkspaceSourceStatusPayload>,
 }
 
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceSourceWatchEventPayload {
+  workspace_id: String,
+  detected_at: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CachedWorkspaceSourcePayload {
@@ -189,6 +201,11 @@ struct MarkdownFileSnapshot {
   relative_path: String,
   modified_at: u64,
   size: u64,
+}
+
+#[derive(Default)]
+struct WorkspaceSourceWatchState {
+  active_stop_signal: Mutex<Option<Arc<AtomicBool>>>,
 }
 
 #[tauri::command]
@@ -429,8 +446,42 @@ fn get_default_docs_path() -> Result<String, String> {
   Ok(resolve_default_docs_path())
 }
 
+#[tauri::command]
+fn watch_workspace_sources(
+  app: AppHandle,
+  state: State<'_, WorkspaceSourceWatchState>,
+  workspace_id: String,
+  sources: Vec<WorkspaceSourceNodeInput>,
+) -> Result<(), String> {
+  stop_workspace_sources_watch(&state);
+
+  let folder_sources = collect_enabled_folder_sources(None, sources, true);
+  if folder_sources.is_empty() {
+    return Ok(());
+  }
+
+  let stop_signal = Arc::new(AtomicBool::new(false));
+  {
+    let mut active_stop_signal = state
+      .active_stop_signal
+      .lock()
+      .map_err(|_| "failed to lock workspace source watch state".to_string())?;
+    *active_stop_signal = Some(stop_signal.clone());
+  }
+
+  spawn_workspace_sources_watch(app, workspace_id, folder_sources, stop_signal);
+  Ok(())
+}
+
+#[tauri::command]
+fn unwatch_workspace_sources(state: State<'_, WorkspaceSourceWatchState>) -> Result<(), String> {
+  stop_workspace_sources_watch(&state);
+  Ok(())
+}
+
 fn main() {
   tauri::Builder::default()
+    .manage(WorkspaceSourceWatchState::default())
     .invoke_handler(tauri::generate_handler![
       delete_workspace,
       get_default_docs_path,
@@ -439,7 +490,9 @@ fn main() {
       pick_folder_path,
       pick_folder_paths,
       scan_workspace_sources,
+      unwatch_workspace_sources,
       validate_source_path,
+      watch_workspace_sources,
       upsert_workspace
     ])
     .run(tauri::generate_context!())
@@ -967,6 +1020,50 @@ fn current_timestamp() -> String {
   }
 }
 
+fn stop_workspace_sources_watch(state: &WorkspaceSourceWatchState) {
+  if let Ok(mut active_stop_signal) = state.active_stop_signal.lock() {
+    if let Some(stop_signal) = active_stop_signal.take() {
+      stop_signal.store(true, Ordering::Relaxed);
+    }
+  }
+}
+
+fn spawn_workspace_sources_watch(
+  app: AppHandle,
+  workspace_id: String,
+  sources: Vec<EnabledFolderSource>,
+  stop_signal: Arc<AtomicBool>,
+) {
+  std::thread::spawn(move || {
+    let mut previous_fingerprint = build_workspace_sources_watch_fingerprint(&sources);
+
+    loop {
+      if stop_signal.load(Ordering::Relaxed) {
+        return;
+      }
+
+      std::thread::sleep(Duration::from_millis(WORKSPACE_SOURCE_WATCH_INTERVAL_MS));
+      if stop_signal.load(Ordering::Relaxed) {
+        return;
+      }
+
+      let next_fingerprint = build_workspace_sources_watch_fingerprint(&sources);
+      if next_fingerprint == previous_fingerprint {
+        continue;
+      }
+
+      previous_fingerprint = next_fingerprint;
+      let _ = app.emit(
+        WORKSPACE_SOURCES_CHANGED_EVENT,
+        WorkspaceSourceWatchEventPayload {
+          workspace_id: workspace_id.clone(),
+          detected_at: current_timestamp(),
+        },
+      );
+    }
+  });
+}
+
 #[derive(Debug, Clone)]
 struct EnabledFolderSource {
   id: String,
@@ -1170,6 +1267,47 @@ fn collect_markdown_file_snapshots(root: &Path, base_root: &Path) -> Result<Vec<
   files.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
 
   Ok(files)
+}
+
+fn build_workspace_sources_watch_fingerprint(sources: &[EnabledFolderSource]) -> String {
+  let mut hasher = DefaultHasher::new();
+  sources.len().hash(&mut hasher);
+
+  for source in sources {
+    source.id.hash(&mut hasher);
+    normalize_path(&source.path).hash(&mut hasher);
+
+    let root = PathBuf::from(&source.path);
+    let root_key = resolve_source_root_key(&root, &source.path);
+    root_key.hash(&mut hasher);
+
+    match std::fs::metadata(&root) {
+      Ok(metadata) => {
+        if !metadata.is_dir() {
+          "not_directory".hash(&mut hasher);
+          metadata.len().hash(&mut hasher);
+          continue;
+        }
+
+        match collect_markdown_file_snapshots(&root, &root) {
+          Ok(files) => {
+            "ready".hash(&mut hasher);
+            build_markdown_fingerprint(&files).hash(&mut hasher);
+          }
+          Err(error) => {
+            "scan_error".hash(&mut hasher);
+            error.hash(&mut hasher);
+          }
+        }
+      }
+      Err(error) => {
+        "missing".hash(&mut hasher);
+        error.to_string().hash(&mut hasher);
+      }
+    }
+  }
+
+  format!("{:016x}", hasher.finish())
 }
 
 fn is_markdown_file(path: &Path) -> bool {

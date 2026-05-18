@@ -85,3 +85,8 @@ export type WorkspaceSourceScanPayload = {
   documents: WorkspaceSourceDocumentSnapshot[]
   sourceStatuses: WorkspaceSourceStatus[]
 }
+
+export type WorkspaceSourceWatchEvent = {
+  workspaceId: string
+  detectedAt: string
+}

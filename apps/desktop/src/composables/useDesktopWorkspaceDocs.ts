@@ -1,6 +1,6 @@
 import { computed, shallowRef, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import type { WorkspaceDetail, WorkspaceSourceStatus } from '@docs-atlas/shared-types/workspace'
-import { scanWorkspaceSources } from '@/api/workspaces'
+import { listenWorkspaceSourceWatch, scanWorkspaceSources, unwatchWorkspaceSources, watchWorkspaceSources } from '@/api/workspaces'
 import type { DocDetail, DocMeta, DocsSourceGroup, SearchRecord } from '@/types/docs'
 import { buildWorkspaceDocsModel } from '@/utils/workspaceDocs'
 import { docs, docsBySlug, sourceGroups } from 'virtual:docs-data'
@@ -28,11 +28,12 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
   const sourceStatusesRef = shallowRef<WorkspaceSourceStatus[]>(emptySourceStatuses)
   const isLoading = shallowRef(false)
   const error = shallowRef('')
+  const refreshVersion = shallowRef(0)
   let activeTaskId = 0
 
   watch(
-    () => createWorkspaceFingerprint(toValue(options.workspace)),
-    async () => {
+    () => [createWorkspaceFingerprint(toValue(options.workspace)), refreshVersion.value] as const,
+    async (_, __, onCleanup) => {
       const workspace = toValue(options.workspace)
       if (!isTauriRuntime()) {
         return
@@ -40,6 +41,14 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
 
       activeTaskId += 1
       const taskId = activeTaskId
+      let unlistenWatch: (() => void) | null = null
+
+      onCleanup(() => {
+        if (unlistenWatch) {
+          unlistenWatch()
+        }
+        void unwatchWorkspaceSources()
+      })
 
       if (!workspace || workspace.sources.length === 0) {
         docsRef.value = emptyDocs
@@ -57,6 +66,15 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
       error.value = ''
 
       try {
+        unlistenWatch = await listenWorkspaceSourceWatch((payload) => {
+          if (payload.workspaceId !== workspace.id) {
+            return
+          }
+
+          refreshVersion.value += 1
+        })
+
+        await watchWorkspaceSources(workspace.id, toSourceInputs(workspace.sources))
         const scanPayload = await scanWorkspaceSources(toSourceInputs(workspace.sources))
         if (taskId !== activeTaskId) {
           return
