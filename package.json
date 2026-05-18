@@ -1,7 +1,7 @@
 {
   "name": "docs-atlas-workspace",
   "private": true,
-  "version": "0.20.3",
+  "version": "0.20.4",
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "pnpm dev:web",

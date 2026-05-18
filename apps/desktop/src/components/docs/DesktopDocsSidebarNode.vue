@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
 import type { DocsSourceGroup } from '@/types/docs'
 
 const props = defineProps<{
@@ -54,7 +55,9 @@ function forwardToggleSection(sectionId: string) {
       @click="emit('toggleNode', node.id, depth)"
     >
       <span class="desktop-docs-sidebar-node__name">{{ node.name }}</span>
-      <span
+      <DesktopUiIcon
+        name="chevron-down"
+        :size="12"
         :class="[
           'desktop-docs-sidebar-node__toggle-icon',
           { 'desktop-docs-sidebar-node__toggle-icon--open': isOpen },
@@ -113,7 +116,9 @@ function forwardToggleSection(sectionId: string) {
               type="button"
               @click="emit('toggleSection', section.id)"
             >
-              <span
+              <DesktopUiIcon
+                name="chevron-down"
+                :size="12"
                 :class="[
                   'desktop-docs-sidebar-node__section-toggle-icon',
                   { 'desktop-docs-sidebar-node__section-toggle-icon--open': openSectionId === section.id },
@@ -214,20 +219,16 @@ function forwardToggleSection(sectionId: string) {
 .desktop-docs-sidebar-node__toggle-icon,
 .desktop-docs-sidebar-node__section-toggle-icon {
   display: block;
-  width: 0.52rem;
-  height: 0.52rem;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  transform: translateY(-1px) rotate(45deg);
+  transform: rotate(-90deg);
   transform-origin: center;
-  transition: transform 0.18s ease;
+  transition: transform 0.18s ease, opacity 0.18s ease;
   flex: none;
   opacity: 0.78;
 }
 
 .desktop-docs-sidebar-node__toggle-icon--open,
 .desktop-docs-sidebar-node__section-toggle-icon--open {
-  transform: translateY(-1px) rotate(-135deg);
+  transform: rotate(0deg);
 }
 
 .desktop-docs-sidebar-node__body {
