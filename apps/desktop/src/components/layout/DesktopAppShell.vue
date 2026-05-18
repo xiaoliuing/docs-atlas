@@ -12,22 +12,9 @@ import { useDesktopActiveHeadings } from '@/composables/useDesktopActiveHeadings
 import { useDesktopDocsBrowser } from '@/composables/useDesktopDocsBrowser'
 import { useDesktopPreferences } from '@/composables/useDesktopPreferences'
 import { useDesktopDocsSearch } from '@/composables/useDesktopDocsSearch'
+import { useDesktopWorkspaceDocs } from '@/composables/useDesktopWorkspaceDocs'
 import { useWorkspaceSelection } from '@/composables/useWorkspaceSelection'
 
-const {
-  clearSelection,
-  currentDoc,
-  currentSectionId,
-  currentSourceId,
-  headings,
-  nextDoc,
-  prevDoc,
-  selectDoc,
-  selectFirstDoc,
-  selectFirstDocBySourceIds,
-  selectedDocSlug,
-  sourceGroups,
-} = useDesktopDocsBrowser()
 const {
   createWorkspace,
   currentWorkspace,
@@ -41,8 +28,29 @@ const {
   selectWorkspace,
   updateWorkspaceMeta,
   workspaces,
-} =
-  useWorkspaceSelection(sourceGroups)
+} = useWorkspaceSelection()
+const workspaceDocs = useDesktopWorkspaceDocs({
+  workspace: currentWorkspace,
+})
+const {
+  clearSelection,
+  currentDoc,
+  currentSectionId,
+  currentSourceId,
+  docs,
+  headings,
+  nextDoc,
+  prevDoc,
+  selectDoc,
+  selectFirstDocBySourceIds,
+  selectedDocSlug,
+  sourceGroups,
+} = useDesktopDocsBrowser({
+  docs: workspaceDocs.docs,
+  docsBySlug: workspaceDocs.docsBySlug,
+  docDetailsBySlug: workspaceDocs.docDetailsBySlug,
+  sourceGroups: workspaceDocs.sourceGroups,
+})
 const {
   activeResult,
   close: closeSearch,
@@ -56,6 +64,8 @@ const {
   setQuery,
   setScope,
 } = useDesktopDocsSearch({
+  docsBySlug: workspaceDocs.docsBySlug,
+  searchIndex: workspaceDocs.searchIndex,
   workspaceSourceIds: currentWorkspaceSourceIds,
 })
 const { accentOptions, preferences, setAccent, setThemeMode } = useDesktopPreferences()
@@ -75,8 +85,8 @@ const searchQuery = computed({
   },
 })
 const sourceCount = computed(() => countWorkspaceFolderSources(currentWorkspace.value?.sources ?? []))
-const visibleSourceGroups = computed(() => filterSourceGroups(sourceGroups, new Set(currentWorkspaceSourceIds.value)))
-const docCount = computed(() => countDocs(visibleSourceGroups.value))
+const visibleSourceGroups = computed(() => sourceGroups.value)
+const docCount = computed(() => docs.value.length)
 const workspaceDialogWorkspace = computed(() => (workspaceDialogMode.value === 'edit' ? currentWorkspace.value : null))
 
 function handleSelectWorkspace(workspaceId: string) {
@@ -190,13 +200,13 @@ onMounted(() => {
 })
 
 watch(
-  [currentWorkspaceSourceIds, currentSourceId],
-  ([sourceIds, activeSourceId]) => {
+  [currentWorkspaceSourceIds, currentSourceId, docs],
+  ([sourceIds, activeSourceId, docsList]) => {
     if (isLoadingWorkspaces.value) {
       return
     }
 
-    if (sourceIds.length === 0) {
+    if (docsList.length === 0 || sourceIds.length === 0) {
       clearSelection()
       return
     }
@@ -216,35 +226,11 @@ watch(
   { immediate: true },
 )
 
-function countDocs(groups: typeof sourceGroups): number {
-  return groups.reduce((count, group) => {
-    const sectionDocs = group.sections.reduce((sectionCount, section) => sectionCount + section.docs.length, 0)
-    const childDocs = countDocs(group.children)
-    return count + group.rootDocs.length + sectionDocs + childDocs
-  }, 0)
-}
-
 function countWorkspaceFolderSources(nodes: WorkspaceSourceNode[]): number {
   return nodes.reduce((count, node) => {
     const selfCount = node.kind === 'folder' ? 1 : 0
     return count + selfCount + countWorkspaceFolderSources(node.children)
   }, 0)
-}
-
-function filterSourceGroups(groups: typeof sourceGroups, allowedSourceIds: Set<string>) {
-  return groups
-    .map((group) => {
-      const children = filterSourceGroups(group.children, allowedSourceIds)
-      const isAllowedSource = group.sourceId !== null && allowedSourceIds.has(group.sourceId)
-      return {
-        ...group,
-        children,
-      }
-    })
-    .filter((group) => {
-      const isAllowedSource = group.sourceId !== null && allowedSourceIds.has(group.sourceId)
-      return isAllowedSource || group.children.length > 0
-    })
 }
 </script>
 

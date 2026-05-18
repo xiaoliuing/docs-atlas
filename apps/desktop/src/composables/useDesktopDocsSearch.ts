@@ -1,7 +1,5 @@
 import { computed, shallowRef, toValue, type MaybeRefOrGetter } from 'vue'
-import type { SearchResult } from '@/types/docs'
-import { useDesktopDocsCatalog } from './useDesktopDocsCatalog'
-import { useDesktopDocsContent } from './useDesktopDocsContent'
+import type { DocMeta, SearchRecord, SearchResult } from '@/types/docs'
 import { getSearchMatchMeta, normalizeSearchTerm } from '@/utils/search'
 
 const RESULT_LIMIT = 10
@@ -9,6 +7,8 @@ const RESULT_LIMIT = 10
 export type DesktopSearchScope = 'global' | 'workspace'
 
 type UseDesktopDocsSearchOptions = {
+  docsBySlug?: MaybeRefOrGetter<Record<string, DocMeta>>
+  searchIndex?: MaybeRefOrGetter<SearchRecord[]>
   workspaceSourceIds?: MaybeRefOrGetter<string[]>
 }
 
@@ -17,10 +17,10 @@ export function useDesktopDocsSearch(options: UseDesktopDocsSearchOptions = {}) 
   const isOpen = shallowRef(false)
   const scope = shallowRef<DesktopSearchScope>('global')
   const selectedIndex = shallowRef(0)
-  const { docsBySlug } = useDesktopDocsCatalog()
-  const { ensureSearchIndex, searchIndex } = useDesktopDocsContent()
 
   const normalizedQuery = computed(() => normalizeSearchTerm(query.value))
+  const docsBySlug = computed(() => toValue(options.docsBySlug) ?? {})
+  const searchIndex = computed(() => toValue(options.searchIndex) ?? [])
   const workspaceSourceIds = computed(() => new Set(toValue(options.workspaceSourceIds) ?? []))
   const isWorkspaceScope = computed(() => scope.value === 'workspace')
 
@@ -29,9 +29,9 @@ export function useDesktopDocsSearch(options: UseDesktopDocsSearchOptions = {}) 
       return []
     }
 
-    return (searchIndex.value ?? [])
+    return searchIndex.value
       .map((record) => {
-        const docMeta = docsBySlug[record.slug]
+        const docMeta = docsBySlug.value[record.slug]
         if (!docMeta) {
           return null
         }
@@ -62,7 +62,6 @@ export function useDesktopDocsSearch(options: UseDesktopDocsSearchOptions = {}) 
 
   function open() {
     isOpen.value = true
-    void ensureSearchIndex()
   }
 
   function close() {
@@ -73,10 +72,6 @@ export function useDesktopDocsSearch(options: UseDesktopDocsSearchOptions = {}) 
   function setQuery(value: string) {
     query.value = value
     selectedIndex.value = 0
-
-    if (value.trim()) {
-      void ensureSearchIndex()
-    }
   }
 
   function setScope(nextScope: DesktopSearchScope) {

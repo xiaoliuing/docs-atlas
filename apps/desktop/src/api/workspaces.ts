@@ -1,5 +1,10 @@
 import { invoke } from '@tauri-apps/api/core'
-import type { WorkspaceDetail, WorkspaceSourceNodeInput, WorkspaceUpsertInput } from '@docs-atlas/shared-types/workspace'
+import type {
+  WorkspaceDetail,
+  WorkspaceSourceNodeInput,
+  WorkspaceSourceScanPayload,
+  WorkspaceUpsertInput,
+} from '@docs-atlas/shared-types/workspace'
 import { mockWorkspaces } from '@/mocks/workspaces'
 
 const STORAGE_KEY = 'docs-atlas.desktop.workspaces.v1'
@@ -91,6 +96,16 @@ export async function validateSourcePath(path: string): Promise<SourcePathValida
   return {
     exists: Boolean(path.trim()),
     isDirectory: Boolean(path.trim()),
+  }
+}
+
+export async function scanWorkspaceSources(sources: WorkspaceSourceNodeInput[]): Promise<WorkspaceSourceScanPayload> {
+  if (isTauriRuntime()) {
+    return invoke<WorkspaceSourceScanPayload>('scan_workspace_sources', { sources })
+  }
+
+  return {
+    documents: [],
   }
 }
 

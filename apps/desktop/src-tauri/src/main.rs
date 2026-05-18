@@ -2,8 +2,8 @@
 
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
-use std::path::Path;
 
 const WORKSPACE_DB_SCHEMA: &str = r#"
 create table if not exists workspaces (
@@ -134,6 +134,22 @@ struct WorkspaceSummaryRow {
 struct SourcePathValidationPayload {
   exists: bool,
   is_directory: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceSourceDocumentPayload {
+  source_node_id: String,
+  source_root: String,
+  absolute_path: String,
+  relative_path: String,
+  markdown: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceSourceScanPayload {
+  documents: Vec<WorkspaceSourceDocumentPayload>,
 }
 
 #[tauri::command]
@@ -298,12 +314,50 @@ fn validate_source_path(path: String) -> SourcePathValidationPayload {
   }
 }
 
+#[tauri::command]
+fn scan_workspace_sources(
+  sources: Vec<WorkspaceSourceNodeInput>,
+) -> Result<WorkspaceSourceScanPayload, String> {
+  let mut documents = Vec::<WorkspaceSourceDocumentPayload>::new();
+  let folder_sources = collect_enabled_folder_sources(None, sources, true);
+
+  for source in folder_sources {
+    let root = PathBuf::from(&source.path);
+    if !root.is_dir() {
+      continue;
+    }
+
+    let mut markdown_files = collect_markdown_files(&root)?;
+    markdown_files.sort();
+
+    for file_path in markdown_files {
+      let relative_path = file_path
+        .strip_prefix(&root)
+        .map_err(|error| error.to_string())?
+        .to_string_lossy()
+        .replace('\\', "/");
+      let markdown = std::fs::read_to_string(&file_path).map_err(|error| error.to_string())?;
+
+      documents.push(WorkspaceSourceDocumentPayload {
+        source_node_id: source.id.clone(),
+        source_root: source.path.clone(),
+        absolute_path: file_path.to_string_lossy().to_string(),
+        relative_path,
+        markdown,
+      });
+    }
+  }
+
+  Ok(WorkspaceSourceScanPayload { documents })
+}
+
 fn main() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![
       list_workspace_details,
       mark_workspace_opened,
       pick_folder_path,
+      scan_workspace_sources,
       validate_source_path,
       upsert_workspace
     ])
@@ -582,4 +636,74 @@ fn current_timestamp() -> String {
     Ok(duration) => format!("{}", duration.as_secs()),
     Err(_) => "0".to_string(),
   }
+}
+
+#[derive(Debug, Clone)]
+struct EnabledFolderSource {
+  id: String,
+  path: String,
+}
+
+fn collect_enabled_folder_sources(
+  parent_enabled: Option<bool>,
+  nodes: Vec<WorkspaceSourceNodeInput>,
+  include_children: bool,
+) -> Vec<EnabledFolderSource> {
+  let mut sources = Vec::<EnabledFolderSource>::new();
+
+  for node in nodes {
+    let is_enabled = parent_enabled.unwrap_or(true) && node.enabled.unwrap_or(true);
+    if !is_enabled {
+      continue;
+    }
+
+    if node.kind == "folder" {
+      let path = node.path.clone().unwrap_or_default();
+      if !path.trim().is_empty() {
+        sources.push(EnabledFolderSource {
+          id: node.id.clone(),
+          path,
+        });
+      }
+    }
+
+    if include_children {
+      sources.extend(collect_enabled_folder_sources(
+        Some(is_enabled),
+        node.children.unwrap_or_default(),
+        true,
+      ));
+    }
+  }
+
+  sources
+}
+
+fn collect_markdown_files(root: &Path) -> Result<Vec<PathBuf>, String> {
+  let mut files = Vec::<PathBuf>::new();
+  let entries = std::fs::read_dir(root).map_err(|error| error.to_string())?;
+
+  for entry in entries {
+    let entry = entry.map_err(|error| error.to_string())?;
+    let path = entry.path();
+    let file_type = entry.file_type().map_err(|error| error.to_string())?;
+
+    if file_type.is_dir() {
+      files.extend(collect_markdown_files(&path)?);
+      continue;
+    }
+
+    if file_type.is_file() && is_markdown_file(&path) {
+      files.push(path);
+    }
+  }
+
+  Ok(files)
+}
+
+fn is_markdown_file(path: &Path) -> bool {
+  path.extension()
+    .and_then(|value| value.to_str())
+    .map(|value| value.eq_ignore_ascii_case("md"))
+    .unwrap_or(false)
 }

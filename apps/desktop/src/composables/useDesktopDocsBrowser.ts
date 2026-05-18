@@ -1,20 +1,28 @@
-import { computed, shallowRef, watch } from 'vue'
+import { computed, shallowRef, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import type { DocDetail } from '@/types/docs'
-import { useDesktopDocsCatalog } from './useDesktopDocsCatalog'
-import { ensureDocDetail, useDesktopDocsContent } from './useDesktopDocsContent'
+import type { DocMeta, DocsSourceGroup } from '@/types/docs'
 
-export function useDesktopDocsBrowser() {
-  const { docs, docsBySlug, sourceGroups } = useDesktopDocsCatalog()
-  const { docDetails } = useDesktopDocsContent()
-  const selectedDocSlug = shallowRef(getInitialSlug(docs))
+type UseDesktopDocsBrowserOptions = {
+  docs: MaybeRefOrGetter<DocMeta[]>
+  docsBySlug: MaybeRefOrGetter<Record<string, DocMeta>>
+  docDetailsBySlug: MaybeRefOrGetter<Record<string, DocDetail>>
+  sourceGroups: MaybeRefOrGetter<DocsSourceGroup[]>
+}
+
+export function useDesktopDocsBrowser(options: UseDesktopDocsBrowserOptions) {
+  const selectedDocSlug = shallowRef(getInitialSlug(toValue(options.docs)))
+  const docs = computed(() => toValue(options.docs))
+  const docsBySlug = computed(() => toValue(options.docsBySlug))
+  const docDetailsBySlug = computed(() => toValue(options.docDetailsBySlug))
+  const sourceGroups = computed(() => toValue(options.sourceGroups))
 
   const currentDoc = computed<DocDetail | null>(() => {
     const slug = selectedDocSlug.value
-    return slug ? docDetails[slug] ?? null : null
+    return slug ? docDetailsBySlug.value[slug] ?? null : null
   })
   const currentDocMeta = computed(() => {
     const slug = selectedDocSlug.value
-    return slug ? docsBySlug[slug] ?? null : null
+    return slug ? docsBySlug.value[slug] ?? null : null
   })
   const currentSectionId = computed(() => currentDocMeta.value?.sectionId ?? null)
   const currentSourceId = computed(() => currentDocMeta.value?.sourceId ?? null)
@@ -29,19 +37,22 @@ export function useDesktopDocsBrowser() {
   })
 
   watch(
-    selectedDocSlug,
-    (slug) => {
-      if (!slug) {
+    docs,
+    (docsList) => {
+      if (docsList.length === 0) {
+        selectedDocSlug.value = ''
         return
       }
 
-      void ensureDocDetail(slug)
+      if (!selectedDocSlug.value || !docsBySlug.value[selectedDocSlug.value]) {
+        selectedDocSlug.value = getInitialSlug(docsList)
+      }
     },
     { immediate: true },
   )
 
   function selectDoc(slug: string) {
-    if (!docsBySlug[slug]) {
+    if (!docsBySlug.value[slug]) {
       return
     }
 
@@ -49,7 +60,7 @@ export function useDesktopDocsBrowser() {
   }
 
   function selectFirstDoc() {
-    const firstSlug = getInitialSlug(docs)
+    const firstSlug = getInitialSlug(docs.value)
     if (firstSlug) {
       selectedDocSlug.value = firstSlug
     }
@@ -61,7 +72,7 @@ export function useDesktopDocsBrowser() {
       return
     }
 
-    const firstDoc = docs.find((doc) => sourceIds.includes(doc.sourceId))
+    const firstDoc = docs.value.find((doc) => sourceIds.includes(doc.sourceId))
     selectedDocSlug.value = firstDoc?.slug ?? ''
   }
 

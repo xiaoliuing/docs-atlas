@@ -16,6 +16,10 @@ const props = withDefaults(
   },
 )
 
+const emit = defineEmits<{
+  selectDoc: [slug: string]
+}>()
+
 type PreviewImage = {
   alt: string
   src: string
@@ -64,6 +68,16 @@ function handleBodyClick(event: MouseEvent) {
   const target = event.target
   if (!(target instanceof Element)) {
     return
+  }
+
+  const docLink = target.closest<HTMLAnchorElement>('a[data-doc-slug]')
+  if (docLink) {
+    const slug = docLink.dataset.docSlug?.trim()
+    if (slug) {
+      event.preventDefault()
+      emit('selectDoc', slug)
+      return
+    }
   }
 
   const image = target.closest('img')

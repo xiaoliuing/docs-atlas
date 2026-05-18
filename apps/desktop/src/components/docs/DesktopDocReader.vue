@@ -27,6 +27,7 @@ const emit = defineEmits<{
       <DesktopDocContent
         :doc="doc"
         :highlight-query="highlightQuery"
+        @select-doc="emit('selectDoc', $event)"
       />
       <DesktopDocPager
         :next-doc="nextDoc"

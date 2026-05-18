@@ -1,6 +1,5 @@
 import { computed, shallowRef } from 'vue'
 import type { WorkspaceDetail, WorkspaceSearchScope, WorkspaceSourceNodeInput, WorkspaceUpsertInput } from '@docs-atlas/shared-types/workspace'
-import type { DocsSourceGroup } from '@/types/docs'
 import { listWorkspaceDetails, markWorkspaceOpened, upsertWorkspace, type WorkspaceSaveInput } from '@/api/workspaces'
 import { mockWorkspaces } from '@/mocks/workspaces'
 
@@ -12,7 +11,7 @@ const isSavingWorkspaceSources = shallowRef(false)
 const isReorderingWorkspaces = shallowRef(false)
 let loadTask: Promise<void> | null = null
 
-export function useWorkspaceSelection(sourceGroups: DocsSourceGroup[]) {
+export function useWorkspaceSelection() {
   const currentWorkspace = computed(
     () => workspaces.value.find((workspace) => workspace.id === currentWorkspaceId.value) ?? null,
   )
@@ -22,19 +21,7 @@ export function useWorkspaceSelection(sourceGroups: DocsSourceGroup[]) {
       return []
     }
 
-    const hints = collectWorkspaceSourceHints(workspace.sources)
-    if (hints.length === 0) {
-      return []
-    }
-
-    const availableSources = sourceGroups.flatMap(flattenSourceGroup).filter(
-      (group): group is DocsSourceGroup & { sourceId: string; sourceLabel: string } =>
-        group.isSource && typeof group.sourceId === 'string' && typeof group.sourceLabel === 'string',
-    )
-
-    return availableSources
-      .filter((group) => hints.some((hint) => group.name === hint || group.sourceLabel.endsWith(hint)))
-      .map((group) => group.sourceId)
+    return collectEnabledSourceIds(workspace.sources)
   })
 
   async function ensureLoaded() {
@@ -236,18 +223,18 @@ function mergeWorkspace(workspace: WorkspaceDetail) {
   workspaces.value = normalizeWorkspaces(next)
 }
 
-function collectWorkspaceSourceHints(nodes: WorkspaceDetail['sources']): string[] {
+function collectEnabledSourceIds(nodes: WorkspaceDetail['sources']): string[] {
   return nodes.flatMap((node) => {
-    if (node.kind === 'folder' && node.enabled) {
-      return [node.name]
+    if (!node.enabled) {
+      return []
     }
 
-    return collectWorkspaceSourceHints(node.children)
-  })
-}
+    if (node.kind === 'folder') {
+      return [node.id, ...collectEnabledSourceIds(node.children)]
+    }
 
-function flattenSourceGroup(group: DocsSourceGroup): DocsSourceGroup[] {
-  return [group, ...group.children.flatMap(flattenSourceGroup)]
+    return collectEnabledSourceIds(node.children)
+  })
 }
 
 function toWorkspaceSaveInput(workspace: WorkspaceDetail): WorkspaceSaveInput {

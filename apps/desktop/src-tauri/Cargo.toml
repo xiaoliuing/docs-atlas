@@ -1,6 +1,6 @@
 [package]
 name = "docs-atlas-desktop"
-version = "0.18.2"
+version = "0.19.0"
 description = "Docs Atlas Desktop"
 authors = ["Docs Atlas"]
 edition = "2021"
@@ -14,7 +14,7 @@ rfd = "0.15"
 rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["protocol-asset"] }
 
 [features]
 default = ["custom-protocol"]

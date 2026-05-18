@@ -55,3 +55,15 @@ export type WorkspaceSourceNodeInput = {
   position?: number
   children?: WorkspaceSourceNodeInput[]
 }
+
+export type WorkspaceSourceDocumentSnapshot = {
+  sourceNodeId: string
+  sourceRoot: string
+  absolutePath: string
+  relativePath: string
+  markdown: string
+}
+
+export type WorkspaceSourceScanPayload = {
+  documents: WorkspaceSourceDocumentSnapshot[]
+}
