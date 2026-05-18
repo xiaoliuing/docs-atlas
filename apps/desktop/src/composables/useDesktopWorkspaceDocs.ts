@@ -114,8 +114,7 @@ function createWorkspaceFingerprint(workspace: WorkspaceDetail | null): string {
 
   return JSON.stringify({
     id: workspace.id,
-    updatedAt: workspace.updatedAt,
-    sources: workspace.sources,
+    sources: toSourceInputs(workspace.sources),
   })
 }
 
