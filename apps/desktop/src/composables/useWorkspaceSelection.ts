@@ -3,10 +3,11 @@ import type { WorkspaceDetail, WorkspaceSearchScope, WorkspaceSourceNodeInput, W
 import {
   buildDefaultSeedWorkspaces,
   deleteWorkspace as deleteWorkspaceRecord,
+  exportWorkspaceConfig as exportWorkspaceConfigRecord,
+  importWorkspaceConfig as importWorkspaceConfigRecord,
   listWorkspaceDetails,
   markWorkspaceOpened,
   upsertWorkspace,
-  type WorkspaceSaveInput,
 } from '@/api/workspaces'
 
 const workspaces = shallowRef<WorkspaceDetail[]>([])
@@ -16,6 +17,8 @@ const isSavingWorkspace = shallowRef(false)
 const isSavingWorkspaceSources = shallowRef(false)
 const isReorderingWorkspaces = shallowRef(false)
 const isDeletingWorkspace = shallowRef(false)
+const isExportingWorkspace = shallowRef(false)
+const isImportingWorkspace = shallowRef(false)
 let loadTask: Promise<void> | null = null
 
 export function useWorkspaceSelection() {
@@ -213,6 +216,38 @@ export function useWorkspaceSelection() {
     }
   }
 
+  async function exportWorkspaceConfig(workspaceId: string) {
+    const workspace = workspaces.value.find((item) => item.id === workspaceId)
+    if (!workspace) {
+      return false
+    }
+
+    isExportingWorkspace.value = true
+
+    try {
+      return await exportWorkspaceConfigRecord(workspace)
+    } finally {
+      isExportingWorkspace.value = false
+    }
+  }
+
+  async function importWorkspaceConfig() {
+    isImportingWorkspace.value = true
+
+    try {
+      const workspace = await importWorkspaceConfigRecord()
+      if (!workspace) {
+        return null
+      }
+
+      mergeWorkspace(workspace)
+      currentWorkspaceId.value = workspace.id
+      return workspace
+    } finally {
+      isImportingWorkspace.value = false
+    }
+  }
+
   return {
     createWorkspace,
     currentWorkspace,
@@ -220,7 +255,11 @@ export function useWorkspaceSelection() {
     currentWorkspaceSourceIds,
     deleteWorkspace,
     ensureLoaded,
+    exportWorkspaceConfig,
+    importWorkspaceConfig,
     isDeletingWorkspace,
+    isExportingWorkspace,
+    isImportingWorkspace,
     isLoadingWorkspaces,
     isReorderingWorkspaces,
     isSavingWorkspace,

@@ -18,6 +18,8 @@ const props = defineProps<{
   canDelete?: boolean
   isSaving: boolean
   isDeleting?: boolean
+  isExporting?: boolean
+  isImporting?: boolean
   mode: 'create' | 'edit'
   workspaceCount?: number
   workspace?: WorkspaceDetail | null
@@ -26,6 +28,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   delete: []
+  export: []
+  import: []
   submit: [payload: WorkspaceForm]
 }>()
 
@@ -52,6 +56,7 @@ const submitLabel = computed(() => {
   return props.mode === 'edit' ? '保存设置' : '创建工作区'
 })
 const canDeleteWorkspace = computed(() => props.mode === 'edit' && Boolean(props.canDelete))
+const canExportWorkspace = computed(() => props.mode === 'edit' && Boolean(props.workspace))
 const deleteLabel = computed(() => {
   if (props.isDeleting) {
     return '删除中...'
@@ -59,6 +64,8 @@ const deleteLabel = computed(() => {
 
   return deleteConfirmState.value ? '确认删除工作区' : '删除工作区'
 })
+const importLabel = computed(() => (props.isImporting ? '导入中...' : '导入工作区'))
+const exportLabel = computed(() => (props.isExporting ? '导出中...' : '导出配置'))
 
 watch(
   () => [isOpen.value, props.mode, props.workspace?.id] as const,
@@ -125,6 +132,22 @@ function handleDelete() {
 
   emit('delete')
 }
+
+function handleImport() {
+  if (props.isImporting) {
+    return
+  }
+
+  emit('import')
+}
+
+function handleExport() {
+  if (!canExportWorkspace.value || props.isExporting) {
+    return
+  }
+
+  emit('export')
+}
 </script>
 
 <template>
@@ -154,6 +177,26 @@ function handleDelete() {
       </header>
 
       <div class="desktop-workspace-dialog__body">
+        <div class="desktop-workspace-dialog__utility">
+          <button
+            :disabled="props.isImporting"
+            class="desktop-workspace-dialog__utility-button"
+            type="button"
+            @click="handleImport"
+          >
+            {{ importLabel }}
+          </button>
+          <button
+            v-if="canExportWorkspace"
+            :disabled="props.isExporting"
+            class="desktop-workspace-dialog__utility-button"
+            type="button"
+            @click="handleExport"
+          >
+            {{ exportLabel }}
+          </button>
+        </div>
+
         <label class="desktop-workspace-dialog__field">
           <span>名称</span>
           <input
@@ -261,6 +304,32 @@ function handleDelete() {
     </section>
   </div>
 </template>
+
+<style scoped>
+.desktop-workspace-dialog__utility {
+  display: flex;
+  gap: 0.65rem;
+  margin-bottom: 0.2rem;
+}
+
+.desktop-workspace-dialog__utility-button {
+  min-height: 2.2rem;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--desktop-line);
+  border-radius: 12px;
+  background: rgba(var(--desktop-accent-rgb), 0.04);
+  color: var(--desktop-ink);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.desktop-workspace-dialog__utility-button:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+</style>
 
 <style scoped>
 .desktop-workspace-dialog {

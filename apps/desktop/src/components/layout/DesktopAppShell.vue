@@ -25,7 +25,11 @@ const {
   currentWorkspaceSourceIds,
   deleteWorkspace,
   ensureLoaded,
+  exportWorkspaceConfig,
+  importWorkspaceConfig,
   isDeletingWorkspace,
+  isExportingWorkspace,
+  isImportingWorkspace,
   isLoadingWorkspaces,
   isSavingWorkspace,
   isSavingWorkspaceSources,
@@ -244,6 +248,25 @@ async function handleDeleteWorkspace() {
   if (readingState.currentWorkspaceId.value === deletedWorkspaceId) {
     readingState.setCurrentWorkspaceId(nextWorkspaceId)
   }
+}
+
+async function handleImportWorkspace() {
+  const importedWorkspace = await importWorkspaceConfig()
+  if (!importedWorkspace) {
+    return
+  }
+
+  pendingRestoreWorkspaceId.value = ''
+  pendingRestoreDocSlug.value = ''
+  isWorkspaceDialogOpen.value = false
+}
+
+async function handleExportWorkspace() {
+  if (!currentWorkspace.value) {
+    return
+  }
+
+  await exportWorkspaceConfig(currentWorkspace.value.id)
 }
 
 onMounted(() => {
@@ -568,12 +591,16 @@ function waitForDocAvailability(slug: string, timeoutMs = 5000) {
       :accent-options="accentOptions"
       :can-delete="workspaces.length > 1"
       :is-deleting="isDeletingWorkspace"
+      :is-exporting="isExportingWorkspace"
+      :is-importing="isImportingWorkspace"
       :is-saving="isSavingWorkspace"
       :mode="workspaceDialogMode"
       :workspace-count="workspaces.length"
       :workspace="workspaceDialogWorkspace"
       @close="isWorkspaceDialogOpen = false"
       @delete="handleDeleteWorkspace"
+      @export="handleExportWorkspace"
+      @import="handleImportWorkspace"
       @submit="handleCreateWorkspace"
     />
 

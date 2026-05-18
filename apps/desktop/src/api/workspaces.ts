@@ -4,6 +4,7 @@ import type {
   WorkspaceSourceNodeInput,
   WorkspaceSourceScanPayload,
   WorkspaceSourceWatchEvent,
+  WorkspaceSourceNode,
   WorkspaceUpsertInput,
 } from '@docs-atlas/shared-types/workspace'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
@@ -23,6 +24,18 @@ export type SourcePathValidation = {
 }
 
 export type WorkspaceSourceWatchHandler = (payload: WorkspaceSourceWatchEvent) => void
+type WorkspaceTransferPayload = {
+  schemaVersion: 1
+  exportedAt: string
+  workspace: {
+    name: string
+    description: string
+    icon: string
+    color: string
+    defaultSearchScope: WorkspaceDetail['defaultSearchScope']
+    sources: WorkspaceSourceNodeInput[]
+  }
+}
 
 export async function listWorkspaceDetails(): Promise<WorkspaceDetail[]> {
   if (isTauriRuntime()) {
@@ -106,6 +119,64 @@ export async function deleteWorkspace(workspaceId: string): Promise<boolean> {
     ),
   )
   return true
+}
+
+export async function exportWorkspaceConfig(workspace: WorkspaceDetail): Promise<boolean> {
+  if (isTauriRuntime()) {
+    return invoke<boolean>('export_workspace_config', { workspaceId: workspace.id })
+  }
+
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  const payload: WorkspaceTransferPayload = {
+    schemaVersion: 1,
+    exportedAt: new Date().toISOString(),
+    workspace: {
+      name: workspace.name,
+      description: workspace.description,
+      icon: workspace.icon,
+      color: workspace.color,
+      defaultSearchScope: workspace.defaultSearchScope,
+      sources: cloneSourceInputs(toSourceInputs(workspace.sources)),
+    },
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const href = window.URL.createObjectURL(blob)
+  const anchor = window.document.createElement('a')
+  anchor.href = href
+  anchor.download = `${sanitizeWorkspaceFilename(workspace.name)}.docs-atlas-workspace.json`
+  anchor.click()
+  window.URL.revokeObjectURL(href)
+  return true
+}
+
+export async function importWorkspaceConfig(): Promise<WorkspaceDetail | null> {
+  if (isTauriRuntime()) {
+    return invoke<WorkspaceDetail | null>('import_workspace_config')
+  }
+
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  const file = await pickWorkspaceImportFile()
+  if (!file) {
+    return null
+  }
+
+  const rawValue = await file.text()
+  const payload = parseWorkspaceTransferPayload(rawValue)
+  if (!payload) {
+    throw new Error('导入文件格式不正确')
+  }
+
+  const workspaces = readBrowserWorkspaces()
+  const importedWorkspace = buildImportedWorkspaceDetail(payload)
+  const nextWorkspaces = sortWorkspaces([importedWorkspace, ...workspaces])
+  writeBrowserWorkspaces(nextWorkspaces)
+  return importedWorkspace
 }
 
 export async function pickFolderPath(): Promise<string | null> {
@@ -283,6 +354,150 @@ function cloneSources(sources: WorkspaceDetail['sources']): WorkspaceDetail['sou
     ...source,
     children: cloneSources(source.children),
   }))
+}
+
+function toSourceInputs(sources: WorkspaceSourceNode[]): WorkspaceSourceNodeInput[] {
+  return sources.map((source) => ({
+    id: source.id,
+    parentId: source.parentId,
+    kind: source.kind,
+    name: source.name,
+    path: source.path,
+    enabled: source.enabled,
+    position: source.position,
+    children: toSourceInputs(source.children),
+  }))
+}
+
+function cloneSourceInputs(sources: WorkspaceSourceNodeInput[]): WorkspaceSourceNodeInput[] {
+  return sources.map((source) => ({
+    ...source,
+    children: cloneSourceInputs(source.children ?? []),
+  }))
+}
+
+function sanitizeWorkspaceFilename(value: string) {
+  const normalized = value.trim().replace(/[<>:"/\\|?*\u0000-\u001f]+/g, '-')
+  return normalized || 'workspace'
+}
+
+function pickWorkspaceImportFile(): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = window.document.createElement('input')
+    input.type = 'file'
+    input.accept = 'application/json,.json'
+    input.addEventListener(
+      'change',
+      () => {
+        resolve(input.files?.[0] ?? null)
+      },
+      { once: true },
+    )
+    input.click()
+  })
+}
+
+function parseWorkspaceTransferPayload(rawValue: string): WorkspaceTransferPayload | null {
+  try {
+    const value = JSON.parse(rawValue) as Partial<WorkspaceTransferPayload>
+    if (value.schemaVersion !== 1 || !value.workspace) {
+      return null
+    }
+
+    if (
+      typeof value.workspace.name !== 'string' ||
+      typeof value.workspace.description !== 'string' ||
+      typeof value.workspace.icon !== 'string' ||
+      typeof value.workspace.color !== 'string' ||
+      (value.workspace.defaultSearchScope !== 'global' && value.workspace.defaultSearchScope !== 'workspace') ||
+      !Array.isArray(value.workspace.sources)
+    ) {
+      return null
+    }
+
+    return {
+      schemaVersion: 1,
+      exportedAt: typeof value.exportedAt === 'string' ? value.exportedAt : new Date().toISOString(),
+      workspace: {
+        name: value.workspace.name,
+        description: value.workspace.description,
+        icon: value.workspace.icon,
+        color: value.workspace.color,
+        defaultSearchScope: value.workspace.defaultSearchScope,
+        sources: normalizeImportedSourceInputs(value.workspace.sources),
+      },
+    }
+  } catch {
+    return null
+  }
+}
+
+function normalizeImportedSourceInputs(value: unknown[]): WorkspaceSourceNodeInput[] {
+  return value.flatMap((item, index) => {
+    if (!item || typeof item !== 'object') {
+      return []
+    }
+
+    const source = item as Partial<WorkspaceSourceNodeInput>
+    if (
+      (source.kind !== 'group' && source.kind !== 'folder') ||
+      typeof source.name !== 'string'
+    ) {
+      return []
+    }
+
+    return [{
+      id: typeof source.id === 'string' && source.id.trim() ? source.id : `import-source:${index}`,
+      parentId: typeof source.parentId === 'string' ? source.parentId : null,
+      kind: source.kind,
+      name: source.name,
+      path: typeof source.path === 'string' ? source.path : '',
+      enabled: typeof source.enabled === 'boolean' ? source.enabled : true,
+      position: typeof source.position === 'number' ? source.position : index,
+      children: normalizeImportedSourceInputs(Array.isArray(source.children) ? source.children : []),
+    } satisfies WorkspaceSourceNodeInput]
+  })
+}
+
+function buildImportedWorkspaceDetail(payload: WorkspaceTransferPayload): WorkspaceDetail {
+  const now = new Date().toISOString()
+  const workspaceId = `workspace:${crypto.randomUUID()}`
+  const sources = rebuildImportedSources(payload.workspace.sources, workspaceId, null)
+
+  return {
+    id: workspaceId,
+    name: payload.workspace.name.trim() || '导入的工作区',
+    description: payload.workspace.description,
+    icon: payload.workspace.icon || 'folder',
+    color: payload.workspace.color || '#1f54d9',
+    defaultSearchScope: payload.workspace.defaultSearchScope,
+    sortOrder: readBrowserWorkspaces().length,
+    createdAt: now,
+    updatedAt: now,
+    lastOpenedAt: now,
+    sources,
+  }
+}
+
+function rebuildImportedSources(
+  sources: WorkspaceSourceNodeInput[],
+  workspaceId: string,
+  parentId: string | null,
+): WorkspaceDetail['sources'] {
+  return sources.map((source, index) => {
+    const nextId = `source-node:${crypto.randomUUID()}`
+    return {
+      id: nextId,
+      workspaceId,
+      parentId,
+      kind: source.kind,
+      name: source.name,
+      path: source.kind === 'folder' ? source.path ?? '' : '',
+      enabled: source.enabled ?? true,
+      position: source.position ?? index,
+      children: rebuildImportedSources(source.children ?? [], workspaceId, nextId),
+    }
+  })
 }
 
 function sortWorkspaces(workspaces: WorkspaceDetail[]) {

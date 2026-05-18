@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -14,6 +14,7 @@ const DESKTOP_SEED_VERSION_KEY: &str = "desktop_seed_version";
 const CURRENT_DESKTOP_SEED_VERSION: &str = "2";
 const WORKSPACE_SOURCES_CHANGED_EVENT: &str = "workspace-sources-changed";
 const WORKSPACE_SOURCE_WATCH_INTERVAL_MS: u64 = 1_500;
+static IMPORT_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 const WORKSPACE_DB_SCHEMA: &str = r#"
 create table if not exists workspaces (
@@ -107,7 +108,7 @@ struct WorkspaceSaveInput {
   sources: Option<Vec<WorkspaceSourceNodeInput>>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct WorkspaceSourceNodeInput {
   id: String,
@@ -187,6 +188,25 @@ struct WorkspaceSourceScanPayload {
 struct WorkspaceSourceWatchEventPayload {
   workspace_id: String,
   detected_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceTransferPayload {
+  schema_version: u8,
+  exported_at: String,
+  workspace: WorkspaceTransferWorkspacePayload,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceTransferWorkspacePayload {
+  name: String,
+  description: String,
+  icon: String,
+  color: String,
+  default_search_scope: String,
+  sources: Vec<WorkspaceSourceNodeInput>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -447,6 +467,64 @@ fn get_default_docs_path() -> Result<String, String> {
 }
 
 #[tauri::command]
+fn export_workspace_config(app: AppHandle, workspace_id: String) -> Result<bool, String> {
+  let connection = open_workspace_database(&app)?;
+  let summary = load_workspace_summary(&connection, &workspace_id)?;
+  let workspace = load_workspace_detail(&connection, summary)?;
+
+  let file_path = rfd::FileDialog::new()
+    .add_filter("JSON", &["json"])
+    .set_file_name(&format!(
+      "{}.docs-atlas-workspace.json",
+      sanitize_workspace_filename(&workspace.name)
+    ))
+    .save_file();
+
+  let Some(file_path) = file_path else {
+    return Ok(false);
+  };
+
+  let payload = WorkspaceTransferPayload {
+    schema_version: 1,
+    exported_at: current_timestamp(),
+    workspace: WorkspaceTransferWorkspacePayload {
+      name: workspace.name,
+      description: workspace.description,
+      icon: workspace.icon,
+      color: workspace.color,
+      default_search_scope: workspace.default_search_scope,
+      sources: export_workspace_sources(workspace.sources),
+    },
+  };
+
+  let payload_json = serde_json::to_string_pretty(&payload).map_err(|error| error.to_string())?;
+  std::fs::write(file_path, payload_json).map_err(|error| error.to_string())?;
+  Ok(true)
+}
+
+#[tauri::command]
+fn import_workspace_config(app: AppHandle) -> Result<Option<WorkspaceDetailPayload>, String> {
+  let file_path = rfd::FileDialog::new()
+    .add_filter("JSON", &["json"])
+    .pick_file();
+
+  let Some(file_path) = file_path else {
+    return Ok(None);
+  };
+
+  let raw_value = std::fs::read_to_string(file_path).map_err(|error| error.to_string())?;
+  let payload =
+    serde_json::from_str::<WorkspaceTransferPayload>(&raw_value).map_err(|error| error.to_string())?;
+
+  if payload.schema_version != 1 {
+    return Err("暂不支持该工作区导入版本".to_string());
+  }
+
+  let imported_workspace = insert_imported_workspace(&app, payload)?;
+  Ok(Some(imported_workspace))
+}
+
+#[tauri::command]
 fn watch_workspace_sources(
   app: AppHandle,
   state: State<'_, WorkspaceSourceWatchState>,
@@ -484,7 +562,9 @@ fn main() {
     .manage(WorkspaceSourceWatchState::default())
     .invoke_handler(tauri::generate_handler![
       delete_workspace,
+      export_workspace_config,
       get_default_docs_path,
+      import_workspace_config,
       list_workspace_details,
       mark_workspace_opened,
       pick_folder_path,
@@ -781,6 +861,24 @@ fn normalize_path(value: &str) -> String {
   value.replace('\\', "/").trim().to_lowercase()
 }
 
+fn sanitize_workspace_filename(value: &str) -> String {
+  let sanitized = value
+    .trim()
+    .chars()
+    .map(|character| match character {
+      '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*' => '-',
+      _ if character.is_control() => '-',
+      _ => character,
+    })
+    .collect::<String>();
+
+  if sanitized.trim().is_empty() {
+    "workspace".to_string()
+  } else {
+    sanitized
+  }
+}
+
 fn is_legacy_workspace_id(value: &str) -> bool {
   matches!(value, "workspace:atlas" | "workspace:product" | "workspace:ai")
 }
@@ -1018,6 +1116,147 @@ fn current_timestamp() -> String {
     Ok(duration) => format!("{}", duration.as_secs()),
     Err(_) => "0".to_string(),
   }
+}
+
+fn current_unix_nanos() -> u128 {
+  use std::time::{SystemTime, UNIX_EPOCH};
+
+  SystemTime::now()
+    .duration_since(UNIX_EPOCH)
+    .map(|duration| duration.as_nanos())
+    .unwrap_or(0)
+}
+
+fn generate_import_id(prefix: &str) -> String {
+  let counter = IMPORT_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+  format!("{prefix}:{}-{counter}", current_unix_nanos())
+}
+
+fn insert_imported_workspace(
+  app: &AppHandle,
+  payload: WorkspaceTransferPayload,
+) -> Result<WorkspaceDetailPayload, String> {
+  let mut connection = open_workspace_database(app)?;
+  let transaction = connection.transaction().map_err(|error| error.to_string())?;
+  let workspace_id = generate_import_id("workspace");
+  let now = current_timestamp();
+  let sort_order = transaction
+    .query_row(
+      "select coalesce(max(sort_order), -1) + 1 from workspaces",
+      [],
+      |row| row.get::<_, i64>(0),
+    )
+    .map_err(|error| error.to_string())?;
+
+  transaction
+    .execute(
+      r#"
+      insert into workspaces (
+        id,
+        name,
+        description,
+        icon,
+        color,
+        default_search_scope,
+        sort_order,
+        created_at,
+        updated_at,
+        last_opened_at
+      )
+      values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+      "#,
+      params![
+        &workspace_id,
+        normalize_imported_workspace_name(&payload.workspace.name),
+        payload.workspace.description,
+        if payload.workspace.icon.trim().is_empty() {
+          "folder".to_string()
+        } else {
+          payload.workspace.icon
+        },
+        if payload.workspace.color.trim().is_empty() {
+          "#1f54d9".to_string()
+        } else {
+          payload.workspace.color
+        },
+        normalize_imported_search_scope(&payload.workspace.default_search_scope),
+        sort_order,
+        now,
+        now,
+        now
+      ],
+    )
+    .map_err(|error| error.to_string())?;
+
+  let sources = rekey_imported_source_nodes(payload.workspace.sources, None);
+  replace_workspace_source_nodes(&transaction, &workspace_id, sources)?;
+  transaction.commit().map_err(|error| error.to_string())?;
+
+  let connection = open_workspace_database(app)?;
+  let summary = load_workspace_summary(&connection, &workspace_id)?;
+  load_workspace_detail(&connection, summary)
+}
+
+fn normalize_imported_workspace_name(value: &str) -> String {
+  let trimmed = value.trim();
+  if trimmed.is_empty() {
+    "导入的工作区".to_string()
+  } else {
+    trimmed.to_string()
+  }
+}
+
+fn normalize_imported_search_scope(value: &str) -> String {
+  match value {
+    "workspace" => "workspace".to_string(),
+    _ => "global".to_string(),
+  }
+}
+
+fn export_workspace_sources(nodes: Vec<WorkspaceSourceNodePayload>) -> Vec<WorkspaceSourceNodeInput> {
+  nodes
+    .into_iter()
+    .map(|node| WorkspaceSourceNodeInput {
+      id: node.id,
+      parent_id: node.parent_id,
+      kind: node.kind,
+      name: node.name,
+      path: Some(node.path),
+      enabled: Some(node.enabled),
+      position: Some(node.position),
+      children: Some(export_workspace_sources(node.children)),
+    })
+    .collect()
+}
+
+fn rekey_imported_source_nodes(
+  nodes: Vec<WorkspaceSourceNodeInput>,
+  parent_id: Option<String>,
+) -> Vec<WorkspaceSourceNodeInput> {
+  nodes
+    .into_iter()
+    .enumerate()
+    .map(|(index, node)| {
+      let next_id = generate_import_id("source-node");
+      let is_folder = node.kind == "folder";
+      let children = rekey_imported_source_nodes(node.children.unwrap_or_default(), Some(next_id.clone()));
+
+      WorkspaceSourceNodeInput {
+        id: next_id,
+        parent_id: parent_id.clone(),
+        kind: node.kind,
+        name: node.name,
+        path: Some(if is_folder {
+          node.path.unwrap_or_default()
+        } else {
+          "".to_string()
+        }),
+        enabled: Some(node.enabled.unwrap_or(true)),
+        position: Some(node.position.unwrap_or(index as i64)),
+        children: Some(children),
+      }
+    })
+    .collect()
 }
 
 fn stop_workspace_sources_watch(state: &WorkspaceSourceWatchState) {
