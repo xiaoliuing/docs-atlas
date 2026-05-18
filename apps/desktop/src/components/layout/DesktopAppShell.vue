@@ -23,7 +23,9 @@ const {
   currentWorkspace,
   currentWorkspaceId,
   currentWorkspaceSourceIds,
+  deleteWorkspace,
   ensureLoaded,
+  isDeletingWorkspace,
   isLoadingWorkspaces,
   isSavingWorkspace,
   isSavingWorkspaceSources,
@@ -211,6 +213,26 @@ async function handleSaveWorkspaceSources(sources: Parameters<typeof saveWorkspa
   }
 
   isSourceTreeDialogOpen.value = false
+}
+
+async function handleDeleteWorkspace() {
+  if (!currentWorkspace.value) {
+    return
+  }
+
+  const deletedWorkspaceId = currentWorkspace.value.id
+  const nextWorkspaceId = await deleteWorkspace(deletedWorkspaceId)
+  if (!nextWorkspaceId) {
+    return
+  }
+
+  isWorkspaceDialogOpen.value = false
+  sidebarOpenBranchIds.value = []
+  sidebarOpenSectionId.value = null
+
+  if (readingState.currentWorkspaceId.value === deletedWorkspaceId) {
+    readingState.setCurrentWorkspaceId(nextWorkspaceId)
+  }
 }
 
 onMounted(() => {
@@ -506,10 +528,14 @@ function waitForDocAvailability(slug: string, timeoutMs = 5000) {
     <DesktopWorkspaceDialog
       v-model:open="isWorkspaceDialogOpen"
       :accent-options="accentOptions"
+      :can-delete="workspaces.length > 1"
+      :is-deleting="isDeletingWorkspace"
       :is-saving="isSavingWorkspace"
       :mode="workspaceDialogMode"
+      :workspace-count="workspaces.length"
       :workspace="workspaceDialogWorkspace"
       @close="isWorkspaceDialogOpen = false"
+      @delete="handleDeleteWorkspace"
       @submit="handleCreateWorkspace"
     />
 

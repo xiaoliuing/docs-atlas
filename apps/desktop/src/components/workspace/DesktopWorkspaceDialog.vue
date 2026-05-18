@@ -15,13 +15,17 @@ const isOpen = defineModel<boolean>('open', { default: false })
 
 const props = defineProps<{
   accentOptions: DesktopAccentOption[]
+  canDelete?: boolean
   isSaving: boolean
+  isDeleting?: boolean
   mode: 'create' | 'edit'
+  workspaceCount?: number
   workspace?: WorkspaceDetail | null
 }>()
 
 const emit = defineEmits<{
   close: []
+  delete: []
   submit: [payload: WorkspaceForm]
 }>()
 
@@ -36,6 +40,7 @@ const form = reactive<WorkspaceForm>({
   color: '#1f54d9',
   defaultSearchScope: 'global',
 })
+const deleteConfirmState = reactive({ value: false })
 
 const isValid = computed(() => form.name.trim().length > 0)
 const dialogTitle = computed(() => (props.mode === 'edit' ? '工作区设置' : '新建工作区'))
@@ -45,6 +50,14 @@ const submitLabel = computed(() => {
   }
 
   return props.mode === 'edit' ? '保存设置' : '创建工作区'
+})
+const canDeleteWorkspace = computed(() => props.mode === 'edit' && Boolean(props.canDelete))
+const deleteLabel = computed(() => {
+  if (props.isDeleting) {
+    return '删除中...'
+  }
+
+  return deleteConfirmState.value ? '确认删除工作区' : '删除工作区'
 })
 
 watch(
@@ -65,9 +78,12 @@ function resetForm() {
   form.description = ''
   form.color = props.accentOptions[0]?.hex ?? '#1f54d9'
   form.defaultSearchScope = 'global'
+  deleteConfirmState.value = false
 }
 
 function fillForm() {
+  deleteConfirmState.value = false
+
   if (props.mode === 'edit' && props.workspace) {
     form.name = props.workspace.name
     form.description = props.workspace.description
@@ -95,6 +111,19 @@ function handleSubmit() {
 function handleClose() {
   isOpen.value = false
   emit('close')
+}
+
+function handleDelete() {
+  if (!canDeleteWorkspace.value || props.isDeleting) {
+    return
+  }
+
+  if (!deleteConfirmState.value) {
+    deleteConfirmState.value = true
+    return
+  }
+
+  emit('delete')
 }
 </script>
 
@@ -182,6 +211,33 @@ function handleClose() {
               <span>{{ option.description }}</span>
             </button>
           </div>
+        </div>
+
+        <div
+          v-if="canDeleteWorkspace"
+          class="desktop-workspace-dialog__danger"
+        >
+          <div class="desktop-workspace-dialog__danger-copy">
+            <strong>删除当前工作区</strong>
+            <p v-if="props.workspaceCount && props.workspaceCount > 1">
+              删除后会移除该工作区及其文档源配置，不会删除原始文档目录。
+            </p>
+            <p v-else>
+              至少保留一个工作区，当前工作区不可删除。
+            </p>
+          </div>
+
+          <button
+            :disabled="props.isDeleting || !props.canDelete"
+            :class="[
+              'desktop-workspace-dialog__danger-button',
+              { 'desktop-workspace-dialog__danger-button--confirming': deleteConfirmState.value },
+            ]"
+            type="button"
+            @click="handleDelete"
+          >
+            {{ deleteLabel }}
+          </button>
         </div>
       </div>
 
@@ -361,6 +417,54 @@ function handleClose() {
 
 .desktop-workspace-dialog__footer {
   justify-content: flex-end;
+}
+
+.desktop-workspace-dialog__danger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid rgba(186, 75, 56, 0.16);
+  border-radius: 16px;
+  background: rgba(186, 75, 56, 0.05);
+}
+
+.desktop-workspace-dialog__danger-copy {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.desktop-workspace-dialog__danger-copy strong {
+  color: var(--desktop-ink);
+  font-size: 0.82rem;
+}
+
+.desktop-workspace-dialog__danger-copy p {
+  margin: 0;
+  color: var(--desktop-muted);
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.desktop-workspace-dialog__danger-button {
+  flex: none;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid rgba(186, 75, 56, 0.2);
+  border-radius: 12px;
+  background: rgba(186, 75, 56, 0.1);
+  color: #b14d34;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.desktop-workspace-dialog__danger-button--confirming {
+  background: #b14d34;
+  border-color: #b14d34;
+  color: white;
 }
 
 .desktop-workspace-dialog__ghost,

@@ -2,6 +2,7 @@ import { computed, shallowRef } from 'vue'
 import type { WorkspaceDetail, WorkspaceSearchScope, WorkspaceSourceNodeInput, WorkspaceUpsertInput } from '@docs-atlas/shared-types/workspace'
 import {
   buildDefaultSeedWorkspaces,
+  deleteWorkspace as deleteWorkspaceRecord,
   listWorkspaceDetails,
   markWorkspaceOpened,
   upsertWorkspace,
@@ -14,6 +15,7 @@ const isLoadingWorkspaces = shallowRef(false)
 const isSavingWorkspace = shallowRef(false)
 const isSavingWorkspaceSources = shallowRef(false)
 const isReorderingWorkspaces = shallowRef(false)
+const isDeletingWorkspace = shallowRef(false)
 let loadTask: Promise<void> | null = null
 
 export function useWorkspaceSelection() {
@@ -131,6 +133,39 @@ export function useWorkspaceSelection() {
     }
   }
 
+  async function deleteWorkspace(workspaceId: string) {
+    if (workspaces.value.length <= 1) {
+      return null
+    }
+
+    isDeletingWorkspace.value = true
+
+    try {
+      const didDelete = await deleteWorkspaceRecord(workspaceId)
+      if (!didDelete) {
+        return null
+      }
+
+      const nextWorkspaces = normalizeWorkspaces(workspaces.value.filter((workspace) => workspace.id !== workspaceId))
+      workspaces.value = nextWorkspaces
+
+      if (currentWorkspaceId.value === workspaceId) {
+        currentWorkspaceId.value = nextWorkspaces[0]?.id ?? ''
+        const nextWorkspaceId = currentWorkspaceId.value
+        if (nextWorkspaceId) {
+          const updated = await markWorkspaceOpened(nextWorkspaceId)
+          if (updated) {
+            mergeWorkspace(updated)
+          }
+        }
+      }
+
+      return currentWorkspaceId.value || nextWorkspaces[0]?.id || null
+    } finally {
+      isDeletingWorkspace.value = false
+    }
+  }
+
   async function moveWorkspace(workspaceId: string, direction: -1 | 1) {
     const ordered = [...workspaces.value].sort((left, right) => left.sortOrder - right.sortOrder)
     const index = ordered.findIndex((workspace) => workspace.id === workspaceId)
@@ -183,7 +218,9 @@ export function useWorkspaceSelection() {
     currentWorkspace,
     currentWorkspaceId,
     currentWorkspaceSourceIds,
+    deleteWorkspace,
     ensureLoaded,
+    isDeletingWorkspace,
     isLoadingWorkspaces,
     isReorderingWorkspaces,
     isSavingWorkspace,

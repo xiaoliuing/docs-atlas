@@ -331,6 +331,30 @@ fn mark_workspace_opened(app: AppHandle, workspace_id: String) -> Result<Option<
 }
 
 #[tauri::command]
+fn delete_workspace(app: AppHandle, workspace_id: String) -> Result<bool, String> {
+  let mut connection = open_workspace_database(&app)?;
+  let transaction = connection.transaction().map_err(|error| error.to_string())?;
+  let workspace_count = transaction
+    .query_row("select count(*) from workspaces", [], |row| row.get::<_, i64>(0))
+    .map_err(|error| error.to_string())?;
+
+  if workspace_count <= 1 {
+    return Ok(false);
+  }
+
+  let deleted = transaction
+    .execute("delete from workspaces where id = ?1", params![workspace_id])
+    .map_err(|error| error.to_string())?;
+
+  if deleted == 0 {
+    return Ok(false);
+  }
+
+  transaction.commit().map_err(|error| error.to_string())?;
+  Ok(true)
+}
+
+#[tauri::command]
 fn pick_folder_path() -> Option<String> {
   rfd::FileDialog::new()
     .pick_folder()
@@ -398,6 +422,7 @@ fn get_default_docs_path() -> Result<String, String> {
 fn main() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![
+      delete_workspace,
       get_default_docs_path,
       list_workspace_details,
       mark_workspace_opened,

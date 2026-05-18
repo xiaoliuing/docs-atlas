@@ -78,6 +78,32 @@ export async function markWorkspaceOpened(workspaceId: string): Promise<Workspac
   return updated
 }
 
+export async function deleteWorkspace(workspaceId: string): Promise<boolean> {
+  if (isTauriRuntime()) {
+    return invoke<boolean>('delete_workspace', { workspaceId })
+  }
+
+  const workspaces = readBrowserWorkspaces()
+  if (workspaces.length <= 1) {
+    return false
+  }
+
+  const nextWorkspaces = workspaces.filter((workspace) => workspace.id !== workspaceId)
+  if (nextWorkspaces.length === workspaces.length) {
+    return false
+  }
+
+  writeBrowserWorkspaces(
+    sortWorkspaces(
+      nextWorkspaces.map((workspace, index) => ({
+        ...workspace,
+        sortOrder: index,
+      })),
+    ),
+  )
+  return true
+}
+
 export async function pickFolderPath(): Promise<string | null> {
   if (isTauriRuntime()) {
     return invoke<string | null>('pick_folder_path')
