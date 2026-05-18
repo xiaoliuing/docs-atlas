@@ -87,6 +87,7 @@ const restoredScrollTop = shallowRef(0)
 const sidebarOpenBranchIds = shallowRef<string[]>([])
 const sidebarOpenSectionId = shallowRef<string | null>(null)
 const workspaceDialogMode = shallowRef<'create' | 'edit'>('create')
+const hasRestoredInitialWorkspace = shallowRef(false)
 const searchPanelRef = useTemplateRef<InstanceType<typeof DesktopSearchPanel>>('searchPanel')
 
 const floatingPanelVisible = computed(() => isOpen.value || isSettingsOpen.value)
@@ -293,7 +294,10 @@ watch(
       return
     }
 
-    readingState.setCurrentWorkspaceId(workspaceId)
+    if (hasRestoredInitialWorkspace.value) {
+      readingState.setCurrentWorkspaceId(workspaceId)
+    }
+
     const restoredSidebarState = readingState.getSidebarStateForWorkspace(workspaceId)
     sidebarOpenBranchIds.value = restoredSidebarState?.openBranchIds ?? []
     sidebarOpenSectionId.value = restoredSidebarState?.openSectionId ?? null
@@ -306,6 +310,11 @@ watch(
   ([workspaceId, slug]) => {
     if (!workspaceId || !slug) {
       restoredScrollTop.value = 0
+      return
+    }
+
+    const currentDocMeta = workspaceDocs.docsBySlug.value[slug]
+    if (!currentDocMeta || !currentWorkspaceSourceIds.value.includes(currentDocMeta.sourceId)) {
       return
     }
 
@@ -350,18 +359,23 @@ function countWorkspaceFolderSources(nodes: WorkspaceSourceNode[]): number {
 }
 
 async function restoreInitialWorkspace() {
+  const restoredWorkspaceId = readingState.currentWorkspaceId.value
   await ensureLoaded()
 
-  const restoredWorkspaceId = readingState.currentWorkspaceId.value
-  if (!restoredWorkspaceId || restoredWorkspaceId === currentWorkspaceId.value) {
-    return
+  if (
+    restoredWorkspaceId &&
+    restoredWorkspaceId !== currentWorkspaceId.value &&
+    workspaces.value.some((workspace) => workspace.id === restoredWorkspaceId)
+  ) {
+    await selectWorkspace(restoredWorkspaceId)
   }
 
-  if (!workspaces.value.some((workspace) => workspace.id === restoredWorkspaceId)) {
-    return
+  const activeWorkspaceId = currentWorkspaceId.value
+  if (activeWorkspaceId) {
+    readingState.setCurrentWorkspaceId(activeWorkspaceId)
   }
 
-  await selectWorkspace(restoredWorkspaceId)
+  hasRestoredInitialWorkspace.value = true
 }
 
 function handleDocScrollTopChange(top: number) {
