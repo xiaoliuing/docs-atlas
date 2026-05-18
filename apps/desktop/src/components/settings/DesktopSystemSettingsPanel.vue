@@ -4,10 +4,15 @@ import type { DesktopAccentId, DesktopAccentOption, DesktopThemeMode } from '@/c
 const props = defineProps<{
   accentId: DesktopAccentId
   accentOptions: DesktopAccentOption[]
+  actionMessage?: string
+  busyAction?: 'app-data' | 'logs' | 'export' | null
   themeMode: DesktopThemeMode
 }>()
 
 const emit = defineEmits<{
+  exportLogs: []
+  openAppDataDirectory: []
+  openLogsDirectory: []
   updateAccent: [accentId: DesktopAccentId]
   updateThemeMode: [themeMode: DesktopThemeMode]
 }>()
@@ -71,6 +76,52 @@ const themeModeOptions: Array<{ value: DesktopThemeMode; label: string; descript
         </button>
       </div>
     </div>
+
+    <div class="desktop-system-settings-panel__section">
+      <div class="desktop-system-settings-panel__heading">
+        <p class="desktop-system-settings-panel__eyebrow">Data</p>
+        <h3 class="desktop-system-settings-panel__title">数据与日志</h3>
+      </div>
+
+      <div class="desktop-system-settings-panel__actions">
+        <button
+          class="desktop-system-settings-panel__action"
+          :disabled="props.busyAction !== null"
+          type="button"
+          @click="emit('openAppDataDirectory')"
+        >
+          <strong>打开数据目录</strong>
+          <span>{{ props.busyAction === 'app-data' ? '处理中…' : '查看数据库、缓存和导入导出文件' }}</span>
+        </button>
+
+        <button
+          class="desktop-system-settings-panel__action"
+          :disabled="props.busyAction !== null"
+          type="button"
+          @click="emit('openLogsDirectory')"
+        >
+          <strong>打开日志目录</strong>
+          <span>{{ props.busyAction === 'logs' ? '处理中…' : '定位本地运行日志，便于排查问题' }}</span>
+        </button>
+
+        <button
+          class="desktop-system-settings-panel__action"
+          :disabled="props.busyAction !== null"
+          type="button"
+          @click="emit('exportLogs')"
+        >
+          <strong>导出日志文件</strong>
+          <span>{{ props.busyAction === 'export' ? '处理中…' : '导出当前日志文件用于反馈和诊断' }}</span>
+        </button>
+      </div>
+
+      <p
+        v-if="props.actionMessage"
+        class="desktop-system-settings-panel__feedback"
+      >
+        {{ props.actionMessage }}
+      </p>
+    </div>
   </section>
 </template>
 
@@ -121,7 +172,8 @@ const themeModeOptions: Array<{ value: DesktopThemeMode; label: string; descript
 }
 
 .desktop-system-settings-panel__segment,
-.desktop-system-settings-panel__accent {
+.desktop-system-settings-panel__accent,
+.desktop-system-settings-panel__action {
   border: 1px solid var(--desktop-line);
   border-radius: 14px;
   background: rgba(var(--desktop-accent-rgb), 0.03);
@@ -153,7 +205,8 @@ const themeModeOptions: Array<{ value: DesktopThemeMode; label: string; descript
 .desktop-system-settings-panel__segment:hover,
 .desktop-system-settings-panel__segment--active,
 .desktop-system-settings-panel__accent:hover,
-.desktop-system-settings-panel__accent--active {
+.desktop-system-settings-panel__accent--active,
+.desktop-system-settings-panel__action:hover {
   border-color: var(--desktop-line-strong);
   background: rgba(var(--desktop-accent-rgb), 0.08);
   transform: translateY(-1px);
@@ -192,5 +245,34 @@ const themeModeOptions: Array<{ value: DesktopThemeMode; label: string; descript
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.desktop-system-settings-panel__actions {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.desktop-system-settings-panel__action {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.72rem 0.8rem;
+  text-align: left;
+}
+
+.desktop-system-settings-panel__action:disabled {
+  cursor: progress;
+  opacity: 0.72;
+  transform: none;
+}
+
+.desktop-system-settings-panel__feedback {
+  margin: 0;
+  padding: 0.62rem 0.72rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.15);
+  border-radius: 12px;
+  background: rgba(var(--desktop-accent-rgb), 0.06);
+  color: var(--desktop-muted);
+  font-size: 0.74rem;
+  line-height: 1.5;
 }
 </style>

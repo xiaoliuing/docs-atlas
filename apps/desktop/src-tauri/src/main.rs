@@ -4,7 +4,9 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -14,6 +16,8 @@ const DESKTOP_SEED_VERSION_KEY: &str = "desktop_seed_version";
 const CURRENT_DESKTOP_SEED_VERSION: &str = "2";
 const WORKSPACE_SOURCES_CHANGED_EVENT: &str = "workspace-sources-changed";
 const WORKSPACE_SOURCE_WATCH_INTERVAL_MS: u64 = 1_500;
+const APP_LOGS_DIR_NAME: &str = "logs";
+const APP_LOG_FILE_NAME: &str = "docs-atlas.log";
 static IMPORT_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 const WORKSPACE_DB_SCHEMA: &str = r#"
@@ -433,15 +437,27 @@ fn scan_workspace_sources(
   let mut documents = Vec::<WorkspaceSourceDocumentPayload>::new();
   let mut source_statuses = Vec::<WorkspaceSourceStatusPayload>::new();
   let folder_sources = collect_enabled_folder_sources(None, sources, true);
+  let folder_source_count = folder_sources.len();
 
-  for source in folder_sources {
+  record_app_info(
+    &app,
+    "workspace.scan",
+    &format!("start source_count={folder_source_count}"),
+  );
+
+  for source in &folder_sources {
     let checked_at = current_timestamp();
-    match scan_single_source(&connection, &source, &checked_at) {
+    match scan_single_source(&connection, source, &checked_at) {
       Ok((source_documents, status)) => {
         documents.extend(source_documents);
         source_statuses.push(status);
       }
       Err(message) => {
+        record_app_error(
+          &app,
+          "workspace.scan",
+          &format!("source_id={} path={} error={message}", source.id, source.path),
+        );
         source_statuses.push(WorkspaceSourceStatusPayload {
           source_node_id: source.id.clone(),
           source_root: source.path.clone(),
@@ -454,6 +470,17 @@ fn scan_workspace_sources(
       }
     }
   }
+
+  record_app_info(
+    &app,
+    "workspace.scan",
+    &format!(
+      "completed source_count={} document_count={} status_count={}",
+      folder_source_count,
+      documents.len(),
+      source_statuses.len()
+    ),
+  );
 
   Ok(WorkspaceSourceScanPayload {
     documents,
@@ -471,12 +498,13 @@ fn export_workspace_config(app: AppHandle, workspace_id: String) -> Result<bool,
   let connection = open_workspace_database(&app)?;
   let summary = load_workspace_summary(&connection, &workspace_id)?;
   let workspace = load_workspace_detail(&connection, summary)?;
+  let workspace_name = workspace.name.clone();
 
   let file_path = rfd::FileDialog::new()
     .add_filter("JSON", &["json"])
     .set_file_name(&format!(
       "{}.docs-atlas-workspace.json",
-      sanitize_workspace_filename(&workspace.name)
+      sanitize_workspace_filename(&workspace_name)
     ))
     .save_file();
 
@@ -488,7 +516,7 @@ fn export_workspace_config(app: AppHandle, workspace_id: String) -> Result<bool,
     schema_version: 1,
     exported_at: current_timestamp(),
     workspace: WorkspaceTransferWorkspacePayload {
-      name: workspace.name,
+      name: workspace_name.clone(),
       description: workspace.description,
       icon: workspace.icon,
       color: workspace.color,
@@ -498,7 +526,17 @@ fn export_workspace_config(app: AppHandle, workspace_id: String) -> Result<bool,
   };
 
   let payload_json = serde_json::to_string_pretty(&payload).map_err(|error| error.to_string())?;
-  std::fs::write(file_path, payload_json).map_err(|error| error.to_string())?;
+  std::fs::write(&file_path, payload_json).map_err(|error| error.to_string())?;
+  record_app_info(
+    &app,
+    "workspace.export",
+    &format!(
+      "workspace_id={} workspace_name={} file={}",
+      workspace_id,
+      workspace_name,
+      file_path.to_string_lossy()
+    ),
+  );
   Ok(true)
 }
 
@@ -512,7 +550,7 @@ fn import_workspace_config(app: AppHandle) -> Result<Option<WorkspaceDetailPaylo
     return Ok(None);
   };
 
-  let raw_value = std::fs::read_to_string(file_path).map_err(|error| error.to_string())?;
+  let raw_value = std::fs::read_to_string(&file_path).map_err(|error| error.to_string())?;
   let payload =
     serde_json::from_str::<WorkspaceTransferPayload>(&raw_value).map_err(|error| error.to_string())?;
 
@@ -521,6 +559,16 @@ fn import_workspace_config(app: AppHandle) -> Result<Option<WorkspaceDetailPaylo
   }
 
   let imported_workspace = insert_imported_workspace(&app, payload)?;
+  record_app_info(
+    &app,
+    "workspace.import",
+    &format!(
+      "workspace_id={} workspace_name={} file={}",
+      imported_workspace.id,
+      imported_workspace.name,
+      file_path.to_string_lossy()
+    ),
+  );
   Ok(Some(imported_workspace))
 }
 
@@ -535,6 +583,11 @@ fn watch_workspace_sources(
 
   let folder_sources = collect_enabled_folder_sources(None, sources, true);
   if folder_sources.is_empty() {
+    record_app_info(
+      &app,
+      "workspace.watch",
+      &format!("skip workspace_id={} reason=no_enabled_sources", workspace_id),
+    );
     return Ok(());
   }
 
@@ -547,14 +600,74 @@ fn watch_workspace_sources(
     *active_stop_signal = Some(stop_signal.clone());
   }
 
+  record_app_info(
+    &app,
+    "workspace.watch",
+    &format!(
+      "started workspace_id={} source_count={}",
+      workspace_id,
+      folder_sources.len()
+    ),
+  );
   spawn_workspace_sources_watch(app, workspace_id, folder_sources, stop_signal);
   Ok(())
 }
 
 #[tauri::command]
-fn unwatch_workspace_sources(state: State<'_, WorkspaceSourceWatchState>) -> Result<(), String> {
+fn unwatch_workspace_sources(app: AppHandle, state: State<'_, WorkspaceSourceWatchState>) -> Result<(), String> {
   stop_workspace_sources_watch(&state);
+  record_app_info(&app, "workspace.watch", "stopped");
   Ok(())
+}
+
+#[tauri::command]
+fn open_app_data_directory(app: AppHandle) -> Result<bool, String> {
+  let app_data_directory = resolve_app_data_directory(&app)?;
+  std::fs::create_dir_all(&app_data_directory).map_err(|error| error.to_string())?;
+  open_path_in_file_manager(&app_data_directory)?;
+  record_app_info(
+    &app,
+    "system.open_path",
+    &format!("kind=app_data path={}", app_data_directory.to_string_lossy()),
+  );
+  Ok(true)
+}
+
+#[tauri::command]
+fn open_logs_directory(app: AppHandle) -> Result<bool, String> {
+  let logs_directory = ensure_logs_directory(&app)?;
+  open_path_in_file_manager(&logs_directory)?;
+  record_app_info(
+    &app,
+    "system.open_path",
+    &format!("kind=logs path={}", logs_directory.to_string_lossy()),
+  );
+  Ok(true)
+}
+
+#[tauri::command]
+fn export_logs_file(app: AppHandle) -> Result<bool, String> {
+  let log_file_path = ensure_log_file_path(&app)?;
+  let file_path = rfd::FileDialog::new()
+    .add_filter("Log", &["log", "txt"])
+    .set_file_name(&format!("docs-atlas-logs-{}.log", current_timestamp()))
+    .save_file();
+
+  let Some(file_path) = file_path else {
+    return Ok(false);
+  };
+
+  std::fs::copy(&log_file_path, &file_path).map_err(|error| error.to_string())?;
+  record_app_info(
+    &app,
+    "system.export_logs",
+    &format!(
+      "from={} to={}",
+      log_file_path.to_string_lossy(),
+      file_path.to_string_lossy()
+    ),
+  );
+  Ok(true)
 }
 
 fn main() {
@@ -563,10 +676,13 @@ fn main() {
     .invoke_handler(tauri::generate_handler![
       delete_workspace,
       export_workspace_config,
+      export_logs_file,
       get_default_docs_path,
       import_workspace_config,
       list_workspace_details,
       mark_workspace_opened,
+      open_app_data_directory,
+      open_logs_directory,
       pick_folder_path,
       pick_folder_paths,
       scan_workspace_sources,
@@ -580,7 +696,7 @@ fn main() {
 }
 
 fn open_workspace_database(app: &AppHandle) -> Result<Connection, String> {
-  let data_directory = app.path().app_data_dir().map_err(|error| error.to_string())?;
+  let data_directory = resolve_app_data_directory(app)?;
   std::fs::create_dir_all(&data_directory).map_err(|error| error.to_string())?;
 
   let database_path = data_directory.join("docs-atlas.db");
@@ -594,6 +710,79 @@ fn open_workspace_database(app: &AppHandle) -> Result<Connection, String> {
   migrate_workspace_database(&connection)?;
   maybe_migrate_legacy_seed_workspaces(&mut connection)?;
   Ok(connection)
+}
+
+fn resolve_app_data_directory(app: &AppHandle) -> Result<PathBuf, String> {
+  app.path().app_data_dir().map_err(|error| error.to_string())
+}
+
+fn ensure_logs_directory(app: &AppHandle) -> Result<PathBuf, String> {
+  let logs_directory = resolve_app_data_directory(app)?.join(APP_LOGS_DIR_NAME);
+  std::fs::create_dir_all(&logs_directory).map_err(|error| error.to_string())?;
+  Ok(logs_directory)
+}
+
+fn ensure_log_file_path(app: &AppHandle) -> Result<PathBuf, String> {
+  let log_file_path = ensure_logs_directory(app)?.join(APP_LOG_FILE_NAME);
+  if !log_file_path.exists() {
+    std::fs::write(&log_file_path, "").map_err(|error| error.to_string())?;
+  }
+  Ok(log_file_path)
+}
+
+fn append_app_log(app: &AppHandle, level: &str, scope: &str, message: &str) -> Result<(), String> {
+  let log_file_path = ensure_log_file_path(app)?;
+  let mut log_file = std::fs::OpenOptions::new()
+    .create(true)
+    .append(true)
+    .open(&log_file_path)
+    .map_err(|error| error.to_string())?;
+
+  writeln!(
+    log_file,
+    "[{}] {:<5} {} {}",
+    current_timestamp(),
+    level.to_uppercase(),
+    scope,
+    sanitize_log_message(message)
+  )
+  .map_err(|error| error.to_string())
+}
+
+fn sanitize_log_message(message: &str) -> String {
+  message.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn record_app_info(app: &AppHandle, scope: &str, message: &str) {
+  let _ = append_app_log(app, "info", scope, message);
+}
+
+fn record_app_error(app: &AppHandle, scope: &str, message: &str) {
+  let _ = append_app_log(app, "error", scope, message);
+}
+
+fn open_path_in_file_manager(path: &Path) -> Result<(), String> {
+  let mut command = if cfg!(target_os = "macos") {
+    let mut command = Command::new("open");
+    command.arg(path);
+    command
+  } else if cfg!(target_os = "windows") {
+    let mut command = Command::new("explorer");
+    command.arg(path);
+    command
+  } else {
+    let mut command = Command::new("xdg-open");
+    command.arg(path);
+    command
+  };
+
+  command.status().map_err(|error| error.to_string()).and_then(|status| {
+    if status.success() {
+      Ok(())
+    } else {
+      Err(format!("failed to open path {}", path.to_string_lossy()))
+    }
+  })
 }
 
 fn migrate_workspace_database(connection: &Connection) -> Result<(), String> {

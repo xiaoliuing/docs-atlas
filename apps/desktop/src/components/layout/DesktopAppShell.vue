@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
 import type { WorkspaceSourceNode } from '@docs-atlas/shared-types/workspace'
+import { exportLogsFile, openAppDataDirectory, openLogsDirectory } from '@/api/system'
 import DesktopDocReader from '@/components/docs/DesktopDocReader.vue'
 import DesktopDocsSidebar from '@/components/docs/DesktopDocsSidebar.vue'
 import DesktopDocToc from '@/components/docs/DesktopDocToc.vue'
@@ -88,6 +89,8 @@ const isSettingsOpen = shallowRef(false)
 const isSourceTreeDialogOpen = shallowRef(false)
 const isWorkspaceDialogOpen = shallowRef(false)
 const restoredScrollTop = shallowRef(0)
+const settingsActionMessage = shallowRef('')
+const settingsBusyAction = shallowRef<'app-data' | 'logs' | 'export' | null>(null)
 const sidebarOpenBranchIds = shallowRef<string[]>([])
 const sidebarOpenSectionId = shallowRef<string | null>(null)
 const workspaceDialogMode = shallowRef<'create' | 'edit'>('create')
@@ -95,6 +98,7 @@ const hasRestoredInitialWorkspace = shallowRef(false)
 const pendingRestoreWorkspaceId = shallowRef('')
 const pendingRestoreDocSlug = shallowRef('')
 const searchPanelRef = useTemplateRef<InstanceType<typeof DesktopSearchPanel>>('searchPanel')
+let settingsActionMessageTimer: number | null = null
 
 const floatingPanelVisible = computed(() => isOpen.value || isSettingsOpen.value)
 const searchQuery = computed({
@@ -143,6 +147,8 @@ function toggleSettingsPanel() {
 
   if (nextOpen) {
     closeSearch()
+  } else {
+    clearSettingsActionMessage()
   }
 }
 
@@ -269,8 +275,63 @@ async function handleExportWorkspace() {
   await exportWorkspaceConfig(currentWorkspace.value.id)
 }
 
+function setSettingsActionFeedback(message: string) {
+  settingsActionMessage.value = message
+
+  if (settingsActionMessageTimer !== null) {
+    window.clearTimeout(settingsActionMessageTimer)
+  }
+
+  settingsActionMessageTimer = window.setTimeout(() => {
+    settingsActionMessage.value = ''
+    settingsActionMessageTimer = null
+  }, 3200)
+}
+
+function clearSettingsActionMessage() {
+  settingsActionMessage.value = ''
+
+  if (settingsActionMessageTimer !== null) {
+    window.clearTimeout(settingsActionMessageTimer)
+    settingsActionMessageTimer = null
+  }
+}
+
+async function runSystemSettingsAction(
+  action: 'app-data' | 'logs' | 'export',
+  task: () => Promise<boolean>,
+  successMessage: string,
+) {
+  settingsBusyAction.value = action
+
+  try {
+    const success = await task()
+    setSettingsActionFeedback(success ? successMessage : '操作已取消')
+  } catch (error) {
+    setSettingsActionFeedback(error instanceof Error ? error.message : '操作失败，请稍后重试')
+  } finally {
+    settingsBusyAction.value = null
+  }
+}
+
+async function handleOpenAppDataDirectory() {
+  await runSystemSettingsAction('app-data', openAppDataDirectory, '已打开应用数据目录')
+}
+
+async function handleOpenLogsDirectory() {
+  await runSystemSettingsAction('logs', openLogsDirectory, '已打开日志目录')
+}
+
+async function handleExportLogsFile() {
+  await runSystemSettingsAction('export', exportLogsFile, '日志文件已导出')
+}
+
 onMounted(() => {
   void restoreInitialWorkspace()
+})
+
+onBeforeUnmount(() => {
+  clearSettingsActionMessage()
 })
 
 watch(
@@ -530,7 +591,12 @@ function waitForDocAvailability(slug: string, timeoutMs = 5000) {
         <DesktopSystemSettingsPanel
           :accent-id="preferences.accentId"
           :accent-options="accentOptions"
+          :action-message="settingsActionMessage"
+          :busy-action="settingsBusyAction"
           :theme-mode="preferences.themeMode"
+          @export-logs="handleExportLogsFile"
+          @open-app-data-directory="handleOpenAppDataDirectory"
+          @open-logs-directory="handleOpenLogsDirectory"
           @update-accent="setAccent"
           @update-theme-mode="setThemeMode"
         />
