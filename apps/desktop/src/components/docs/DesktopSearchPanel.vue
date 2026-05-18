@@ -16,8 +16,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   moveSelection: [direction: 1 | -1]
+  setScope: [scope: DesktopSearchScope]
   submit: [slug?: string]
-  toggleScope: []
 }>()
 
 const inputRef = useTemplateRef<HTMLInputElement>('input')
@@ -93,24 +93,36 @@ defineExpose({
         </button>
       </label>
 
-      <button
-        :aria-label="props.scope === 'global' ? '切换为当前工作区搜索' : '切换为全局搜索'"
-        :class="[
-          'desktop-search-panel__scope-button',
-          { 'desktop-search-panel__scope-button--active': props.scope === 'workspace' },
-        ]"
-        type="button"
-        @click="emit('toggleScope')"
+      <div
+        class="desktop-search-panel__scope-switch"
+        role="tablist"
+        aria-label="搜索范围"
       >
-        <svg viewBox="0 0 24 24" fill="none">
-          <path d="M5 7H19" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" />
-          <path d="M8 12H16" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" />
-          <path d="M10 17H14" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" />
-          <circle cx="8" cy="7" r="1.8" fill="currentColor" />
-          <circle cx="16" cy="12" r="1.8" fill="currentColor" />
-          <circle cx="10" cy="17" r="1.8" fill="currentColor" />
-        </svg>
-      </button>
+        <button
+          :class="[
+            'desktop-search-panel__scope-option',
+            { 'desktop-search-panel__scope-option--active': props.scope === 'global' },
+          ]"
+          role="tab"
+          :aria-selected="props.scope === 'global'"
+          type="button"
+          @click="emit('setScope', 'global')"
+        >
+          全局
+        </button>
+        <button
+          :class="[
+            'desktop-search-panel__scope-option',
+            { 'desktop-search-panel__scope-option--active': props.scope === 'workspace' },
+          ]"
+          role="tab"
+          :aria-selected="props.scope === 'workspace'"
+          type="button"
+          @click="emit('setScope', 'workspace')"
+        >
+          当前工作区
+        </button>
+      </div>
     </div>
 
     <div class="desktop-search-panel__meta">
@@ -212,8 +224,7 @@ defineExpose({
   color: var(--desktop-soft);
 }
 
-.desktop-search-panel__field-icon svg,
-.desktop-search-panel__scope-button svg {
+.desktop-search-panel__field-icon svg {
   width: 100%;
   height: 100%;
 }
@@ -233,7 +244,7 @@ defineExpose({
 }
 
 .desktop-search-panel__clear,
-.desktop-search-panel__scope-button {
+.desktop-search-panel__scope-option {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -250,20 +261,37 @@ defineExpose({
   font-size: 0.76rem;
 }
 
-.desktop-search-panel__scope-button {
-  width: 2.9rem;
-  height: 2.9rem;
-  border-radius: 14px;
+.desktop-search-panel__scope-switch {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  padding: 0.2rem;
+  border-radius: 999px;
   background: rgba(var(--desktop-accent-rgb), 0.08);
-  color: var(--desktop-muted);
-  transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+  min-height: 2.9rem;
 }
 
-.desktop-search-panel__scope-button:hover,
-.desktop-search-panel__scope-button--active {
-  background: rgba(var(--desktop-accent-rgb), 0.14);
+.desktop-search-panel__scope-option {
+  position: relative;
+  min-width: 0;
+  min-height: 2.5rem;
+  padding: 0.38rem 0.9rem;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--desktop-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.desktop-search-panel__scope-option--active {
+  background: var(--desktop-surface-strong);
   color: var(--desktop-accent);
-  transform: translateY(-1px);
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--desktop-accent-rgb), 0.12),
+    0 6px 16px rgba(var(--desktop-shadow), 0.08);
 }
 
 .desktop-search-panel__meta {

@@ -34,7 +34,7 @@ const {
   scope,
   selectedIndex,
   setQuery,
-  toggleScope,
+  setScope,
 } = useDesktopDocsSearch({
   workspaceSourceIds: currentWorkspaceSourceIds,
 })
@@ -154,16 +154,13 @@ function countDocs(groups: typeof sourceGroups): number {
         >
           <svg viewBox="0 0 24 24" fill="none">
             <path
-              d="M12 4.75L13.12 6.92C13.33 7.33 13.73 7.61 14.19 7.67L16.61 8.01L15.02 9.67C14.7 10 14.56 10.46 14.64 10.91L15.03 13.31L12.86 12.21C12.45 12 11.97 12 11.56 12.21L9.39 13.31L9.78 10.91C9.86 10.46 9.72 10 9.4 9.67L7.81 8.01L10.23 7.67C10.69 7.61 11.09 7.33 11.3 6.92L12 4.75Z"
+              d="M12 3.75L13.37 5.12L15.37 4.82L16.19 6.67L18.11 7.36L17.81 9.36L19.25 10.75L17.81 12.14L18.11 14.14L16.19 14.83L15.37 16.68L13.37 16.38L12 17.75L10.63 16.38L8.63 16.68L7.81 14.83L5.89 14.14L6.19 12.14L4.75 10.75L6.19 9.36L5.89 7.36L7.81 6.67L8.63 4.82L10.63 5.12L12 3.75Z"
               stroke="currentColor"
               stroke-linejoin="round"
-              stroke-width="1.45"
+              stroke-width="1.35"
             />
-            <circle cx="12" cy="12" r="2.2" stroke="currentColor" stroke-width="1.6" />
-            <path d="M12 3.5V5.2" stroke="currentColor" stroke-linecap="round" stroke-width="1.6" />
-            <path d="M12 18.8V20.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.6" />
-            <path d="M20.5 12H18.8" stroke="currentColor" stroke-linecap="round" stroke-width="1.6" />
-            <path d="M5.2 12H3.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.6" />
+            <circle cx="12" cy="10.75" r="2.45" stroke="currentColor" stroke-width="1.5" />
+            <path d="M10.3 14.5H13.7" stroke="currentColor" stroke-linecap="round" stroke-width="1.5" />
           </svg>
         </button>
       </div>
@@ -187,8 +184,8 @@ function countDocs(groups: typeof sourceGroups): number {
           :workspace-name="currentWorkspace?.name ?? '当前工作区'"
           @close="closeSearch"
           @move-selection="moveSelection"
+          @set-scope="setScope"
           @submit="handleSubmitSearch"
-          @toggle-scope="toggleScope"
         />
       </div>
 

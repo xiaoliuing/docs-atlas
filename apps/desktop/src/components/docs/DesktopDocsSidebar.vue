@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
 import type { DesktopWorkspace } from '@/mocks/workspaces'
 import type { DocsSourceGroup } from '@/types/docs'
 import DesktopDocsSidebarNode from './DesktopDocsSidebarNode.vue'
@@ -22,6 +22,7 @@ const openBranchIds = shallowRef<string[]>([])
 const openSectionId = shallowRef<string | null>(null)
 const isWorkspaceMenuOpen = shallowRef(false)
 const sidebarInnerRef = useTemplateRef<HTMLElement>('sidebarInner')
+const workspaceSwitcherRef = useTemplateRef<HTMLElement>('workspaceSwitcher')
 
 const activePath = computed(() => ({
   sectionId: props.currentSectionId,
@@ -102,6 +103,27 @@ watch(
   },
 )
 
+function handleWindowPointerDown(event: PointerEvent) {
+  const switcher = workspaceSwitcherRef.value
+  const target = event.target
+
+  if (!switcher || !(target instanceof Node)) {
+    return
+  }
+
+  if (!switcher.contains(target)) {
+    isWorkspaceMenuOpen.value = false
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('pointerdown', handleWindowPointerDown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('pointerdown', handleWindowPointerDown)
+})
+
 function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): string[] {
   for (const node of nodes) {
     if (node.sourceId === sourceId) {
@@ -129,7 +151,10 @@ function countDocs(group: DocsSourceGroup): number {
     <div class="desktop-docs-sidebar__workspace-panel">
       <p class="desktop-docs-sidebar__panel-label">Workspace</p>
 
-      <div class="desktop-docs-sidebar__workspace-switcher">
+      <div
+        ref="workspaceSwitcher"
+        class="desktop-docs-sidebar__workspace-switcher"
+      >
         <button
           :aria-expanded="isWorkspaceMenuOpen"
           class="desktop-docs-sidebar__workspace-trigger"
@@ -255,8 +280,7 @@ function countDocs(group: DocsSourceGroup): number {
 }
 
 .desktop-docs-sidebar__workspace-switcher {
-  display: grid;
-  gap: 0.65rem;
+  position: relative;
   margin-top: 0.7rem;
 }
 
@@ -333,12 +357,18 @@ function countDocs(group: DocsSourceGroup): number {
 }
 
 .desktop-docs-sidebar__workspace-menu {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  right: 0;
+  left: 0;
   display: grid;
   gap: 0.4rem;
   padding: 0.35rem;
   border: 1px solid var(--desktop-line);
   border-radius: 16px;
   background: var(--desktop-surface-strong);
+  box-shadow: 0 18px 42px rgba(var(--desktop-shadow), 0.16);
+  z-index: 20;
 }
 
 .desktop-docs-sidebar__workspace-option {
