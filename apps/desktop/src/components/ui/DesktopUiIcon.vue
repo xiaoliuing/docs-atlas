@@ -48,13 +48,12 @@ withDefaults(
     </template>
 
     <template v-else-if="name === 'settings'">
-      <path
-        d="M12 4.15L13.37 5.52L15.31 5.14L16.12 6.91L18.02 7.6L17.74 9.56L19.1 10.9L17.74 12.24L18.02 14.2L16.12 14.89L15.31 16.66L13.37 16.28L12 17.65L10.63 16.28L8.69 16.66L7.88 14.89L5.98 14.2L6.26 12.24L4.9 10.9L6.26 9.56L5.98 7.6L7.88 6.91L8.69 5.14L10.63 5.52L12 4.15Z"
-        :stroke-width="1.45"
-        stroke-linejoin="round"
-      />
-      <circle cx="12" cy="10.9" r="2.3" :stroke-width="1.6" />
-      <path d="M10.45 14.55H13.55" :stroke-width="1.6" stroke-linecap="round" />
+      <path d="M5 7.5H19" :stroke-width="1.8" stroke-linecap="round" />
+      <path d="M5 12H19" :stroke-width="1.8" stroke-linecap="round" />
+      <path d="M5 16.5H19" :stroke-width="1.8" stroke-linecap="round" />
+      <circle cx="9" cy="7.5" r="2.15" fill="currentColor" stroke="none" />
+      <circle cx="15.5" cy="12" r="2.15" fill="currentColor" stroke="none" />
+      <circle cx="11.5" cy="16.5" r="2.15" fill="currentColor" stroke="none" />
     </template>
 
     <template v-else-if="name === 'plus'">

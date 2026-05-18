@@ -364,7 +364,7 @@ function handleWindowKeydown(event: KeyboardEvent) {
             title="放大"
             @click="zoomIn"
           >
-            <DesktopUiIcon name="zoom-in" :size="18" />
+            <DesktopUiIcon name="zoom-in" :size="20" />
           </button>
           <button
             type="button"
@@ -373,7 +373,7 @@ function handleWindowKeydown(event: KeyboardEvent) {
             title="缩小"
             @click="zoomOut"
           >
-            <DesktopUiIcon name="zoom-out" :size="18" />
+            <DesktopUiIcon name="zoom-out" :size="20" />
           </button>
           <div class="zoom-indicator">
             {{ zoomPercent }}
@@ -386,7 +386,7 @@ function handleWindowKeydown(event: KeyboardEvent) {
             title="向左旋转"
             @click="rotateLeft"
           >
-            <DesktopUiIcon name="rotate-left" :size="18" />
+            <DesktopUiIcon name="rotate-left" :size="20" />
           </button>
           <button
             type="button"
@@ -395,7 +395,7 @@ function handleWindowKeydown(event: KeyboardEvent) {
             title="向右旋转"
             @click="rotateRight"
           >
-            <DesktopUiIcon name="rotate-right" :size="18" />
+            <DesktopUiIcon name="rotate-right" :size="20" />
           </button>
           <div class="divider" />
           <button
@@ -405,7 +405,7 @@ function handleWindowKeydown(event: KeyboardEvent) {
             title="重置视图"
             @click="reset"
           >
-            <DesktopUiIcon name="reset-view" :size="18" />
+            <DesktopUiIcon name="reset-view" :size="20" />
           </button>
         </div>
 
@@ -416,7 +416,7 @@ function handleWindowKeydown(event: KeyboardEvent) {
           title="关闭"
           @click="handleClose"
         >
-          <DesktopUiIcon name="close" :size="22" />
+          <DesktopUiIcon name="close" :size="24" />
         </button>
 
         <button
@@ -426,7 +426,7 @@ function handleWindowKeydown(event: KeyboardEvent) {
           aria-label="上一张图片"
           @click="prevImage"
         >
-          <DesktopUiIcon name="chevron-left" :size="24" />
+          <DesktopUiIcon name="chevron-left" :size="28" />
         </button>
 
         <button
@@ -436,7 +436,7 @@ function handleWindowKeydown(event: KeyboardEvent) {
           aria-label="下一张图片"
           @click="nextImage"
         >
-          <DesktopUiIcon name="chevron-right" :size="24" />
+          <DesktopUiIcon name="chevron-right" :size="28" />
         </button>
 
         <div
@@ -495,9 +495,9 @@ function handleWindowKeydown(event: KeyboardEvent) {
   bottom: 24px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   transform: translateX(-50%);
-  padding: 8px 16px;
+  padding: 10px 18px;
   border: 1px solid rgba(var(--desktop-accent-rgb), 0.16);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.92);
@@ -516,8 +516,8 @@ function handleWindowKeydown(event: KeyboardEvent) {
 }
 
 .toolbar-btn {
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   background: transparent;
   color: inherit;
@@ -543,8 +543,8 @@ function handleWindowKeydown(event: KeyboardEvent) {
   top: 24px;
   right: 24px;
   z-index: 10000;
-  width: 44px;
-  height: 44px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.92);
   color: #172033;
@@ -555,8 +555,8 @@ function handleWindowKeydown(event: KeyboardEvent) {
   position: absolute;
   top: 50%;
   z-index: 10000;
-  width: 52px;
-  height: 52px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.92);
   color: #172033;

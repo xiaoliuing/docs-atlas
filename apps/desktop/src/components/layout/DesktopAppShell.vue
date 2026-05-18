@@ -259,7 +259,7 @@ function countWorkspaceFolderSources(nodes: WorkspaceSourceNode[]): number {
           type="button"
           @click="toggleSearchPanel"
         >
-          <DesktopUiIcon name="search" :size="16" />
+          <DesktopUiIcon name="search" :size="18" />
         </button>
 
         <button
@@ -268,7 +268,7 @@ function countWorkspaceFolderSources(nodes: WorkspaceSourceNode[]): number {
           type="button"
           @click="toggleSettingsPanel"
         >
-          <DesktopUiIcon name="settings" :size="16" />
+          <DesktopUiIcon name="settings" :size="18" />
         </button>
       </div>
     </header>
@@ -465,8 +465,8 @@ function countWorkspaceFolderSources(nodes: WorkspaceSourceNode[]): number {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.05rem;
-  height: 2.05rem;
+  width: 2.2rem;
+  height: 2.2rem;
   border: 1px solid var(--desktop-line);
   border-radius: 12px;
   background:
@@ -478,8 +478,8 @@ function countWorkspaceFolderSources(nodes: WorkspaceSourceNode[]): number {
 }
 
 .desktop-titlebar__icon-button svg {
-  width: 1rem;
-  height: 1rem;
+  width: 1.1rem;
+  height: 1.1rem;
 }
 
 .desktop-titlebar__icon-button:hover,
