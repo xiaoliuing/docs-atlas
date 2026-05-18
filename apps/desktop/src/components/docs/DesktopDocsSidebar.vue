@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
 import type { WorkspaceDetail } from '@docs-atlas/shared-types/workspace'
 import type { DocsSourceGroup } from '@/types/docs'
+import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
 import DesktopDocsSidebarNode from './DesktopDocsSidebarNode.vue'
 
 const props = defineProps<{
@@ -156,8 +157,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
           type="button"
           @click="emit('createWorkspace')"
         >
-          <span />
-          <span />
+          <DesktopUiIcon name="plus" :size="14" />
         </button>
       </div>
 
@@ -175,15 +175,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
             class="desktop-docs-sidebar__workspace-avatar"
             :style="{ '--workspace-color': currentWorkspace?.color ?? '#1f54d9' }"
           >
-            <svg viewBox="0 0 24 24" fill="none">
-              <path
-                d="M4 8.5C4 6.57 5.57 5 7.5 5H16.5C18.43 5 20 6.57 20 8.5V15.5C20 17.43 18.43 19 16.5 19H7.5C5.57 19 4 17.43 4 15.5V8.5Z"
-                stroke="currentColor"
-                stroke-width="1.6"
-              />
-              <path d="M8 9.5H16" stroke="currentColor" stroke-linecap="round" stroke-width="1.6" />
-              <path d="M8 13H13" stroke="currentColor" stroke-linecap="round" stroke-width="1.6" />
-            </svg>
+            <DesktopUiIcon name="atlas" :size="16" />
           </span>
 
           <span class="desktop-docs-sidebar__workspace-copy">
@@ -198,7 +190,9 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
               'desktop-docs-sidebar__workspace-chevron',
               { 'desktop-docs-sidebar__workspace-chevron--open': isWorkspaceMenuOpen },
             ]"
-          />
+          >
+            <DesktopUiIcon name="chevron-down" :size="14" />
+          </span>
         </button>
 
         <div
@@ -337,7 +331,9 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 }
 
 .desktop-docs-sidebar__create {
-  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 1.7rem;
   height: 1.7rem;
   border: 1px solid var(--desktop-line);
@@ -345,21 +341,6 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   background: rgba(var(--desktop-accent-rgb), 0.05);
   color: var(--desktop-accent);
   cursor: pointer;
-}
-
-.desktop-docs-sidebar__create span {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0.78rem;
-  height: 1.5px;
-  border-radius: 999px;
-  background: currentColor;
-  transform: translate(-50%, -50%);
-}
-
-.desktop-docs-sidebar__create span:last-child {
-  transform: translate(-50%, -50%) rotate(90deg);
 }
 
 .desktop-docs-sidebar__workspace-switcher {
@@ -431,17 +412,15 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 }
 
 .desktop-docs-sidebar__workspace-chevron {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--desktop-soft);
-  transform: rotate(45deg);
   transition: transform 0.18s ease;
 }
 
 .desktop-docs-sidebar__workspace-chevron--open {
-  transform: rotate(-135deg);
+  transform: rotate(180deg);
 }
 
 .desktop-docs-sidebar__workspace-menu {

@@ -2,6 +2,7 @@
 import { computed, onMounted, useTemplateRef } from 'vue'
 import type { DesktopSearchScope } from '@/composables/useDesktopDocsSearch'
 import type { SearchResult } from '@/types/docs'
+import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
 import DesktopSearchHighlightedText from './DesktopSearchHighlightedText.vue'
 
 const query = defineModel<string>({ default: '' })
@@ -70,10 +71,7 @@ defineExpose({
     <div class="desktop-search-panel__header">
       <label class="desktop-search-panel__field">
         <span class="desktop-search-panel__field-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" />
-            <path d="M16 16L20.5 20.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" />
-          </svg>
+          <DesktopUiIcon name="search" :size="16" />
         </span>
         <input
           ref="input"
@@ -85,11 +83,12 @@ defineExpose({
         />
         <button
           v-if="query"
+          aria-label="清空搜索关键词"
           class="desktop-search-panel__clear"
           type="button"
           @click="query = ''"
         >
-          清空
+          <DesktopUiIcon name="close" :size="14" />
         </button>
       </label>
 
@@ -224,11 +223,6 @@ defineExpose({
   color: var(--desktop-soft);
 }
 
-.desktop-search-panel__field-icon svg {
-  width: 100%;
-  height: 100%;
-}
-
 .desktop-search-panel__input {
   width: 100%;
   min-width: 0;
@@ -253,12 +247,12 @@ defineExpose({
 }
 
 .desktop-search-panel__clear {
+  width: 2.15rem;
   min-height: 2.15rem;
-  padding: 0.45rem 0.75rem;
+  padding: 0;
   border-radius: 999px;
   background: rgba(var(--desktop-accent-rgb), 0.1);
   color: var(--desktop-ink);
-  font-size: 0.76rem;
 }
 
 .desktop-search-panel__scope-switch {

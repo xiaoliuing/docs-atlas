@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
+import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
 
 type PreviewImage = {
   alt: string
@@ -359,18 +360,20 @@ function handleWindowKeydown(event: KeyboardEvent) {
           <button
             type="button"
             class="toolbar-btn"
+            aria-label="放大"
             title="放大"
             @click="zoomIn"
           >
-            +
+            <DesktopUiIcon name="zoom-in" :size="18" />
           </button>
           <button
             type="button"
             class="toolbar-btn"
+            aria-label="缩小"
             title="缩小"
             @click="zoomOut"
           >
-            -
+            <DesktopUiIcon name="zoom-out" :size="18" />
           </button>
           <div class="zoom-indicator">
             {{ zoomPercent }}
@@ -379,55 +382,61 @@ function handleWindowKeydown(event: KeyboardEvent) {
           <button
             type="button"
             class="toolbar-btn"
+            aria-label="向左旋转"
             title="向左旋转"
             @click="rotateLeft"
           >
-            ↺
+            <DesktopUiIcon name="rotate-left" :size="18" />
           </button>
           <button
             type="button"
             class="toolbar-btn"
+            aria-label="向右旋转"
             title="向右旋转"
             @click="rotateRight"
           >
-            ↻
+            <DesktopUiIcon name="rotate-right" :size="18" />
           </button>
           <div class="divider" />
           <button
             type="button"
             class="toolbar-btn"
+            aria-label="重置视图"
             title="重置视图"
             @click="reset"
           >
-            1:1
+            <DesktopUiIcon name="reset-view" :size="18" />
           </button>
         </div>
 
         <button
           type="button"
           class="close-btn"
+          aria-label="关闭预览"
           title="关闭"
           @click="handleClose"
         >
-          ×
+          <DesktopUiIcon name="close" :size="22" />
         </button>
 
         <button
           v-if="props.images.length > 1"
           type="button"
           class="nav-btn prev"
+          aria-label="上一张图片"
           @click="prevImage"
         >
-          ‹
+          <DesktopUiIcon name="chevron-left" :size="24" />
         </button>
 
         <button
           v-if="props.images.length > 1"
           type="button"
           class="nav-btn next"
+          aria-label="下一张图片"
           @click="nextImage"
         >
-          ›
+          <DesktopUiIcon name="chevron-right" :size="24" />
         </button>
 
         <div

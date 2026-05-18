@@ -2,6 +2,7 @@
 import { computed, reactive, watch } from 'vue'
 import type { WorkspaceDetail } from '@docs-atlas/shared-types/workspace'
 import { pickFolderPath, validateSourcePath } from '@/api/workspaces'
+import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
 import DesktopSourceTreeNodeEditor from './DesktopSourceTreeNodeEditor.vue'
 import {
   collectSourceTreeIssues,
@@ -234,8 +235,7 @@ async function validateFolderNode(nodeId: string, pathValue: string) {
           type="button"
           @click="handleClose"
         >
-          <span />
-          <span />
+          <DesktopUiIcon name="close" :size="16" />
         </button>
       </header>
 
@@ -380,7 +380,9 @@ async function validateFolderNode(nodeId: string, pathValue: string) {
 }
 
 .desktop-source-tree-dialog__close {
-  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 2rem;
   height: 2rem;
   border: 1px solid var(--desktop-line);
@@ -388,24 +390,6 @@ async function validateFolderNode(nodeId: string, pathValue: string) {
   background: rgba(var(--desktop-accent-rgb), 0.04);
   color: var(--desktop-muted);
   cursor: pointer;
-}
-
-.desktop-source-tree-dialog__close span {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0.78rem;
-  height: 1.5px;
-  border-radius: 999px;
-  background: currentColor;
-}
-
-.desktop-source-tree-dialog__close span:first-child {
-  transform: translate(-50%, -50%) rotate(45deg);
-}
-
-.desktop-source-tree-dialog__close span:last-child {
-  transform: translate(-50%, -50%) rotate(-45deg);
 }
 
 .desktop-source-tree-dialog__tool,

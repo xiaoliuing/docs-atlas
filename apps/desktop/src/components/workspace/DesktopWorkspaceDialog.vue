@@ -2,6 +2,7 @@
 import { computed, reactive, watch } from 'vue'
 import type { WorkspaceDetail, WorkspaceSearchScope } from '@docs-atlas/shared-types/workspace'
 import type { DesktopAccentOption } from '@/composables/useDesktopPreferences'
+import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
 
 type WorkspaceForm = {
   name: string
@@ -119,8 +120,7 @@ function handleClose() {
           type="button"
           @click="handleClose"
         >
-          <span />
-          <span />
+          <DesktopUiIcon name="close" :size="16" />
         </button>
       </header>
 
@@ -256,7 +256,9 @@ function handleClose() {
 }
 
 .desktop-workspace-dialog__close {
-  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 2rem;
   height: 2rem;
   border: 1px solid var(--desktop-line);
@@ -264,24 +266,6 @@ function handleClose() {
   background: rgba(var(--desktop-accent-rgb), 0.04);
   color: var(--desktop-muted);
   cursor: pointer;
-}
-
-.desktop-workspace-dialog__close span {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0.78rem;
-  height: 1.5px;
-  border-radius: 999px;
-  background: currentColor;
-}
-
-.desktop-workspace-dialog__close span:first-child {
-  transform: translate(-50%, -50%) rotate(45deg);
-}
-
-.desktop-workspace-dialog__close span:last-child {
-  transform: translate(-50%, -50%) rotate(-45deg);
 }
 
 .desktop-workspace-dialog__body {

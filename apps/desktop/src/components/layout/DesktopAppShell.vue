@@ -6,6 +6,7 @@ import DesktopDocsSidebar from '@/components/docs/DesktopDocsSidebar.vue'
 import DesktopDocToc from '@/components/docs/DesktopDocToc.vue'
 import DesktopSearchPanel from '@/components/docs/DesktopSearchPanel.vue'
 import DesktopSystemSettingsPanel from '@/components/settings/DesktopSystemSettingsPanel.vue'
+import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
 import DesktopSourceTreeDialog from '@/components/workspace/DesktopSourceTreeDialog.vue'
 import DesktopWorkspaceDialog from '@/components/workspace/DesktopWorkspaceDialog.vue'
 import { useDesktopActiveHeadings } from '@/composables/useDesktopActiveHeadings'
@@ -243,15 +244,7 @@ function countWorkspaceFolderSources(nodes: WorkspaceSourceNode[]): number {
       >
         <span class="desktop-titlebar__traffic-gap" />
         <span class="desktop-titlebar__brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <path
-              d="M5 8.5C5 6.57 6.57 5 8.5 5H15.5C17.43 5 19 6.57 19 8.5V15.5C19 17.43 17.43 19 15.5 19H8.5C6.57 19 5 17.43 5 15.5V8.5Z"
-              stroke="currentColor"
-              stroke-width="1.6"
-            />
-            <path d="M8.5 9.5H15.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.6" />
-            <path d="M8.5 13H13.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.6" />
-          </svg>
+          <DesktopUiIcon name="atlas" :size="16" />
         </span>
         <span class="desktop-titlebar__brand-copy">
           <strong>Docs Atlas</strong>
@@ -266,10 +259,7 @@ function countWorkspaceFolderSources(nodes: WorkspaceSourceNode[]): number {
           type="button"
           @click="toggleSearchPanel"
         >
-          <svg viewBox="0 0 24 24" fill="none">
-            <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" />
-            <path d="M16 16L20.5 20.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" />
-          </svg>
+          <DesktopUiIcon name="search" :size="16" />
         </button>
 
         <button
@@ -278,16 +268,7 @@ function countWorkspaceFolderSources(nodes: WorkspaceSourceNode[]): number {
           type="button"
           @click="toggleSettingsPanel"
         >
-          <svg viewBox="0 0 24 24" fill="none">
-            <path
-              d="M12 3.75L13.37 5.12L15.37 4.82L16.19 6.67L18.11 7.36L17.81 9.36L19.25 10.75L17.81 12.14L18.11 14.14L16.19 14.83L15.37 16.68L13.37 16.38L12 17.75L10.63 16.38L8.63 16.68L7.81 14.83L5.89 14.14L6.19 12.14L4.75 10.75L6.19 9.36L5.89 7.36L7.81 6.67L8.63 4.82L10.63 5.12L12 3.75Z"
-              stroke="currentColor"
-              stroke-linejoin="round"
-              stroke-width="1.35"
-            />
-            <circle cx="12" cy="10.75" r="2.45" stroke="currentColor" stroke-width="1.5" />
-            <path d="M10.3 14.5H13.7" stroke="currentColor" stroke-linecap="round" stroke-width="1.5" />
-          </svg>
+          <DesktopUiIcon name="settings" :size="16" />
         </button>
       </div>
     </header>
