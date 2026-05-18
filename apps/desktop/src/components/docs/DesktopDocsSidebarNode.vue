@@ -213,11 +213,13 @@ function forwardToggleSection(sectionId: string) {
 
 .desktop-docs-sidebar-node__toggle-icon,
 .desktop-docs-sidebar-node__section-toggle-icon {
+  display: block;
   width: 0.52rem;
   height: 0.52rem;
   border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
-  transform: rotate(45deg);
+  transform: translateY(-1px) rotate(45deg);
+  transform-origin: center;
   transition: transform 0.18s ease;
   flex: none;
   opacity: 0.78;
@@ -225,7 +227,7 @@ function forwardToggleSection(sectionId: string) {
 
 .desktop-docs-sidebar-node__toggle-icon--open,
 .desktop-docs-sidebar-node__section-toggle-icon--open {
-  transform: rotate(-135deg);
+  transform: translateY(-1px) rotate(-135deg);
 }
 
 .desktop-docs-sidebar-node__body {
@@ -259,11 +261,14 @@ function forwardToggleSection(sectionId: string) {
   justify-content: center;
   width: 20px;
   height: 20px;
+  padding: 0;
   border: 0;
   border-radius: 6px;
   background: rgba(var(--desktop-accent-rgb), 0.07);
   color: var(--desktop-accent);
   cursor: pointer;
+  line-height: 0;
+  flex: none;
 }
 
 .desktop-docs-sidebar-node__docs {
