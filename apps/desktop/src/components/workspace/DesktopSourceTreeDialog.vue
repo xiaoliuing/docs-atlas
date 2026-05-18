@@ -36,6 +36,8 @@ const emit = defineEmits<{
 const state = reactive({
   draftNodes: [] as WorkspaceSourceNodeDraft[],
   pathStatuses: {} as Record<string, { exists: boolean; isDirectory: boolean } | undefined>,
+  pathValidationTokens: {} as Record<string, number>,
+  validatingPathIds: {} as Record<string, boolean | undefined>,
 })
 
 const issues = computed(() => collectSourceTreeIssues(state.draftNodes, state.pathStatuses))
@@ -82,6 +84,7 @@ watch(folderPathSnapshot, (entries, previousEntries = []) => {
 
   entries.forEach((entry) => {
     if (previousMap.get(entry.id) !== entry.path) {
+      syncFolderNameFromPath(entry.id, entry.path, previousMap.get(entry.id) ?? '')
       void validateFolderNode(entry.id, entry.path)
     }
   })
@@ -89,6 +92,8 @@ watch(folderPathSnapshot, (entries, previousEntries = []) => {
   Object.keys(state.pathStatuses).forEach((nodeId) => {
     if (!nextNodeIds.has(nodeId)) {
       delete state.pathStatuses[nodeId]
+      delete state.pathValidationTokens[nodeId]
+      delete state.validatingPathIds[nodeId]
     }
   })
 })
@@ -98,8 +103,8 @@ async function handleAddRootGroup() {
   syncDraftParentIds(state.draftNodes)
 }
 
-async function handleAddRootFolder() {
-  await addFolderNode(null)
+function handleAddRootFolder() {
+  addFolderNode(null)
 }
 
 async function handleAddNestedGroup(parentId: string) {
@@ -107,8 +112,8 @@ async function handleAddNestedGroup(parentId: string) {
   syncDraftParentIds(state.draftNodes)
 }
 
-async function handleAddNestedFolder(parentId: string) {
-  await addFolderNode(parentId)
+function handleAddNestedFolder(parentId: string) {
+  addFolderNode(parentId)
 }
 
 async function handleBrowseFolder(nodeId: string) {
@@ -150,21 +155,11 @@ function handleSave() {
   emit('save', serializeWorkspaceSources(state.draftNodes))
 }
 
-async function addFolderNode(parentId: string | null) {
-  const folderPath = await pickFolderPath()
-  if (!folderPath) {
-    return
-  }
-
+function addFolderNode(parentId: string | null) {
   state.draftNodes = insertDraftChild(state.draftNodes, parentId, (index) =>
-    createFolderDraft(parentId, index, folderPath, inferFolderDisplayName(folderPath)),
+    createFolderDraft(parentId, index),
   )
   syncDraftParentIds(state.draftNodes)
-
-  const draftNode = flattenDraftNodes(state.draftNodes).find((node) => node.path === folderPath && node.parentId === parentId)
-  if (draftNode) {
-    await validateFolderNode(draftNode.id, draftNode.path)
-  }
 }
 
 async function validateAllFolderNodes() {
@@ -172,13 +167,43 @@ async function validateAllFolderNodes() {
   await Promise.all(folderNodes.map((node) => validateFolderNode(node.id, node.path)))
 }
 
-async function validateFolderNode(nodeId: string, pathValue: string) {
-  if (!pathValue.trim()) {
-    state.pathStatuses[nodeId] = undefined
+function syncFolderNameFromPath(nodeId: string, nextPath: string, previousPath: string) {
+  const target = findDraftNode(state.draftNodes, nodeId)
+  if (!target || target.kind !== 'folder') {
     return
   }
 
-  state.pathStatuses[nodeId] = await validateSourcePath(pathValue)
+  const normalizedNextPath = nextPath.trim()
+  const normalizedPreviousPath = previousPath.trim()
+  const nextName = normalizedNextPath ? inferFolderDisplayName(normalizedNextPath) : '新文档源'
+  const previousAutoName = normalizedPreviousPath ? inferFolderDisplayName(normalizedPreviousPath) : '新文档源'
+
+  if (!target.name.trim() || target.name === '新文档源' || target.name === previousAutoName) {
+    target.name = nextName
+  }
+}
+
+async function validateFolderNode(nodeId: string, pathValue: string) {
+  if (!pathValue.trim()) {
+    state.pathStatuses[nodeId] = undefined
+    delete state.validatingPathIds[nodeId]
+    return
+  }
+
+  const token = (state.pathValidationTokens[nodeId] ?? 0) + 1
+  state.pathValidationTokens[nodeId] = token
+  state.validatingPathIds[nodeId] = true
+
+  const status = await validateSourcePath(pathValue)
+  const target = findDraftNode(state.draftNodes, nodeId)
+  const currentPath = target?.kind === 'folder' ? target.path.trim() : ''
+
+  if (state.pathValidationTokens[nodeId] !== token || currentPath !== pathValue.trim()) {
+    return
+  }
+
+  state.pathStatuses[nodeId] = status
+  delete state.validatingPathIds[nodeId]
 }
 </script>
 
@@ -229,7 +254,7 @@ async function validateFolderNode(nodeId: string, pathValue: string) {
           type="button"
           @click="handleAddRootFolder"
         >
-          添加根目录
+          新建根目录卡片
         </button>
       </div>
 
@@ -237,7 +262,7 @@ async function validateFolderNode(nodeId: string, pathValue: string) {
         v-if="state.draftNodes.length === 0"
         class="desktop-source-tree-dialog__empty"
       >
-        当前工作区还没有文档源。先添加一个目录，后续运行时索引阶段会基于这些目录生成真实文档树。
+        当前工作区还没有文档源。先新建一个目录卡片，再手动输入路径或点击“选择目录”完成配置。
       </div>
 
       <div
@@ -250,7 +275,9 @@ async function validateFolderNode(nodeId: string, pathValue: string) {
           v-model:node="state.draftNodes[index]"
           :depth="0"
           :disabled="props.isSaving"
+          :is-validating-path-by-node-id="state.validatingPathIds"
           :issues-by-node-id="issuesByNodeId"
+          :path-statuses-by-node-id="state.pathStatuses"
           @add-folder="handleAddNestedFolder"
           @add-group="handleAddNestedGroup"
           @browse-folder="handleBrowseFolder"

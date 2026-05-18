@@ -46,8 +46,8 @@ export function createGroupDraft(parentId: string | null, index: number): Worksp
 export function createFolderDraft(
   parentId: string | null,
   index: number,
-  path: string,
-  name: string,
+  path = '',
+  name = '新文档源',
 ): WorkspaceSourceNodeDraft {
   return {
     id: `source-node:${crypto.randomUUID()}`,

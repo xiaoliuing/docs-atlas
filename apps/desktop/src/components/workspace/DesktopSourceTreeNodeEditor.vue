@@ -7,7 +7,12 @@ const node = defineModel<WorkspaceSourceNodeDraft>('node', { required: true })
 const props = defineProps<{
   depth: number
   disabled?: boolean
+  isValidatingPathByNodeId: Record<string, boolean | undefined>
   issuesByNodeId: Record<string, string[]>
+  pathStatusesByNodeId: Record<string, {
+    exists: boolean
+    isDirectory: boolean
+  } | undefined>
 }>()
 
 const emit = defineEmits<{
@@ -18,6 +23,51 @@ const emit = defineEmits<{
 }>()
 
 const nodeIssues = computed(() => props.issuesByNodeId[node.value.id] ?? [])
+const pathStatus = computed(() => props.pathStatusesByNodeId[node.value.id])
+const isValidatingPath = computed(() => Boolean(props.isValidatingPathByNodeId[node.value.id]))
+const pathStatusLabel = computed(() => {
+  if (node.value.kind !== 'folder') {
+    return ''
+  }
+
+  if (!node.value.path.trim()) {
+    return '支持手动输入目录，或点击右侧选择目录。'
+  }
+
+  if (isValidatingPath.value) {
+    return '正在校验目录...'
+  }
+
+  if (!pathStatus.value) {
+    return '等待目录校验结果。'
+  }
+
+  if (!pathStatus.value.exists) {
+    return '目录不存在'
+  }
+
+  if (!pathStatus.value.isDirectory) {
+    return '路径不是目录'
+  }
+
+  return '目录有效'
+})
+
+const pathStatusTone = computed(() => {
+  if (node.value.kind !== 'folder' || !node.value.path.trim()) {
+    return 'muted'
+  }
+
+  if (isValidatingPath.value) {
+    return 'pending'
+  }
+
+  if (pathStatus.value?.exists && pathStatus.value.isDirectory) {
+    return 'success'
+  }
+
+  return 'error'
+})
 </script>
 
 <template>
@@ -62,7 +112,7 @@ const nodeIssues = computed(() => props.issuesByNodeId[node.value.id] ?? [])
           v-model="node.path"
           :disabled="disabled"
           class="desktop-source-tree-node__path"
-          placeholder="选择本地文档目录"
+          placeholder="输入本地文档目录路径"
           type="text"
         />
         <button
@@ -73,6 +123,16 @@ const nodeIssues = computed(() => props.issuesByNodeId[node.value.id] ?? [])
         >
           选择目录
         </button>
+      </div>
+
+      <div
+        v-if="node.kind === 'folder'"
+        :class="[
+          'desktop-source-tree-node__path-hint',
+          `desktop-source-tree-node__path-hint--${pathStatusTone}`,
+        ]"
+      >
+        {{ pathStatusLabel }}
       </div>
 
       <div
@@ -103,7 +163,7 @@ const nodeIssues = computed(() => props.issuesByNodeId[node.value.id] ?? [])
           type="button"
           @click="emit('addFolder', node.id)"
         >
-          添加目录
+          新建目录卡片
         </button>
         <button
           :disabled="disabled"
@@ -126,7 +186,9 @@ const nodeIssues = computed(() => props.issuesByNodeId[node.value.id] ?? [])
         v-model:node="node.children[index]"
         :depth="depth + 1"
         :disabled="disabled"
+        :is-validating-path-by-node-id="isValidatingPathByNodeId"
         :issues-by-node-id="issuesByNodeId"
+        :path-statuses-by-node-id="pathStatusesByNodeId"
         @add-folder="emit('addFolder', $event)"
         @add-group="emit('addGroup', $event)"
         @browse-folder="emit('browseFolder', $event)"
@@ -218,6 +280,24 @@ const nodeIssues = computed(() => props.issuesByNodeId[node.value.id] ?? [])
   font: inherit;
   font-size: 0.78rem;
   cursor: pointer;
+}
+
+.desktop-source-tree-node__path-hint {
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: var(--desktop-muted);
+}
+
+.desktop-source-tree-node__path-hint--pending {
+  color: var(--desktop-soft);
+}
+
+.desktop-source-tree-node__path-hint--success {
+  color: #2f7b5f;
+}
+
+.desktop-source-tree-node__path-hint--error {
+  color: #c53c53;
 }
 
 .desktop-source-tree-node__action--danger {
