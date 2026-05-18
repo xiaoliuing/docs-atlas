@@ -57,7 +57,7 @@ function forwardToggleSection(sectionId: string) {
       <span class="desktop-docs-sidebar-node__name">{{ node.name }}</span>
       <DesktopUiIcon
         name="chevron-down"
-        :size="12"
+        :size="14"
         :class="[
           'desktop-docs-sidebar-node__toggle-icon',
           { 'desktop-docs-sidebar-node__toggle-icon--open': isOpen },
@@ -118,7 +118,7 @@ function forwardToggleSection(sectionId: string) {
             >
               <DesktopUiIcon
                 name="chevron-down"
-                :size="12"
+                :size="14"
                 :class="[
                   'desktop-docs-sidebar-node__section-toggle-icon',
                   { 'desktop-docs-sidebar-node__section-toggle-icon--open': openSectionId === section.id },
@@ -223,7 +223,7 @@ function forwardToggleSection(sectionId: string) {
   transform-origin: center;
   transition: transform 0.18s ease, opacity 0.18s ease;
   flex: none;
-  opacity: 0.78;
+  opacity: 0.88;
 }
 
 .desktop-docs-sidebar-node__toggle-icon--open,
