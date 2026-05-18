@@ -14,6 +14,7 @@ import {
   flattenDraftNodes,
   inferFolderDisplayName,
   insertDraftChild,
+  moveDraftNode,
   normalizeDraftPositions,
   removeDraftNode,
   serializeWorkspaceSources,
@@ -140,6 +141,11 @@ async function handleBrowseFolder(nodeId: string) {
 function handleRemoveNode(nodeId: string) {
   state.draftNodes = removeDraftNode(state.draftNodes, nodeId)
   delete state.pathStatuses[nodeId]
+  syncDraftParentIds(state.draftNodes)
+}
+
+function handleMoveNode(nodeId: string, direction: -1 | 1) {
+  state.draftNodes = moveDraftNode(state.draftNodes, nodeId, direction)
   syncDraftParentIds(state.draftNodes)
 }
 
@@ -279,11 +285,14 @@ async function validateFolderNode(nodeId: string, pathValue: string) {
           :disabled="props.isSaving"
           :is-validating-path-by-node-id="state.validatingPathIds"
           :issues-by-node-id="issuesByNodeId"
+          :sibling-count="state.draftNodes.length"
+          :sibling-index="index"
           :path-statuses-by-node-id="state.pathStatuses"
           :runtime-source-statuses-by-node-id="props.runtimeSourceStatusesByNodeId"
           @add-folder="handleAddNestedFolder"
           @add-group="handleAddNestedGroup"
           @browse-folder="handleBrowseFolder"
+          @move-node="handleMoveNode"
           @remove-node="handleRemoveNode"
         />
       </div>

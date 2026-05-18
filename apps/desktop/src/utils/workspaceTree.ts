@@ -118,6 +118,48 @@ export function insertDraftChild(
   })
 }
 
+export function moveDraftNode(
+  nodes: WorkspaceSourceNodeDraft[],
+  targetId: string,
+  direction: -1 | 1,
+): WorkspaceSourceNodeDraft[] {
+  const targetIndex = nodes.findIndex((node) => node.id === targetId)
+
+  if (targetIndex >= 0) {
+    const nextIndex = targetIndex + direction
+    if (nextIndex < 0 || nextIndex >= nodes.length) {
+      return nodes
+    }
+
+    const nextNodes = [...nodes]
+    const [targetNode] = nextNodes.splice(targetIndex, 1)
+    nextNodes.splice(nextIndex, 0, targetNode)
+    normalizeDraftPositions(nextNodes)
+    return nextNodes
+  }
+
+  let changed = false
+  const nextNodes = nodes.map((node) => {
+    const nextChildren = moveDraftNode(node.children, targetId, direction)
+    if (nextChildren !== node.children) {
+      changed = true
+      return {
+        ...node,
+        children: nextChildren,
+      }
+    }
+
+    return node
+  })
+
+  if (changed) {
+    normalizeDraftPositions(nextNodes)
+    return nextNodes
+  }
+
+  return nodes
+}
+
 export function collectSourceTreeIssues(
   nodes: WorkspaceSourceNodeDraft[],
   pathStatuses: Record<string, { exists: boolean; isDirectory: boolean } | undefined>,

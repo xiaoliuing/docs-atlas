@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { WorkspaceSourceStatus } from '@docs-atlas/shared-types/workspace'
+import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
 import type { WorkspaceSourceNodeDraft } from '@/utils/workspaceTree'
 
 const node = defineModel<WorkspaceSourceNodeDraft>('node', { required: true })
@@ -10,6 +11,8 @@ const props = defineProps<{
   disabled?: boolean
   isValidatingPathByNodeId: Record<string, boolean | undefined>
   issuesByNodeId: Record<string, string[]>
+  siblingCount?: number
+  siblingIndex?: number
   runtimeSourceStatusesByNodeId: Record<string, WorkspaceSourceStatus | undefined>
   pathStatusesByNodeId: Record<string, {
     exists: boolean
@@ -21,6 +24,7 @@ const emit = defineEmits<{
   addFolder: [parentId: string]
   addGroup: [parentId: string]
   browseFolder: [nodeId: string]
+  moveNode: [nodeId: string, direction: -1 | 1]
   removeNode: [nodeId: string]
 }>()
 
@@ -80,6 +84,12 @@ const runtimeStatusTone = computed(() => {
 
   return status.state === 'ready' ? 'success' : 'error'
 })
+const canMoveUp = computed(() => (props.siblingIndex ?? 0) > 0)
+const canMoveDown = computed(() => (props.siblingIndex ?? 0) < (props.siblingCount ?? 1) - 1)
+
+function forwardMoveNode(nodeId: string, direction: -1 | 1) {
+  emit('moveNode', nodeId, direction)
+}
 </script>
 
 <template>
@@ -172,6 +182,24 @@ const runtimeStatusTone = computed(() => {
 
       <div class="desktop-source-tree-node__actions">
         <button
+          :disabled="disabled || !canMoveUp"
+          class="desktop-source-tree-node__icon-action"
+          type="button"
+          @click="emit('moveNode', node.id, -1)"
+        >
+          <DesktopUiIcon name="chevron-down" :size="14" class="desktop-source-tree-node__icon-action-icon desktop-source-tree-node__icon-action-icon--up" />
+          <span>上移</span>
+        </button>
+        <button
+          :disabled="disabled || !canMoveDown"
+          class="desktop-source-tree-node__icon-action"
+          type="button"
+          @click="emit('moveNode', node.id, 1)"
+        >
+          <DesktopUiIcon name="chevron-down" :size="14" class="desktop-source-tree-node__icon-action-icon" />
+          <span>下移</span>
+        </button>
+        <button
           :disabled="disabled"
           class="desktop-source-tree-node__action"
           type="button"
@@ -210,11 +238,14 @@ const runtimeStatusTone = computed(() => {
         :disabled="disabled"
         :is-validating-path-by-node-id="isValidatingPathByNodeId"
         :issues-by-node-id="issuesByNodeId"
+        :sibling-count="node.children.length"
+        :sibling-index="index"
         :runtime-source-statuses-by-node-id="runtimeSourceStatusesByNodeId"
         :path-statuses-by-node-id="pathStatusesByNodeId"
         @add-folder="emit('addFolder', $event)"
         @add-group="emit('addGroup', $event)"
         @browse-folder="emit('browseFolder', $event)"
+        @move-node="forwardMoveNode"
         @remove-node="emit('removeNode', $event)"
       />
     </div>
@@ -303,6 +334,33 @@ const runtimeStatusTone = computed(() => {
   font: inherit;
   font-size: 0.78rem;
   cursor: pointer;
+}
+
+.desktop-source-tree-node__icon-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: none;
+  min-height: 2.2rem;
+  padding: 0.45rem 0.72rem;
+  border: 1px solid var(--desktop-line);
+  border-radius: 12px;
+  background: rgba(var(--desktop-accent-rgb), 0.04);
+  color: var(--desktop-ink);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.desktop-source-tree-node__icon-action:disabled,
+.desktop-source-tree-node__action:disabled,
+.desktop-source-tree-node__browse:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.desktop-source-tree-node__icon-action-icon--up {
+  transform: rotate(180deg);
 }
 
 .desktop-source-tree-node__path-hint {
