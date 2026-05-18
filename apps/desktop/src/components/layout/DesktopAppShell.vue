@@ -12,6 +12,7 @@ import DesktopWorkspaceDialog from '@/components/workspace/DesktopWorkspaceDialo
 import { useDesktopActiveHeadings } from '@/composables/useDesktopActiveHeadings'
 import { useDesktopDocsBrowser } from '@/composables/useDesktopDocsBrowser'
 import { useDesktopPreferences } from '@/composables/useDesktopPreferences'
+import { useDesktopReadingState } from '@/composables/useDesktopReadingState'
 import { useDesktopDocsSearch } from '@/composables/useDesktopDocsSearch'
 import { useDesktopSearchCatalog } from '@/composables/useDesktopSearchCatalog'
 import { useDesktopWorkspaceDocs } from '@/composables/useDesktopWorkspaceDocs'
@@ -56,6 +57,7 @@ const {
   docDetailsBySlug: workspaceDocs.docDetailsBySlug,
   sourceGroups: workspaceDocs.sourceGroups,
 })
+const readingState = useDesktopReadingState()
 const {
   activeResult,
   close: closeSearch,
@@ -79,6 +81,9 @@ const { activeId, scrollToHeading } = useDesktopActiveHeadings(headings)
 const isSettingsOpen = shallowRef(false)
 const isSourceTreeDialogOpen = shallowRef(false)
 const isWorkspaceDialogOpen = shallowRef(false)
+const restoredScrollTop = shallowRef(0)
+const sidebarOpenBranchIds = shallowRef<string[]>([])
+const sidebarOpenSectionId = shallowRef<string | null>(null)
 const workspaceDialogMode = shallowRef<'create' | 'edit'>('create')
 const searchPanelRef = useTemplateRef<InstanceType<typeof DesktopSearchPanel>>('searchPanel')
 
@@ -209,22 +214,35 @@ async function handleSaveWorkspaceSources(sources: Parameters<typeof saveWorkspa
 }
 
 onMounted(() => {
-  void ensureLoaded()
+  void restoreInitialWorkspace()
 })
 
 watch(
-  [currentWorkspaceSourceIds, currentSourceId, docs],
-  ([sourceIds, activeSourceId, docsList]) => {
+  [currentWorkspaceId, currentWorkspaceSourceIds, docs, selectedDocSlug],
+  ([workspaceId, sourceIds, docsList, activeSlug]) => {
     if (isLoadingWorkspaces.value) {
       return
     }
 
     if (docsList.length === 0 || sourceIds.length === 0) {
       clearSelection()
+      restoredScrollTop.value = 0
       return
     }
 
-    if (!activeSourceId || !sourceIds.includes(activeSourceId)) {
+    const docsBySlug = workspaceDocs.docsBySlug.value
+    const currentDocMeta = activeSlug ? docsBySlug[activeSlug] ?? null : null
+    const restoredSlug = workspaceId ? readingState.getSelectedDocForWorkspace(workspaceId) : ''
+    const restoredDocMeta = restoredSlug ? docsBySlug[restoredSlug] ?? null : null
+    const isCurrentDocValid = Boolean(currentDocMeta && sourceIds.includes(currentDocMeta.sourceId))
+    const isRestoredDocValid = Boolean(restoredDocMeta && sourceIds.includes(restoredDocMeta.sourceId))
+
+    if (!isCurrentDocValid && isRestoredDocValid && restoredSlug) {
+      selectDoc(restoredSlug)
+      return
+    }
+
+    if (!isCurrentDocValid) {
       selectFirstDocBySourceIds(sourceIds)
     }
   },
@@ -232,11 +250,74 @@ watch(
 )
 
 watch(
-  () => currentWorkspace.value?.defaultSearchScope,
-  (defaultScope) => {
-    setScope(defaultScope ?? 'global')
+  [currentWorkspaceId, () => currentWorkspace.value?.defaultSearchScope],
+  ([workspaceId, defaultScope]) => {
+    if (!workspaceId) {
+      setScope(defaultScope ?? 'global')
+      return
+    }
+
+    setScope(readingState.getSearchScopeForWorkspace(workspaceId, defaultScope ?? 'global'))
   },
   { immediate: true },
+)
+
+watch(
+  currentWorkspaceId,
+  (workspaceId) => {
+    if (!workspaceId) {
+      sidebarOpenBranchIds.value = []
+      sidebarOpenSectionId.value = null
+      return
+    }
+
+    readingState.setCurrentWorkspaceId(workspaceId)
+    const restoredSidebarState = readingState.getSidebarStateForWorkspace(workspaceId)
+    sidebarOpenBranchIds.value = restoredSidebarState?.openBranchIds ?? []
+    sidebarOpenSectionId.value = restoredSidebarState?.openSectionId ?? null
+  },
+  { immediate: true },
+)
+
+watch(
+  [currentWorkspaceId, selectedDocSlug],
+  ([workspaceId, slug]) => {
+    if (!workspaceId || !slug) {
+      restoredScrollTop.value = 0
+      return
+    }
+
+    readingState.setSelectedDocForWorkspace(workspaceId, slug)
+    restoredScrollTop.value = readingState.getDocScrollTop(workspaceId, slug)
+  },
+  { immediate: true },
+)
+
+watch(
+  [currentWorkspaceId, scope],
+  ([workspaceId, nextScope]) => {
+    if (!workspaceId) {
+      return
+    }
+
+    readingState.setSearchScopeForWorkspace(workspaceId, nextScope)
+  },
+  { immediate: true },
+)
+
+watch(
+  [currentWorkspaceId, sidebarOpenBranchIds, sidebarOpenSectionId],
+  ([workspaceId, openBranchIds, openSectionId]) => {
+    if (!workspaceId) {
+      return
+    }
+
+    readingState.setSidebarStateForWorkspace(workspaceId, {
+      openBranchIds,
+      openSectionId,
+    })
+  },
+  { deep: true, immediate: true },
 )
 
 function countWorkspaceFolderSources(nodes: WorkspaceSourceNode[]): number {
@@ -244,6 +325,32 @@ function countWorkspaceFolderSources(nodes: WorkspaceSourceNode[]): number {
     const selfCount = node.kind === 'folder' ? 1 : 0
     return count + selfCount + countWorkspaceFolderSources(node.children)
   }, 0)
+}
+
+async function restoreInitialWorkspace() {
+  await ensureLoaded()
+
+  const restoredWorkspaceId = readingState.currentWorkspaceId.value
+  if (!restoredWorkspaceId || restoredWorkspaceId === currentWorkspaceId.value) {
+    return
+  }
+
+  if (!workspaces.value.some((workspace) => workspace.id === restoredWorkspaceId)) {
+    return
+  }
+
+  await selectWorkspace(restoredWorkspaceId)
+}
+
+function handleDocScrollTopChange(top: number) {
+  const workspaceId = currentWorkspaceId.value
+  const slug = selectedDocSlug.value
+
+  if (!workspaceId || !slug) {
+    return
+  }
+
+  readingState.setDocScrollTop(workspaceId, slug, top)
 }
 
 function waitForDocAvailability(slug: string, timeoutMs = 5000) {
@@ -350,6 +457,8 @@ function waitForDocAvailability(slug: string, timeoutMs = 5000) {
     <div class="desktop-workbench">
       <aside class="desktop-workbench__sidebar">
         <DesktopDocsSidebar
+          v-model:open-branch-ids="sidebarOpenBranchIds"
+          v-model:open-section-id="sidebarOpenSectionId"
           :current-doc-slug="selectedDocSlug || null"
           :current-workspace-doc-count="docCount"
           :current-section-id="currentSectionId"
@@ -376,7 +485,9 @@ function waitForDocAvailability(slug: string, timeoutMs = 5000) {
           :highlight-query="query"
           :next-doc="nextDoc"
           :prev-doc="prevDoc"
+          :restore-scroll-top="restoredScrollTop"
           @select-doc="handleSelectDoc"
+          @scroll-top-change="handleDocScrollTopChange"
         />
 
         <aside

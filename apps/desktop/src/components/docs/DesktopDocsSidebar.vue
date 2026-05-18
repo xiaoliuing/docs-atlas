@@ -25,8 +25,8 @@ const emit = defineEmits<{
   selectWorkspace: [workspaceId: string]
 }>()
 
-const openBranchIds = shallowRef<string[]>([])
-const openSectionId = shallowRef<string | null>(null)
+const openBranchIds = defineModel<string[]>('openBranchIds', { default: () => [] })
+const openSectionId = defineModel<string | null>('openSectionId', { default: null })
 const isWorkspaceMenuOpen = shallowRef(false)
 const sidebarInnerRef = useTemplateRef<HTMLElement>('sidebarInner')
 const workspaceSwitcherRef = useTemplateRef<HTMLElement>('workspaceSwitcher')

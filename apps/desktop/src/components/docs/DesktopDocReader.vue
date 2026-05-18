@@ -1,18 +1,57 @@
 <script setup lang="ts">
+import { nextTick, useTemplateRef, watch } from 'vue'
 import type { DocDetail, DocMeta } from '@/types/docs'
 import DesktopDocContent from './DesktopDocContent.vue'
 import DesktopDocPager from './DesktopDocPager.vue'
 
-defineProps<{
-  doc: DocDetail | null
-  highlightQuery: string
-  nextDoc: DocMeta | null
-  prevDoc: DocMeta | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    doc: DocDetail | null
+    highlightQuery: string
+    nextDoc: DocMeta | null
+    prevDoc: DocMeta | null
+    restoreScrollTop?: number
+  }>(),
+  {
+    restoreScrollTop: 0,
+  },
+)
 
 const emit = defineEmits<{
   selectDoc: [slug: string]
+  scrollTopChange: [top: number]
 }>()
+
+const scrollRef = useTemplateRef<HTMLElement>('scroll')
+
+watch(
+  () => [props.doc?.slug ?? '', props.restoreScrollTop, props.highlightQuery] as const,
+  async ([slug, restoreScrollTop, highlightQuery]) => {
+    if (!slug) {
+      return
+    }
+
+    await nextTick()
+
+    const scrollElement = scrollRef.value
+    if (!scrollElement) {
+      return
+    }
+
+    scrollElement.scrollTop = highlightQuery.trim() ? 0 : Math.max(0, restoreScrollTop)
+    emit('scrollTopChange', scrollElement.scrollTop)
+  },
+  { immediate: true },
+)
+
+function handleScroll(event: Event) {
+  const target = event.target
+  if (!(target instanceof HTMLElement)) {
+    return
+  }
+
+  emit('scrollTopChange', target.scrollTop)
+}
 </script>
 
 <template>
@@ -22,7 +61,9 @@ const emit = defineEmits<{
   >
     <div
       id="desktop-doc-scroll"
+      ref="scroll"
       class="desktop-doc-reader__scroll desktop-scroll"
+      @scroll="handleScroll"
     >
       <DesktopDocContent
         :doc="doc"
