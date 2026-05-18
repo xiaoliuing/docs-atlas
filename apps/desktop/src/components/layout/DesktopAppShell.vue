@@ -35,10 +35,8 @@ const {
   currentWorkspaceSourceIds,
   ensureLoaded,
   isLoadingWorkspaces,
-  isReorderingWorkspaces,
   isSavingWorkspace,
   isSavingWorkspaceSources,
-  moveWorkspace,
   saveWorkspaceSources,
   selectWorkspace,
   updateWorkspaceMeta,
@@ -172,14 +170,6 @@ function openEditWorkspaceDialog() {
 
   workspaceDialogMode.value = 'edit'
   isWorkspaceDialogOpen.value = true
-}
-
-async function handleMoveWorkspace(direction: -1 | 1) {
-  if (!currentWorkspace.value) {
-    return
-  }
-
-  await moveWorkspace(currentWorkspace.value.id, direction)
 }
 
 async function handleSaveWorkspaceSources(sources: Parameters<typeof saveWorkspaceSources>[1]) {
@@ -363,13 +353,11 @@ function filterSourceGroups(groups: typeof sourceGroups, allowedSourceIds: Set<s
           :current-source-id="currentSourceId"
           :current-workspace-id="currentWorkspaceId"
           :current-workspace-source-count="sourceCount"
-          :is-reordering-workspaces="isReorderingWorkspaces"
           :source-groups="visibleSourceGroups"
           :workspaces="workspaces"
           @create-workspace="openCreateWorkspaceDialog"
           @edit-workspace="openEditWorkspaceDialog"
           @edit-sources="openSourceTreeDialog"
-          @move-workspace="handleMoveWorkspace"
           @select-doc="handleSelectDoc"
           @select-workspace="handleSelectWorkspace"
         />
