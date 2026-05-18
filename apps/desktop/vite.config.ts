@@ -11,6 +11,16 @@ export default defineConfig(({ mode }) => {
   const docsConfig = resolveDocsConfig(projectRoot, {})
 
   return {
+    server: {
+      host: '127.0.0.1',
+      port: 43174,
+      strictPort: true,
+    },
+    preview: {
+      host: '127.0.0.1',
+      port: 43174,
+      strictPort: true,
+    },
     plugins: [
       vue(),
       createDocsDataPlugin({

@@ -1,12 +1,13 @@
 {
   "name": "docs-atlas-workspace",
   "private": true,
-  "version": "0.10.0",
+  "version": "0.11.0",
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "pnpm dev:web",
     "dev:web": "pnpm --filter @docs-atlas/web dev",
     "dev:desktop": "pnpm --filter @docs-atlas/desktop dev",
+    "dev:desktop-web": "pnpm --filter @docs-atlas/desktop dev:web-shell",
     "build": "pnpm build:web",
     "build:web": "pnpm --filter @docs-atlas/web build",
     "build:desktop": "pnpm --filter @docs-atlas/desktop build",
