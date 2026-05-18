@@ -1,7 +1,501 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use rusqlite::{params, Connection, OptionalExtension};
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Manager};
+
+const WORKSPACE_DB_SCHEMA: &str = r#"
+create table if not exists workspaces (
+  id text primary key,
+  name text not null,
+  description text not null default '',
+  icon text not null default '',
+  color text not null default '',
+  created_at text not null,
+  updated_at text not null,
+  last_opened_at text
+);
+
+create table if not exists workspace_source_nodes (
+  id text primary key,
+  workspace_id text not null,
+  parent_id text,
+  kind text not null,
+  name text not null,
+  path text not null default '',
+  enabled integer not null default 1,
+  position integer not null default 0,
+  created_at text not null,
+  updated_at text not null,
+  foreign key (workspace_id) references workspaces(id) on delete cascade
+);
+
+create table if not exists app_settings (
+  key text primary key,
+  value_json text not null,
+  updated_at text not null
+);
+
+create table if not exists recent_workspace_entries (
+  workspace_id text primary key,
+  opened_at text not null,
+  foreign key (workspace_id) references workspaces(id) on delete cascade
+);
+"#;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceDetailPayload {
+  id: String,
+  name: String,
+  description: String,
+  icon: String,
+  color: String,
+  created_at: String,
+  updated_at: String,
+  last_opened_at: Option<String>,
+  sources: Vec<WorkspaceSourceNodePayload>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceSourceNodePayload {
+  id: String,
+  workspace_id: String,
+  parent_id: Option<String>,
+  kind: String,
+  name: String,
+  path: String,
+  enabled: bool,
+  position: i64,
+  children: Vec<WorkspaceSourceNodePayload>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceSaveInput {
+  id: String,
+  name: String,
+  description: Option<String>,
+  icon: Option<String>,
+  color: Option<String>,
+  last_opened_at: Option<String>,
+  sources: Option<Vec<WorkspaceSourceNodeInput>>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceSourceNodeInput {
+  id: String,
+  parent_id: Option<String>,
+  kind: String,
+  name: String,
+  path: Option<String>,
+  enabled: Option<bool>,
+  position: Option<i64>,
+  children: Option<Vec<WorkspaceSourceNodeInput>>,
+}
+
+#[derive(Debug, Clone)]
+struct WorkspaceSourceNodeRow {
+  id: String,
+  workspace_id: String,
+  parent_id: Option<String>,
+  kind: String,
+  name: String,
+  path: String,
+  enabled: bool,
+  position: i64,
+}
+
+#[derive(Debug, Clone)]
+struct WorkspaceSummaryRow {
+  id: String,
+  name: String,
+  description: String,
+  icon: String,
+  color: String,
+  created_at: String,
+  updated_at: String,
+  last_opened_at: Option<String>,
+}
+
+#[tauri::command]
+fn list_workspace_details(app: AppHandle) -> Result<Vec<WorkspaceDetailPayload>, String> {
+  let connection = open_workspace_database(&app)?;
+  let mut statement = connection
+    .prepare(
+      r#"
+      select
+        id,
+        name,
+        description,
+        icon,
+        color,
+        created_at,
+        updated_at,
+        last_opened_at
+      from workspaces
+      order by coalesce(last_opened_at, updated_at) desc, name asc
+      "#,
+    )
+    .map_err(|error| error.to_string())?;
+
+  let rows = statement
+    .query_map([], |row| {
+      Ok(WorkspaceSummaryRow {
+        id: row.get(0)?,
+        name: row.get(1)?,
+        description: row.get(2)?,
+        icon: row.get(3)?,
+        color: row.get(4)?,
+        created_at: row.get(5)?,
+        updated_at: row.get(6)?,
+        last_opened_at: row.get(7)?,
+      })
+    })
+    .map_err(|error| error.to_string())?;
+
+  rows
+    .collect::<Result<Vec<_>, _>>()
+    .map_err(|error| error.to_string())?
+    .into_iter()
+    .map(|workspace| load_workspace_detail(&connection, workspace))
+    .collect()
+}
+
+#[tauri::command]
+fn upsert_workspace(app: AppHandle, input: WorkspaceSaveInput) -> Result<WorkspaceDetailPayload, String> {
+  let mut connection = open_workspace_database(&app)?;
+  let transaction = connection.transaction().map_err(|error| error.to_string())?;
+  let now = current_timestamp();
+
+  let created_at = transaction
+    .query_row(
+      "select created_at from workspaces where id = ?1",
+      params![&input.id],
+      |row| row.get::<_, String>(0),
+    )
+    .optional()
+    .map_err(|error| error.to_string())?
+    .unwrap_or_else(|| now.clone());
+
+  transaction
+    .execute(
+      r#"
+      insert into workspaces (
+        id,
+        name,
+        description,
+        icon,
+        color,
+        created_at,
+        updated_at,
+        last_opened_at
+      )
+      values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+      on conflict(id) do update set
+        name = excluded.name,
+        description = excluded.description,
+        icon = excluded.icon,
+        color = excluded.color,
+        updated_at = excluded.updated_at,
+        last_opened_at = excluded.last_opened_at
+      "#,
+      params![
+        &input.id,
+        &input.name,
+        input.description.clone().unwrap_or_default(),
+        input.icon.clone().unwrap_or_default(),
+        input.color.clone().unwrap_or_else(|| "#1f54d9".to_string()),
+        created_at,
+        now,
+        input.last_opened_at.clone()
+      ],
+    )
+    .map_err(|error| error.to_string())?;
+
+  replace_workspace_source_nodes(&transaction, &input.id, input.sources.unwrap_or_default())?;
+  transaction.commit().map_err(|error| error.to_string())?;
+
+  let connection = open_workspace_database(&app)?;
+  let summary = load_workspace_summary(&connection, &input.id)?;
+  load_workspace_detail(&connection, summary)
+}
+
+#[tauri::command]
+fn mark_workspace_opened(app: AppHandle, workspace_id: String) -> Result<Option<WorkspaceDetailPayload>, String> {
+  let connection = open_workspace_database(&app)?;
+  let now = current_timestamp();
+
+  let updated = connection
+    .execute(
+      r#"
+      update workspaces
+      set
+        updated_at = ?2,
+        last_opened_at = ?2
+      where id = ?1
+      "#,
+      params![&workspace_id, now],
+    )
+    .map_err(|error| error.to_string())?;
+
+  if updated == 0 {
+    return Ok(None);
+  }
+
+  let summary = load_workspace_summary(&connection, &workspace_id)?;
+  load_workspace_detail(&connection, summary).map(Some)
+}
+
 fn main() {
   tauri::Builder::default()
+    .invoke_handler(tauri::generate_handler![
+      list_workspace_details,
+      mark_workspace_opened,
+      upsert_workspace
+    ])
     .run(tauri::generate_context!())
     .expect("error while running Docs Atlas desktop application");
+}
+
+fn open_workspace_database(app: &AppHandle) -> Result<Connection, String> {
+  let data_directory = app.path().app_data_dir().map_err(|error| error.to_string())?;
+  std::fs::create_dir_all(&data_directory).map_err(|error| error.to_string())?;
+
+  let database_path = data_directory.join("docs-atlas.db");
+  let connection = Connection::open(database_path).map_err(|error| error.to_string())?;
+  connection
+    .execute_batch("pragma foreign_keys = on;")
+    .map_err(|error| error.to_string())?;
+  connection
+    .execute_batch(WORKSPACE_DB_SCHEMA)
+    .map_err(|error| error.to_string())?;
+  Ok(connection)
+}
+
+fn load_workspace_summary(connection: &Connection, workspace_id: &str) -> Result<WorkspaceSummaryRow, String> {
+  connection
+    .query_row(
+      r#"
+      select
+        id,
+        name,
+        description,
+        icon,
+        color,
+        created_at,
+        updated_at,
+        last_opened_at
+      from workspaces
+      where id = ?1
+      "#,
+      params![workspace_id],
+      |row| {
+        Ok(WorkspaceSummaryRow {
+          id: row.get(0)?,
+          name: row.get(1)?,
+          description: row.get(2)?,
+          icon: row.get(3)?,
+          color: row.get(4)?,
+          created_at: row.get(5)?,
+          updated_at: row.get(6)?,
+          last_opened_at: row.get(7)?,
+        })
+      },
+    )
+    .map_err(|error| error.to_string())
+}
+
+fn load_workspace_detail(
+  connection: &Connection,
+  workspace: WorkspaceSummaryRow,
+) -> Result<WorkspaceDetailPayload, String> {
+  let mut statement = connection
+    .prepare(
+      r#"
+      select
+        id,
+        workspace_id,
+        parent_id,
+        kind,
+        name,
+        path,
+        enabled,
+        position
+      from workspace_source_nodes
+      where workspace_id = ?1
+      order by position asc, name asc
+      "#,
+    )
+    .map_err(|error| error.to_string())?;
+
+  let rows = statement
+    .query_map(params![workspace.id.clone()], |row| {
+      Ok(WorkspaceSourceNodeRow {
+        id: row.get(0)?,
+        workspace_id: row.get(1)?,
+        parent_id: row.get(2)?,
+        kind: row.get(3)?,
+        name: row.get(4)?,
+        path: row.get(5)?,
+        enabled: row.get::<_, i64>(6)? == 1,
+        position: row.get(7)?,
+      })
+    })
+    .map_err(|error| error.to_string())?;
+
+  let sources = build_source_tree(
+    rows.collect::<Result<Vec<_>, _>>()
+      .map_err(|error| error.to_string())?,
+  );
+
+  Ok(WorkspaceDetailPayload {
+    id: workspace.id,
+    name: workspace.name,
+    description: workspace.description,
+    icon: workspace.icon,
+    color: workspace.color,
+    created_at: workspace.created_at,
+    updated_at: workspace.updated_at,
+    last_opened_at: workspace.last_opened_at,
+    sources,
+  })
+}
+
+fn replace_workspace_source_nodes(
+  connection: &Connection,
+  workspace_id: &str,
+  nodes: Vec<WorkspaceSourceNodeInput>,
+) -> Result<(), String> {
+  connection
+    .execute(
+      "delete from workspace_source_nodes where workspace_id = ?1",
+      params![workspace_id],
+    )
+    .map_err(|error| error.to_string())?;
+
+  let flattened = flatten_source_nodes(workspace_id, None, nodes);
+  let now = current_timestamp();
+
+  for node in flattened {
+    connection
+      .execute(
+        r#"
+        insert into workspace_source_nodes (
+          id,
+          workspace_id,
+          parent_id,
+          kind,
+          name,
+          path,
+          enabled,
+          position,
+          created_at,
+          updated_at
+        )
+        values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+        "#,
+        params![
+          node.id,
+          node.workspace_id,
+          node.parent_id,
+          node.kind,
+          node.name,
+          node.path,
+          if node.enabled { 1 } else { 0 },
+          node.position,
+          now,
+          now
+        ],
+      )
+      .map_err(|error| error.to_string())?;
+  }
+
+  Ok(())
+}
+
+fn flatten_source_nodes(
+  workspace_id: &str,
+  parent_id: Option<String>,
+  nodes: Vec<WorkspaceSourceNodeInput>,
+) -> Vec<WorkspaceSourceNodeRow> {
+  nodes
+    .into_iter()
+    .enumerate()
+    .flat_map(|(index, node)| {
+      let current = WorkspaceSourceNodeRow {
+        id: node.id.clone(),
+        workspace_id: workspace_id.to_string(),
+        parent_id: node.parent_id.clone().or_else(|| parent_id.clone()),
+        kind: node.kind.clone(),
+        name: node.name.clone(),
+        path: node.path.clone().unwrap_or_default(),
+        enabled: node.enabled.unwrap_or(true),
+        position: node.position.unwrap_or(index as i64),
+      };
+
+      let children = flatten_source_nodes(workspace_id, Some(node.id), node.children.unwrap_or_default());
+      std::iter::once(current).chain(children.into_iter()).collect::<Vec<_>>()
+    })
+    .collect()
+}
+
+fn build_source_tree(rows: Vec<WorkspaceSourceNodeRow>) -> Vec<WorkspaceSourceNodePayload> {
+  let by_parent = rows.iter().fold(
+    std::collections::HashMap::<Option<String>, Vec<WorkspaceSourceNodeRow>>::new(),
+    |mut groups, row| {
+      groups.entry(row.parent_id.clone()).or_default().push(row.clone());
+      groups
+    },
+  );
+
+  let mut roots = build_source_children(None, &by_parent);
+  sort_source_nodes(&mut roots);
+  roots
+}
+
+fn build_source_children(
+  parent_id: Option<String>,
+  by_parent: &std::collections::HashMap<Option<String>, Vec<WorkspaceSourceNodeRow>>,
+) -> Vec<WorkspaceSourceNodePayload> {
+  by_parent
+    .get(&parent_id)
+    .cloned()
+    .unwrap_or_default()
+    .into_iter()
+    .map(|row| WorkspaceSourceNodePayload {
+      id: row.id.clone(),
+      workspace_id: row.workspace_id.clone(),
+      parent_id: row.parent_id.clone(),
+      kind: row.kind.clone(),
+      name: row.name.clone(),
+      path: row.path.clone(),
+      enabled: row.enabled,
+      position: row.position,
+      children: build_source_children(Some(row.id), by_parent),
+    })
+    .collect()
+}
+
+fn sort_source_nodes(nodes: &mut Vec<WorkspaceSourceNodePayload>) {
+  nodes.sort_by(|left, right| {
+    left.position
+      .cmp(&right.position)
+      .then_with(|| left.name.to_lowercase().cmp(&right.name.to_lowercase()))
+  });
+
+  for node in nodes {
+    sort_source_nodes(&mut node.children);
+  }
+}
+
+fn current_timestamp() -> String {
+  use std::time::{SystemTime, UNIX_EPOCH};
+
+  match SystemTime::now().duration_since(UNIX_EPOCH) {
+    Ok(duration) => format!("{}", duration.as_secs()),
+    Err(_) => "0".to_string(),
+  }
 }

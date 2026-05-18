@@ -1,17 +1,12 @@
 import type { WorkspaceDetail } from '@docs-atlas/shared-types/workspace'
 
-export type DesktopWorkspace = WorkspaceDetail & {
-  sourceLabels: string[] | '*'
-}
-
-export const mockWorkspaces: DesktopWorkspace[] = [
+export const mockWorkspaces: WorkspaceDetail[] = [
   {
     id: 'workspace:atlas',
     name: 'Docs Atlas',
     description: '聚合全部本地文档源，适合做全局浏览和跨项目检索。',
     icon: 'atlas',
     color: '#1f54d9',
-    sourceLabels: '*',
     createdAt: '2026-05-18T09:30:00.000Z',
     updatedAt: '2026-05-18T09:30:00.000Z',
     lastOpenedAt: '2026-05-18T10:40:00.000Z',
@@ -68,7 +63,6 @@ export const mockWorkspaces: DesktopWorkspace[] = [
     description: '专注当前仓库和教程资料，适合日常查看设计说明与接入文档。',
     icon: 'layers',
     color: '#2f7b5f',
-    sourceLabels: ['GET STARTED', '学习教程'],
     createdAt: '2026-05-17T14:20:00.000Z',
     updatedAt: '2026-05-18T08:12:00.000Z',
     lastOpenedAt: '2026-05-18T08:36:00.000Z',
@@ -115,7 +109,6 @@ export const mockWorkspaces: DesktopWorkspace[] = [
     description: '集中查看 AI Agent、RAG 等实验型项目的实现和设计文档。',
     icon: 'sparkles',
     color: '#7a5af8',
-    sourceLabels: ['AI / AI-Agent', 'AI / RAG-LITE'],
     createdAt: '2026-05-17T18:00:00.000Z',
     updatedAt: '2026-05-18T09:18:00.000Z',
     lastOpenedAt: '2026-05-18T09:22:00.000Z',

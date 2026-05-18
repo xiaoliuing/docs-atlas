@@ -1,0 +1,113 @@
+import { invoke } from '@tauri-apps/api/core'
+import type { WorkspaceDetail, WorkspaceSourceNodeInput, WorkspaceUpsertInput } from '@docs-atlas/shared-types/workspace'
+import { mockWorkspaces } from '@/mocks/workspaces'
+
+const STORAGE_KEY = 'docs-atlas.desktop.workspaces.v1'
+
+export type WorkspaceSaveInput = WorkspaceUpsertInput & {
+  sources?: WorkspaceSourceNodeInput[]
+}
+
+export async function listWorkspaceDetails(): Promise<WorkspaceDetail[]> {
+  if (isTauriRuntime()) {
+    return invoke<WorkspaceDetail[]>('list_workspace_details')
+  }
+
+  return readBrowserWorkspaces()
+}
+
+export async function upsertWorkspace(input: WorkspaceSaveInput): Promise<WorkspaceDetail> {
+  if (isTauriRuntime()) {
+    return invoke<WorkspaceDetail>('upsert_workspace', { input })
+  }
+
+  const workspaces = readBrowserWorkspaces()
+  const now = new Date().toISOString()
+  const nextWorkspace: WorkspaceDetail = {
+    id: input.id,
+    name: input.name,
+    description: input.description ?? '',
+    icon: input.icon ?? '',
+    color: input.color ?? '#1f54d9',
+    createdAt: workspaces.find((workspace) => workspace.id === input.id)?.createdAt ?? now,
+    updatedAt: now,
+    lastOpenedAt: input.lastOpenedAt ?? null,
+    sources: cloneSources(input.sources ?? workspaces.find((workspace) => workspace.id === input.id)?.sources ?? []),
+  }
+
+  const nextWorkspaces = [
+    nextWorkspace,
+    ...workspaces.filter((workspace) => workspace.id !== input.id),
+  ]
+  writeBrowserWorkspaces(nextWorkspaces)
+  return nextWorkspace
+}
+
+export async function markWorkspaceOpened(workspaceId: string): Promise<WorkspaceDetail | null> {
+  if (isTauriRuntime()) {
+    return invoke<WorkspaceDetail | null>('mark_workspace_opened', { workspaceId })
+  }
+
+  const workspaces = readBrowserWorkspaces()
+  const target = workspaces.find((workspace) => workspace.id === workspaceId)
+  if (!target) {
+    return null
+  }
+
+  const now = new Date().toISOString()
+  const updated = {
+    ...target,
+    updatedAt: now,
+    lastOpenedAt: now,
+  }
+  writeBrowserWorkspaces([updated, ...workspaces.filter((workspace) => workspace.id !== workspaceId)])
+  return updated
+}
+
+function readBrowserWorkspaces(): WorkspaceDetail[] {
+  if (typeof window === 'undefined') {
+    return cloneWorkspaces(mockWorkspaces)
+  }
+
+  const rawValue = window.localStorage.getItem(STORAGE_KEY)
+  if (!rawValue) {
+    const seeded = cloneWorkspaces(mockWorkspaces)
+    writeBrowserWorkspaces(seeded)
+    return seeded
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue) as WorkspaceDetail[]
+    return cloneWorkspaces(parsed)
+  } catch {
+    const seeded = cloneWorkspaces(mockWorkspaces)
+    writeBrowserWorkspaces(seeded)
+    return seeded
+  }
+}
+
+function writeBrowserWorkspaces(workspaces: WorkspaceDetail[]) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(workspaces))
+}
+
+function isTauriRuntime() {
+  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+}
+
+function cloneWorkspaces(workspaces: WorkspaceDetail[]): WorkspaceDetail[] {
+  return workspaces.map((workspace) => ({
+    ...workspace,
+    sources: cloneSources(workspace.sources),
+  }))
+}
+
+function cloneSources(sources: WorkspaceDetail['sources']): WorkspaceDetail['sources'] {
+  return sources.map((source) => ({
+    ...source,
+    children: cloneSources(source.children),
+  }))
+}

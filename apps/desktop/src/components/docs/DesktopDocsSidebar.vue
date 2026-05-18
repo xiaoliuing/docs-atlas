@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
-import type { DesktopWorkspace } from '@/mocks/workspaces'
+import type { WorkspaceDetail } from '@docs-atlas/shared-types/workspace'
 import type { DocsSourceGroup } from '@/types/docs'
 import DesktopDocsSidebarNode from './DesktopDocsSidebarNode.vue'
 
@@ -10,10 +10,11 @@ const props = defineProps<{
   currentSourceId: string | null
   currentWorkspaceId: string
   sourceGroups: DocsSourceGroup[]
-  workspaces: DesktopWorkspace[]
+  workspaces: WorkspaceDetail[]
 }>()
 
 const emit = defineEmits<{
+  createWorkspace: []
   selectDoc: [slug: string]
   selectWorkspace: [workspaceId: string]
 }>()
@@ -149,7 +150,18 @@ function countDocs(group: DocsSourceGroup): number {
 <template>
   <aside class="desktop-docs-sidebar">
     <div class="desktop-docs-sidebar__workspace-panel">
-      <p class="desktop-docs-sidebar__panel-label">Workspace</p>
+      <div class="desktop-docs-sidebar__panel-header">
+        <p class="desktop-docs-sidebar__panel-label">Workspace</p>
+        <button
+          aria-label="新建工作区"
+          class="desktop-docs-sidebar__create"
+          type="button"
+          @click="emit('createWorkspace')"
+        >
+          <span />
+          <span />
+        </button>
+      </div>
 
       <div
         ref="workspaceSwitcher"
@@ -228,7 +240,10 @@ function countDocs(group: DocsSourceGroup): number {
         ref="sidebarInner"
         class="desktop-docs-sidebar__scroll desktop-scroll"
       >
-        <nav class="desktop-docs-sidebar__nav">
+        <nav
+          v-if="props.sourceGroups.length > 0"
+          class="desktop-docs-sidebar__nav"
+        >
           <DesktopDocsSidebarNode
             v-for="node in props.sourceGroups"
             :key="node.id"
@@ -244,6 +259,13 @@ function countDocs(group: DocsSourceGroup): number {
             @toggle-section="toggleSection"
           />
         </nav>
+
+        <div
+          v-else
+          class="desktop-docs-sidebar__empty"
+        >
+          当前工作区还没有可显示的文档源。
+        </div>
       </div>
     </div>
   </aside>
@@ -277,6 +299,39 @@ function countDocs(group: DocsSourceGroup): number {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--desktop-soft);
+}
+
+.desktop-docs-sidebar__panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.desktop-docs-sidebar__create {
+  position: relative;
+  width: 1.95rem;
+  height: 1.95rem;
+  border: 1px solid var(--desktop-line);
+  border-radius: 12px;
+  background: rgba(var(--desktop-accent-rgb), 0.05);
+  color: var(--desktop-accent);
+  cursor: pointer;
+}
+
+.desktop-docs-sidebar__create span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0.78rem;
+  height: 1.5px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translate(-50%, -50%);
+}
+
+.desktop-docs-sidebar__create span:last-child {
+  transform: translate(-50%, -50%) rotate(90deg);
 }
 
 .desktop-docs-sidebar__workspace-switcher {
@@ -447,5 +502,15 @@ function countDocs(group: DocsSourceGroup): number {
 .desktop-docs-sidebar__nav {
   display: grid;
   gap: 0.5rem;
+}
+
+.desktop-docs-sidebar__empty {
+  padding: 0.9rem;
+  border: 1px dashed rgba(var(--desktop-accent-rgb), 0.18);
+  border-radius: 14px;
+  color: var(--desktop-muted);
+  background: rgba(var(--desktop-accent-rgb), 0.04);
+  font-size: 0.8rem;
+  line-height: 1.5;
 }
 </style>

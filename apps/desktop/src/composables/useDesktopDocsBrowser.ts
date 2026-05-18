@@ -55,7 +55,22 @@ export function useDesktopDocsBrowser() {
     }
   }
 
+  function selectFirstDocBySourceIds(sourceIds: string[]) {
+    if (sourceIds.length === 0) {
+      selectedDocSlug.value = ''
+      return
+    }
+
+    const firstDoc = docs.find((doc) => sourceIds.includes(doc.sourceId))
+    selectedDocSlug.value = firstDoc?.slug ?? ''
+  }
+
+  function clearSelection() {
+    selectedDocSlug.value = ''
+  }
+
   return {
+    clearSelection,
     currentDoc,
     currentSectionId,
     currentSourceId,
@@ -65,6 +80,7 @@ export function useDesktopDocsBrowser() {
     prevDoc,
     selectDoc,
     selectFirstDoc,
+    selectFirstDocBySourceIds,
     selectedDocSlug,
     sourceGroups,
   }

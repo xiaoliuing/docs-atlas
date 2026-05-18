@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed, nextTick, shallowRef, useTemplateRef } from 'vue'
+import { computed, nextTick, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
 import DesktopDocReader from '@/components/docs/DesktopDocReader.vue'
 import DesktopDocsSidebar from '@/components/docs/DesktopDocsSidebar.vue'
 import DesktopDocToc from '@/components/docs/DesktopDocToc.vue'
 import DesktopSearchPanel from '@/components/docs/DesktopSearchPanel.vue'
+import DesktopWorkspaceDialog from '@/components/workspace/DesktopWorkspaceDialog.vue'
 import { useDesktopActiveHeadings } from '@/composables/useDesktopActiveHeadings'
 import { useDesktopDocsBrowser } from '@/composables/useDesktopDocsBrowser'
 import { useDesktopDocsSearch } from '@/composables/useDesktopDocsSearch'
 import { useWorkspaceSelection } from '@/composables/useWorkspaceSelection'
 
 const {
+  clearSelection,
   currentDoc,
   currentSectionId,
   currentSourceId,
@@ -18,10 +20,21 @@ const {
   prevDoc,
   selectDoc,
   selectFirstDoc,
+  selectFirstDocBySourceIds,
   selectedDocSlug,
   sourceGroups,
 } = useDesktopDocsBrowser()
-const { currentWorkspace, currentWorkspaceId, currentWorkspaceSourceIds, selectWorkspace, workspaces } =
+const {
+  createWorkspace,
+  currentWorkspace,
+  currentWorkspaceId,
+  currentWorkspaceSourceIds,
+  ensureLoaded,
+  isLoadingWorkspaces,
+  isSavingWorkspace,
+  selectWorkspace,
+  workspaces,
+} =
   useWorkspaceSelection(sourceGroups)
 const {
   activeResult,
@@ -41,6 +54,7 @@ const {
 const { activeId, scrollToHeading } = useDesktopActiveHeadings(headings)
 
 const isSettingsOpen = shallowRef(false)
+const isWorkspaceDialogOpen = shallowRef(false)
 const searchPanelRef = useTemplateRef<InstanceType<typeof DesktopSearchPanel>>('searchPanel')
 
 const floatingPanelVisible = computed(() => isOpen.value || isSettingsOpen.value)
@@ -51,11 +65,11 @@ const searchQuery = computed({
   },
 })
 const sourceCount = computed(() => currentWorkspaceSourceIds.value.length)
-const docCount = computed(() => countDocs(sourceGroups))
+const visibleSourceGroups = computed(() => filterSourceGroups(sourceGroups, new Set(currentWorkspaceSourceIds.value)))
+const docCount = computed(() => countDocs(visibleSourceGroups.value))
 
 function handleSelectWorkspace(workspaceId: string) {
-  selectWorkspace(workspaceId)
-  selectFirstDoc()
+  void selectWorkspace(workspaceId)
   isSettingsOpen.value = false
 }
 
@@ -99,12 +113,67 @@ function closeFloatingPanels() {
   isSettingsOpen.value = false
 }
 
+async function handleCreateWorkspace(payload: { name: string; description: string; color: string }) {
+  const workspace = await createWorkspace({
+    name: payload.name,
+    description: payload.description,
+    color: payload.color,
+    icon: 'folder',
+    lastOpenedAt: new Date().toISOString(),
+  })
+
+  if (!workspace) {
+    return
+  }
+
+  isWorkspaceDialogOpen.value = false
+}
+
+onMounted(() => {
+  void ensureLoaded()
+})
+
+watch(
+  [currentWorkspaceSourceIds, currentSourceId],
+  ([sourceIds, activeSourceId]) => {
+    if (isLoadingWorkspaces.value) {
+      return
+    }
+
+    if (sourceIds.length === 0) {
+      clearSelection()
+      return
+    }
+
+    if (!activeSourceId || !sourceIds.includes(activeSourceId)) {
+      selectFirstDocBySourceIds(sourceIds)
+    }
+  },
+  { immediate: true },
+)
+
 function countDocs(groups: typeof sourceGroups): number {
   return groups.reduce((count, group) => {
     const sectionDocs = group.sections.reduce((sectionCount, section) => sectionCount + section.docs.length, 0)
     const childDocs = countDocs(group.children)
     return count + group.rootDocs.length + sectionDocs + childDocs
   }, 0)
+}
+
+function filterSourceGroups(groups: typeof sourceGroups, allowedSourceIds: Set<string>) {
+  return groups
+    .map((group) => {
+      const children = filterSourceGroups(group.children, allowedSourceIds)
+      const isAllowedSource = group.sourceId !== null && allowedSourceIds.has(group.sourceId)
+      return {
+        ...group,
+        children,
+      }
+    })
+    .filter((group) => {
+      const isAllowedSource = group.sourceId !== null && allowedSourceIds.has(group.sourceId)
+      return isAllowedSource || group.children.length > 0
+    })
 }
 </script>
 
@@ -216,8 +285,9 @@ function countDocs(groups: typeof sourceGroups): number {
           :current-section-id="currentSectionId"
           :current-source-id="currentSourceId"
           :current-workspace-id="currentWorkspaceId"
-          :source-groups="sourceGroups"
+          :source-groups="visibleSourceGroups"
           :workspaces="workspaces"
+          @create-workspace="isWorkspaceDialogOpen = true"
           @select-doc="handleSelectDoc"
           @select-workspace="handleSelectWorkspace"
         />
@@ -247,6 +317,13 @@ function countDocs(groups: typeof sourceGroups): number {
         </aside>
       </main>
     </div>
+
+    <DesktopWorkspaceDialog
+      v-model:open="isWorkspaceDialogOpen"
+      :is-saving="isSavingWorkspace"
+      @close="isWorkspaceDialogOpen = false"
+      @submit="handleCreateWorkspace"
+    />
   </div>
 </template>
 
