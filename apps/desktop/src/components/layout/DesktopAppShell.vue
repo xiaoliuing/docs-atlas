@@ -88,6 +88,8 @@ const sidebarOpenBranchIds = shallowRef<string[]>([])
 const sidebarOpenSectionId = shallowRef<string | null>(null)
 const workspaceDialogMode = shallowRef<'create' | 'edit'>('create')
 const hasRestoredInitialWorkspace = shallowRef(false)
+const pendingRestoreWorkspaceId = shallowRef('')
+const pendingRestoreDocSlug = shallowRef('')
 const searchPanelRef = useTemplateRef<InstanceType<typeof DesktopSearchPanel>>('searchPanel')
 
 const floatingPanelVisible = computed(() => isOpen.value || isSettingsOpen.value)
@@ -255,14 +257,20 @@ watch(
 
     const docsBySlug = workspaceDocs.docsBySlug.value
     const currentDocMeta = activeSlug ? docsBySlug[activeSlug] ?? null : null
-    const restoredSlug = workspaceId ? readingState.getSelectedDocForWorkspace(workspaceId) : ''
-    const restoredDocMeta = restoredSlug ? docsBySlug[restoredSlug] ?? null : null
     const isCurrentDocValid = Boolean(currentDocMeta && sourceIds.includes(currentDocMeta.sourceId))
-    const isRestoredDocValid = Boolean(restoredDocMeta && sourceIds.includes(restoredDocMeta.sourceId))
+    const restoreSlug =
+      workspaceId && pendingRestoreWorkspaceId.value === workspaceId ? pendingRestoreDocSlug.value : ''
+    const restoreDocMeta = restoreSlug ? docsBySlug[restoreSlug] ?? null : null
+    const isRestoreDocValid = Boolean(restoreDocMeta && sourceIds.includes(restoreDocMeta.sourceId))
 
-    if (!isCurrentDocValid && isRestoredDocValid && restoredSlug) {
-      selectDoc(restoredSlug)
-      return
+    if (restoreSlug) {
+      if (isRestoreDocValid && activeSlug !== restoreSlug) {
+        selectDoc(restoreSlug)
+        return
+      }
+
+      pendingRestoreWorkspaceId.value = ''
+      pendingRestoreDocSlug.value = ''
     }
 
     if (!isCurrentDocValid) {
@@ -298,6 +306,10 @@ watch(
       readingState.setCurrentWorkspaceId(workspaceId)
     }
 
+    const restoredSlug = readingState.getSelectedDocForWorkspace(workspaceId)
+    pendingRestoreWorkspaceId.value = restoredSlug ? workspaceId : ''
+    pendingRestoreDocSlug.value = restoredSlug
+
     const restoredSidebarState = readingState.getSidebarStateForWorkspace(workspaceId)
     sidebarOpenBranchIds.value = restoredSidebarState?.openBranchIds ?? []
     sidebarOpenSectionId.value = restoredSidebarState?.openSectionId ?? null
@@ -310,6 +322,10 @@ watch(
   ([workspaceId, slug]) => {
     if (!workspaceId || !slug) {
       restoredScrollTop.value = 0
+      return
+    }
+
+    if (pendingRestoreWorkspaceId.value === workspaceId && pendingRestoreDocSlug.value && pendingRestoreDocSlug.value !== slug) {
       return
     }
 
