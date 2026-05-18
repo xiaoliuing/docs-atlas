@@ -445,6 +445,10 @@ function renderMarkdown(
       td: ['colspan', 'rowspan'],
       th: ['colspan', 'rowspan'],
     },
+    allowedSchemes: ['http', 'https', 'mailto', 'tel', 'data', 'asset'],
+    allowedSchemesByTag: {
+      img: ['http', 'https', 'data', 'asset'],
+    },
   })
 
   return {
