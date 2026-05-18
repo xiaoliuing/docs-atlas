@@ -20,15 +20,20 @@ const emit = defineEmits<{
     v-if="doc"
     class="desktop-doc-reader"
   >
-    <DesktopDocContent
-      :doc="doc"
-      :highlight-query="highlightQuery"
-    />
-    <DesktopDocPager
-      :next-doc="nextDoc"
-      :prev-doc="prevDoc"
-      @select-doc="emit('selectDoc', $event)"
-    />
+    <div
+      id="desktop-doc-scroll"
+      class="desktop-doc-reader__scroll desktop-scroll"
+    >
+      <DesktopDocContent
+        :doc="doc"
+        :highlight-query="highlightQuery"
+      />
+      <DesktopDocPager
+        :next-doc="nextDoc"
+        :prev-doc="prevDoc"
+        @select-doc="emit('selectDoc', $event)"
+      />
+    </div>
   </section>
 
   <section
@@ -43,8 +48,17 @@ const emit = defineEmits<{
 <style scoped>
 .desktop-doc-reader {
   display: grid;
-  gap: 1rem;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.desktop-doc-reader__scroll {
+  display: grid;
+  gap: 1rem;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.15rem;
 }
 
 .desktop-doc-reader__empty {

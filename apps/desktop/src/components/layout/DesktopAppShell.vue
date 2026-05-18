@@ -9,6 +9,7 @@ import { useDesktopDocsBrowser } from '@/composables/useDesktopDocsBrowser'
 import { useDesktopDocsSearch } from '@/composables/useDesktopDocsSearch'
 import WorkspaceSidebar from '@/components/workspace/WorkspaceSidebar.vue'
 import { useWorkspaceSelection } from '@/composables/useWorkspaceSelection'
+import type { DocsSourceGroup } from '@/types/docs'
 
 const { currentWorkspace, currentWorkspaceId, selectWorkspace, workspaces } = useWorkspaceSelection()
 const {
@@ -38,6 +39,16 @@ const { activeId, scrollToHeading } = useDesktopActiveHeadings(headings)
 
 const sourceCount = computed(() => currentWorkspace.value?.sources.length ?? 0)
 const workspaceLabel = computed(() => currentWorkspace.value?.name ?? '未选择工作环境')
+const totalDocsCount = computed(() => sourceGroups.reduce((count, group) => count + countDocs(group), 0))
+const currentDocPathLabel = computed(() => {
+  if (!currentDoc.value) {
+    return '选择一篇文档开始阅读'
+  }
+
+  return currentDoc.value.sectionTitle
+    ? `${currentDoc.value.sourceLabel} / ${currentDoc.value.sectionTitle}`
+    : currentDoc.value.sourceLabel
+})
 const searchQuery = computed({
   get: () => query.value,
   set: (value: string) => {
@@ -63,11 +74,17 @@ function handleSubmitSearch(slug?: string) {
   selectDoc(targetSlug)
   closeSearch()
 }
+
+function countDocs(group: DocsSourceGroup): number {
+  const sectionDocs = group.sections.reduce((count, section) => count + section.docs.length, 0)
+  const childDocs = group.children.reduce((count, child) => count + countDocs(child), 0)
+  return group.rootDocs.length + sectionDocs + childDocs
+}
 </script>
 
 <template>
   <div class="desktop-app-shell">
-    <aside class="desktop-app-shell__sidebar">
+    <aside class="desktop-app-shell__workspace">
       <WorkspaceSidebar
         :current-workspace-id="currentWorkspaceId"
         :workspaces="workspaces"
@@ -75,42 +92,45 @@ function handleSubmitSearch(slug?: string) {
       />
     </aside>
 
-    <main class="desktop-app-shell__main">
-      <header class="desktop-app-shell__hero">
-        <div class="desktop-app-shell__hero-copy">
-          <div class="desktop-app-shell__eyebrow-row">
-            <p class="desktop-app-shell__eyebrow">Desktop Preview</p>
-            <span class="desktop-app-shell__status">Local-first / SQLite</span>
-          </div>
+    <section class="desktop-app-shell__catalog">
+      <DesktopDocsSidebar
+        :current-doc-slug="selectedDocSlug || null"
+        :current-section-id="currentSectionId"
+        :current-source-id="currentSourceId"
+        :source-groups="sourceGroups"
+        @select-doc="handleSelectDoc"
+      />
+    </section>
+
+    <main class="desktop-app-shell__content">
+      <header class="desktop-app-shell__topbar">
+        <div class="desktop-app-shell__topbar-copy">
+          <p class="desktop-app-shell__eyebrow">Docs Atlas Desktop</p>
           <h1 class="desktop-app-shell__title">{{ workspaceLabel }}</h1>
-          <p class="desktop-app-shell__summary">
-            这里会成为用户管理多个工作环境、本地文档来源和后续知识问答的主入口。
-            当前版本优先把信息结构和阅读氛围做舒服。
-          </p>
+          <p class="desktop-app-shell__subtitle">{{ currentDocPathLabel }}</p>
         </div>
 
-        <div class="desktop-app-shell__hero-meta">
-          <div class="desktop-app-shell__metric">
-            <span class="desktop-app-shell__metric-label">Workspaces</span>
-            <strong>{{ workspaces.length }}</strong>
-          </div>
-          <div class="desktop-app-shell__metric">
-            <span class="desktop-app-shell__metric-label">Sources</span>
-            <strong>{{ sourceCount }}</strong>
-          </div>
-          <div class="desktop-app-shell__metric">
-            <span class="desktop-app-shell__metric-label">Storage</span>
-            <strong>SQLite</strong>
-          </div>
+        <div class="desktop-app-shell__topbar-meta">
+          <span class="desktop-app-shell__chip">{{ workspaces.length }} 个工作区</span>
+          <span class="desktop-app-shell__chip">{{ sourceCount }} 个来源</span>
+          <span class="desktop-app-shell__chip">{{ totalDocsCount }} 篇文档</span>
         </div>
       </header>
 
-      <section class="desktop-app-shell__toolbar">
-        <div class="desktop-app-shell__toolbar-copy">
-          <p class="desktop-app-shell__toolbar-title">文档检索</p>
-          <p class="desktop-app-shell__toolbar-summary">
-            当前先直接读取本地 docs 内容，下一步再切到 Workspace + SQLite 实际数据。
-          </p>
+      <DesktopDocReader
+        :doc="currentDoc"
+        :highlight-query="query"
+        :next-doc="nextDoc"
+        :prev-doc="prevDoc"
+        @select-doc="handleSelectDoc"
+      />
+    </main>
+
+    <aside class="desktop-app-shell__context">
+      <section class="desktop-app-shell__search-card">
+        <div class="desktop-app-shell__panel-heading">
+          <p class="desktop-app-shell__panel-eyebrow">Search</p>
+          <h2 class="desktop-app-shell__panel-title">快速检索</h2>
         </div>
 
         <DesktopSearchPanel
@@ -126,227 +146,268 @@ function handleSubmitSearch(slug?: string) {
         />
       </section>
 
-      <div class="desktop-app-shell__reader-grid">
-        <DesktopDocsSidebar
-          :current-doc-slug="selectedDocSlug || null"
-          :current-section-id="currentSectionId"
-          :current-source-id="currentSourceId"
-          :source-groups="sourceGroups"
-          @select-doc="handleSelectDoc"
-        />
+      <section class="desktop-app-shell__meta-card">
+        <div class="desktop-app-shell__panel-heading">
+          <p class="desktop-app-shell__panel-eyebrow">Context</p>
+          <h2 class="desktop-app-shell__panel-title">当前文档</h2>
+        </div>
+        <dl class="desktop-app-shell__facts">
+          <div class="desktop-app-shell__fact">
+            <dt>标题</dt>
+            <dd>{{ currentDoc?.title ?? '未选择' }}</dd>
+          </div>
+          <div class="desktop-app-shell__fact">
+            <dt>来源</dt>
+            <dd>{{ currentDoc?.sourceLabel ?? '未选择' }}</dd>
+          </div>
+          <div class="desktop-app-shell__fact">
+            <dt>章节</dt>
+            <dd>{{ currentDoc?.sectionTitle ?? '根目录文档' }}</dd>
+          </div>
+          <div class="desktop-app-shell__fact">
+            <dt>大纲</dt>
+            <dd>{{ headings.length }} 个标题</dd>
+          </div>
+        </dl>
+      </section>
 
-        <DesktopDocReader
-          :doc="currentDoc"
-          :highlight-query="query"
-          :next-doc="nextDoc"
-          :prev-doc="prevDoc"
-          @select-doc="handleSelectDoc"
-        />
-
+      <div class="desktop-app-shell__toc-card">
         <DesktopDocToc
           :active-id="activeId"
           :headings="headings"
           @select="scrollToHeading"
         />
       </div>
-    </main>
+    </aside>
   </div>
 </template>
 
 <style scoped>
 .desktop-app-shell {
   display: grid;
-  grid-template-columns: 308px minmax(0, 1fr);
-  gap: 0.95rem;
-  min-height: 100vh;
-  padding: 0.95rem;
+  grid-template-columns: 88px 310px minmax(0, 1fr) 296px;
+  gap: 0.8rem;
+  height: 100vh;
+  padding: 0.8rem;
+  align-items: start;
+  overflow: hidden;
 }
 
-.desktop-app-shell__sidebar,
-.desktop-app-shell__hero,
-.desktop-app-shell__grid > * {
+.desktop-app-shell__workspace,
+.desktop-app-shell__catalog,
+.desktop-app-shell__topbar,
+.desktop-app-shell__search-card,
+.desktop-app-shell__meta-card,
+.desktop-app-shell__toc-card {
   border: 1px solid var(--desktop-line);
   background: var(--desktop-surface);
-  box-shadow: 0 14px 34px rgba(var(--desktop-shadow), 0.08);
+  box-shadow: var(--shadow-panel);
 }
 
-.desktop-app-shell__sidebar {
-  min-height: calc(100vh - 1.9rem);
+.desktop-app-shell__workspace,
+.desktop-app-shell__catalog,
+.desktop-app-shell__content,
+.desktop-app-shell__context {
+  min-height: calc(100vh - 1.6rem);
+}
+
+.desktop-app-shell__workspace,
+.desktop-app-shell__catalog {
   border-radius: var(--desktop-radius-lg);
   overflow: hidden;
 }
 
-.desktop-app-shell__main {
+.desktop-app-shell__content,
+.desktop-app-shell__context {
   display: grid;
-  gap: 0.95rem;
+  gap: 0.8rem;
   min-width: 0;
+  min-height: 0;
 }
 
-.desktop-app-shell__hero {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: stretch;
-  padding: 1.15rem 1.2rem;
+.desktop-app-shell__content {
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.desktop-app-shell__context {
+  grid-template-rows: auto auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.desktop-app-shell__topbar,
+.desktop-app-shell__search-card,
+.desktop-app-shell__meta-card,
+.desktop-app-shell__toc-card {
   border-radius: var(--desktop-radius-lg);
 }
 
-.desktop-app-shell__hero-copy {
+.desktop-app-shell__topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.2rem;
+  align-items: flex-start;
+  padding: 1rem 1.1rem;
+}
+
+.desktop-app-shell__topbar-copy {
   display: grid;
-  gap: 0.55rem;
+  gap: 0.24rem;
   min-width: 0;
 }
 
-.desktop-app-shell__eyebrow-row {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  flex-wrap: wrap;
-}
-
 .desktop-app-shell__eyebrow {
-  margin: 0;
+  margin: 0 0 0.05rem;
   color: var(--desktop-accent);
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-}
-
-.desktop-app-shell__status {
-  display: inline-flex;
-  align-items: center;
-  min-height: 26px;
-  padding: 0.18rem 0.58rem;
-  border-radius: 999px;
-  background: rgba(var(--desktop-accent-rgb), 0.08);
-  color: var(--desktop-soft);
-  font-size: 0.78rem;
 }
 
 .desktop-app-shell__title {
   margin: 0;
-  font-size: clamp(1.55rem, 2.5vw, 2.1rem);
-  line-height: 1.08;
+  font-size: 1.38rem;
+  line-height: 1.15;
+  font-weight: 650;
 }
 
-.desktop-app-shell__summary {
+.desktop-app-shell__subtitle {
   margin: 0;
-  max-width: 44rem;
   color: var(--desktop-muted);
-  line-height: 1.6;
-  font-size: 0.96rem;
+  font-size: 0.86rem;
+  line-height: 1.5;
 }
 
-.desktop-app-shell__hero-meta {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(108px, 1fr));
-  gap: 0.65rem;
-  min-width: min(100%, 24rem);
-  align-self: center;
+.desktop-app-shell__topbar-meta {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-.desktop-app-shell__metric {
+.desktop-app-shell__chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0.28rem 0.68rem;
+  border: 1px solid var(--desktop-line);
+  border-radius: 999px;
+  background: var(--desktop-surface-strong);
+  color: var(--desktop-soft);
+  font-size: 0.78rem;
+}
+
+.desktop-app-shell__panel-heading {
   display: grid;
-  gap: 0.28rem;
-  min-height: 86px;
-  padding: 0.85rem 0.9rem;
+  gap: 0.15rem;
+  padding: 0.95rem 1rem 0;
+}
+
+.desktop-app-shell__panel-eyebrow {
+  margin: 0;
+  color: var(--desktop-soft);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.desktop-app-shell__panel-title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 650;
+}
+
+.desktop-app-shell__search-card {
+  display: grid;
+  gap: 0.7rem;
+  padding-bottom: 0.95rem;
+}
+
+.desktop-app-shell__toolbar-search {
+  min-width: 0;
+  padding-inline: 1rem;
+}
+
+.desktop-app-shell__meta-card {
+  display: grid;
+  gap: 0.8rem;
+  padding-bottom: 0.95rem;
+}
+
+.desktop-app-shell__facts {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0 1rem;
+}
+
+.desktop-app-shell__fact {
+  display: grid;
+  gap: 0.16rem;
+  padding: 0.72rem 0.78rem;
   border: 1px solid var(--desktop-line);
   border-radius: var(--desktop-radius-md);
   background: var(--desktop-surface-strong);
 }
 
-.desktop-app-shell__metric-label {
+.desktop-app-shell__fact dt {
   color: var(--desktop-soft);
   font-size: 0.72rem;
-  letter-spacing: 0.1em;
   text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
-.desktop-app-shell__metric strong {
-  font-size: 1.28rem;
-  line-height: 1.1;
-}
-
-.desktop-app-shell__toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(320px, 1fr);
-  gap: 0.95rem;
-  align-items: center;
-  padding: 0.95rem 1.05rem;
-  border: 1px solid var(--desktop-line);
-  border-radius: var(--desktop-radius-lg);
-  background: var(--desktop-surface);
-}
-
-.desktop-app-shell__toolbar-copy {
-  display: grid;
-  gap: 0.22rem;
-}
-
-.desktop-app-shell__toolbar-title,
-.desktop-app-shell__toolbar-summary {
+.desktop-app-shell__fact dd {
   margin: 0;
+  color: var(--desktop-ink);
+  font-size: 0.86rem;
+  line-height: 1.45;
+  word-break: break-word;
 }
 
-.desktop-app-shell__toolbar-title {
-  font-size: 0.95rem;
-  font-weight: 700;
+.desktop-app-shell__toc-card {
+  min-height: 0;
+  overflow: hidden;
 }
 
-.desktop-app-shell__toolbar-summary {
-  color: var(--desktop-muted);
-  font-size: 0.88rem;
-  line-height: 1.5;
-}
-
-.desktop-app-shell__toolbar-search {
-  min-width: 0;
-}
-
-.desktop-app-shell__reader-grid {
-  display: grid;
-  grid-template-columns: 312px minmax(0, 1fr) 248px;
-  gap: 0.95rem;
-  align-items: start;
-}
-
-@media (max-width: 1180px) {
+@media (max-width: 1480px) {
   .desktop-app-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: 88px 280px minmax(0, 1fr) 272px;
+  }
+}
+
+@media (max-width: 1260px) {
+  .desktop-app-shell {
+    grid-template-columns: 88px 280px minmax(0, 1fr);
   }
 
-  .desktop-app-shell__sidebar {
+  .desktop-app-shell__context {
+    grid-column: 2 / span 2;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     min-height: auto;
   }
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1040px) {
   .desktop-app-shell {
-    padding: 0.75rem;
-  }
-
-  .desktop-app-shell__hero {
-    flex-direction: column;
-  }
-
-  .desktop-app-shell__hero-meta,
-  .desktop-app-shell__toolbar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .desktop-app-shell__reader-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 640px) {
-  .desktop-app-shell__hero-meta {
     grid-template-columns: 1fr;
   }
 
-  .desktop-app-shell__toolbar {
+  .desktop-app-shell__workspace,
+  .desktop-app-shell__catalog,
+  .desktop-app-shell__content,
+  .desktop-app-shell__context {
+    min-height: auto;
+  }
+
+  .desktop-app-shell__context {
+    grid-column: auto;
     grid-template-columns: 1fr;
+  }
+
+  .desktop-app-shell__topbar {
+    display: grid;
   }
 }
 </style>

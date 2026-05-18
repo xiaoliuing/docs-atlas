@@ -17,9 +17,7 @@ const emit = defineEmits<{
     class="doc-toc"
   >
     <div class="doc-toc__inner desktop-scroll">
-      <p class="doc-toc__eyebrow">
-        On This Page
-      </p>
+      <p class="doc-toc__eyebrow">Outline</p>
 
       <button
         v-for="heading in headings"
@@ -40,39 +38,35 @@ const emit = defineEmits<{
 
 <style scoped>
 .doc-toc {
-  position: sticky;
-  top: 96px;
+  height: 100%;
 }
 
 .doc-toc__inner {
   display: grid;
   gap: 0.22rem;
-  max-height: calc(100vh - 116px);
+  height: 100%;
   overflow-y: auto;
-  padding: 0.75rem;
-  border: 1px solid var(--desktop-line);
-  border-radius: var(--desktop-radius-md);
-  background: var(--desktop-surface);
+  padding: 0.85rem 0.9rem;
 }
 
 .doc-toc__eyebrow {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.3rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  font-size: 0.69rem;
+  font-size: 0.66rem;
   font-weight: 600;
   color: var(--desktop-soft);
 }
 
 .doc-toc__link {
   border: 0;
-  padding: 0.34rem 0.58rem;
-  border-radius: 10px;
+  padding: 0.3rem 0.48rem;
+  border-radius: 8px;
   background: transparent;
   text-align: left;
   color: var(--desktop-muted);
   cursor: pointer;
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   line-height: 1.35;
 }
 
@@ -82,14 +76,8 @@ const emit = defineEmits<{
 }
 
 .doc-toc__link--level-3 {
-  margin-left: 0.62rem;
-  padding-left: 0.8rem;
-  font-size: 0.79rem;
-}
-
-@media (max-width: 1180px) {
-  .doc-toc {
-    display: none;
-  }
+  margin-left: 0.5rem;
+  padding-left: 0.7rem;
+  font-size: 0.74rem;
 }
 </style>

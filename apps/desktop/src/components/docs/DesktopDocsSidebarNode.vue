@@ -165,7 +165,7 @@ function forwardToggleSection(sectionId: string) {
 <style scoped>
 .desktop-docs-sidebar-node {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.3rem;
 }
 
 .desktop-docs-sidebar-node__toggle,
@@ -181,21 +181,21 @@ function forwardToggleSection(sectionId: string) {
   justify-content: space-between;
   gap: 0.65rem;
   width: 100%;
-  min-height: 38px;
-  padding: 0.48rem 0.72rem;
+  min-height: 34px;
+  padding: 0.42rem 0.62rem;
   border: 1px solid var(--desktop-line);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--desktop-surface-strong);
   color: var(--desktop-ink);
-  font-size: 0.92rem;
+  font-size: 0.84rem;
 }
 
 .desktop-docs-sidebar-node__toggle {
-  padding-inline-start: calc(0.72rem + var(--desktop-sidebar-depth, 0) * 0.45rem);
+  padding-inline-start: calc(0.62rem + var(--desktop-sidebar-depth, 0) * 0.42rem);
 }
 
 .desktop-docs-sidebar-node__toggle--group {
-  background: rgba(var(--desktop-accent-rgb), 0.03);
+  background: rgba(var(--desktop-accent-rgb), 0.025);
 }
 
 .desktop-docs-sidebar-node__toggle--active,
@@ -230,15 +230,15 @@ function forwardToggleSection(sectionId: string) {
 
 .desktop-docs-sidebar-node__body {
   display: grid;
-  gap: 0.3rem;
-  margin-left: 0.45rem;
-  padding-left: 0.6rem;
-  border-left: 1px solid rgba(var(--desktop-accent-rgb), 0.14);
+  gap: 0.26rem;
+  margin-left: 0.28rem;
+  padding-left: 0.55rem;
+  border-left: 1px solid rgba(var(--desktop-accent-rgb), 0.12);
 }
 
 .desktop-docs-sidebar-node__section {
   display: grid;
-  gap: 0.24rem;
+  gap: 0.2rem;
   padding-left: 0.1rem;
 }
 
@@ -248,7 +248,7 @@ function forwardToggleSection(sectionId: string) {
   min-width: 0;
   color: inherit;
   text-align: left;
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -257,32 +257,32 @@ function forwardToggleSection(sectionId: string) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border: 0;
-  border-radius: 8px;
-  background: rgba(var(--desktop-accent-rgb), 0.08);
+  border-radius: 6px;
+  background: rgba(var(--desktop-accent-rgb), 0.07);
   color: var(--desktop-accent);
   cursor: pointer;
 }
 
 .desktop-docs-sidebar-node__docs {
   display: grid;
-  gap: 0.18rem;
+  gap: 0.12rem;
 }
 
 .desktop-docs-sidebar-node__doc-link {
   display: block;
   width: 100%;
-  padding: 0.55rem 0.72rem;
+  padding: 0.42rem 0.6rem;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 9px;
   background: transparent;
   color: var(--desktop-muted);
   text-align: left;
   cursor: pointer;
-  font-size: 0.86rem;
-  line-height: 1.45;
+  font-size: 0.8rem;
+  line-height: 1.35;
 }
 
 .desktop-docs-sidebar-node__doc-link:hover,

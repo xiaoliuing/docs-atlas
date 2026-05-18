@@ -105,6 +105,19 @@ function scrollToHighlight(element: HTMLElement) {
   }
 
   window.requestAnimationFrame(() => {
+    const scrollContainer = document.getElementById('desktop-doc-scroll')
+    if (scrollContainer) {
+      const containerTop = scrollContainer.getBoundingClientRect().top
+      const nextTop =
+        scrollContainer.scrollTop + element.getBoundingClientRect().top - containerTop - 52
+
+      scrollContainer.scrollTo({
+        top: Math.max(0, nextTop),
+        behavior: 'smooth',
+      })
+      return
+    }
+
     const top = window.scrollY + element.getBoundingClientRect().top - 132
     window.scrollTo({
       top: Math.max(0, top),
@@ -150,13 +163,13 @@ function scrollToHighlight(element: HTMLElement) {
 <style scoped>
 .doc-content {
   display: grid;
-  gap: 0.9rem;
+  gap: 0.75rem;
 }
 
 .doc-content__header {
   display: grid;
-  gap: 0.62rem;
-  padding: 1.15rem 1.2rem;
+  gap: 0.5rem;
+  padding: 0.95rem 1rem;
   border: 1px solid var(--desktop-line);
   border-radius: var(--desktop-radius-lg);
   background: var(--desktop-surface);
@@ -172,34 +185,34 @@ function scrollToHighlight(element: HTMLElement) {
 
 .doc-content__section {
   margin: 0;
-  min-height: 28px;
+  min-height: 24px;
   display: inline-flex;
   align-items: center;
-  padding: 0.28rem 0.58rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 999px;
   background: rgba(var(--desktop-accent-rgb), 0.12);
   letter-spacing: 0.08em;
   color: var(--desktop-accent);
-  font-size: 0.74rem;
+  font-size: 0.68rem;
 }
 
 .doc-content__title {
   margin: 0;
-  font-size: clamp(1.5rem, 2.4vw, 2rem);
-  line-height: 1.14;
+  font-size: clamp(1.28rem, 1.9vw, 1.72rem);
+  line-height: 1.18;
   letter-spacing: -0.02em;
 }
 
 .doc-content__body {
   min-width: 0;
   width: 100%;
-  max-width: min(100%, 88ch);
+  max-width: min(100%, 92ch);
   margin-inline: auto;
 }
 
 .doc-content__body-shell {
   min-width: 0;
-  padding: 0.9rem 0.95rem;
+  padding: 0.8rem 0.9rem;
   border: 1px solid var(--desktop-line);
   border-radius: var(--desktop-radius-lg);
   background: var(--desktop-surface-strong);
@@ -207,7 +220,7 @@ function scrollToHighlight(element: HTMLElement) {
 
 .doc-content__source {
   color: var(--desktop-soft);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
 }
 
 .doc-content__body :deep(mark.doc-search-mark) {

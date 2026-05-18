@@ -101,8 +101,8 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   <aside class="desktop-docs-sidebar">
     <div class="desktop-docs-sidebar__inner">
       <div class="desktop-docs-sidebar__heading">
-        <p class="desktop-docs-sidebar__eyebrow">Navigation</p>
-        <h2 class="desktop-docs-sidebar__title">文档目录</h2>
+        <p class="desktop-docs-sidebar__eyebrow">Library</p>
+        <h2 class="desktop-docs-sidebar__title">目录</h2>
       </div>
 
       <div
@@ -132,9 +132,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 
 <style scoped>
 .desktop-docs-sidebar {
-  position: sticky;
-  top: 96px;
-  height: calc(100vh - 96px);
+  height: 100%;
 }
 
 .desktop-docs-sidebar__inner {
@@ -148,33 +146,33 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 }
 
 .desktop-docs-sidebar__heading {
-  padding: 0.8rem 0.85rem 0.55rem;
+  padding: 0.95rem 0.95rem 0.7rem;
   border-bottom: 1px solid var(--desktop-line);
   background: var(--desktop-surface-strong);
 }
 
 .desktop-docs-sidebar__eyebrow {
-  margin: 0 0 0.22rem;
-  font-size: 0.7rem;
-  letter-spacing: 0.14em;
+  margin: 0 0 0.18rem;
+  font-size: 0.67rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--desktop-soft);
 }
 
 .desktop-docs-sidebar__title {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 0.98rem;
+  font-weight: 650;
 }
 
 .desktop-docs-sidebar__scroll {
   min-height: 0;
   overflow-y: auto;
-  padding: 0.55rem 0.75rem 0.8rem;
+  padding: 0.7rem 0.8rem 0.85rem;
 }
 
 .desktop-docs-sidebar__nav {
   display: grid;
-  gap: 0.55rem;
+  gap: 0.5rem;
 }
 </style>
