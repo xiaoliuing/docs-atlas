@@ -5,7 +5,7 @@ import type {
   WorkspaceSourceScanPayload,
   WorkspaceUpsertInput,
 } from '@docs-atlas/shared-types/workspace'
-import { mockWorkspaces } from '@/mocks/workspaces'
+import { browserDefaultWorkspaces, createDefaultWorkspaces } from '@/mocks/workspaces'
 
 const STORAGE_KEY = 'docs-atlas.desktop.workspaces.v1'
 
@@ -109,14 +109,22 @@ export async function scanWorkspaceSources(sources: WorkspaceSourceNodeInput[]):
   }
 }
 
+export async function getDefaultDocsPath(): Promise<string> {
+  if (isTauriRuntime()) {
+    return invoke<string>('get_default_docs_path')
+  }
+
+  return './docs'
+}
+
 function readBrowserWorkspaces(): WorkspaceDetail[] {
   if (typeof window === 'undefined') {
-    return cloneWorkspaces(mockWorkspaces)
+    return cloneWorkspaces(browserDefaultWorkspaces)
   }
 
   const rawValue = window.localStorage.getItem(STORAGE_KEY)
   if (!rawValue) {
-    const seeded = cloneWorkspaces(mockWorkspaces)
+    const seeded = cloneWorkspaces(browserDefaultWorkspaces)
     writeBrowserWorkspaces(seeded)
     return seeded
   }
@@ -125,10 +133,15 @@ function readBrowserWorkspaces(): WorkspaceDetail[] {
     const parsed = JSON.parse(rawValue) as WorkspaceDetail[]
     return cloneWorkspaces(parsed)
   } catch {
-    const seeded = cloneWorkspaces(mockWorkspaces)
+    const seeded = cloneWorkspaces(browserDefaultWorkspaces)
     writeBrowserWorkspaces(seeded)
     return seeded
   }
+}
+
+export async function buildDefaultSeedWorkspaces(): Promise<WorkspaceDetail[]> {
+  const defaultDocsPath = await getDefaultDocsPath()
+  return createDefaultWorkspaces(defaultDocsPath)
 }
 
 function writeBrowserWorkspaces(workspaces: WorkspaceDetail[]) {

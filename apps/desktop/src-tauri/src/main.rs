@@ -351,9 +351,19 @@ fn scan_workspace_sources(
   Ok(WorkspaceSourceScanPayload { documents })
 }
 
+#[tauri::command]
+fn get_default_docs_path() -> Result<String, String> {
+  let docs_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../docs");
+  match docs_path.canonicalize() {
+    Ok(path) => Ok(path.to_string_lossy().to_string()),
+    Err(_) => Ok(docs_path.to_string_lossy().to_string()),
+  }
+}
+
 fn main() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![
+      get_default_docs_path,
       list_workspace_details,
       mark_workspace_opened,
       pick_folder_path,

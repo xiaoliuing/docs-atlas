@@ -1,7 +1,12 @@
 import { computed, shallowRef } from 'vue'
 import type { WorkspaceDetail, WorkspaceSearchScope, WorkspaceSourceNodeInput, WorkspaceUpsertInput } from '@docs-atlas/shared-types/workspace'
-import { listWorkspaceDetails, markWorkspaceOpened, upsertWorkspace, type WorkspaceSaveInput } from '@/api/workspaces'
-import { mockWorkspaces } from '@/mocks/workspaces'
+import {
+  buildDefaultSeedWorkspaces,
+  listWorkspaceDetails,
+  markWorkspaceOpened,
+  upsertWorkspace,
+  type WorkspaceSaveInput,
+} from '@/api/workspaces'
 
 const workspaces = shallowRef<WorkspaceDetail[]>([])
 const currentWorkspaceId = shallowRef('')
@@ -197,7 +202,8 @@ async function loadWorkspaces() {
   try {
     let records = await listWorkspaceDetails()
     if (records.length === 0) {
-      for (const workspace of mockWorkspaces) {
+      const defaultWorkspaces = await buildDefaultSeedWorkspaces()
+      for (const workspace of defaultWorkspaces) {
         await upsertWorkspace(toWorkspaceSaveInput(workspace))
       }
       records = await listWorkspaceDetails()
