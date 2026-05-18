@@ -8,6 +8,11 @@ export type WorkspaceSaveInput = WorkspaceUpsertInput & {
   sources?: WorkspaceSourceNodeInput[]
 }
 
+export type SourcePathValidation = {
+  exists: boolean
+  isDirectory: boolean
+}
+
 export async function listWorkspaceDetails(): Promise<WorkspaceDetail[]> {
   if (isTauriRuntime()) {
     return invoke<WorkspaceDetail[]>('list_workspace_details')
@@ -62,6 +67,29 @@ export async function markWorkspaceOpened(workspaceId: string): Promise<Workspac
   }
   writeBrowserWorkspaces([updated, ...workspaces.filter((workspace) => workspace.id !== workspaceId)])
   return updated
+}
+
+export async function pickFolderPath(): Promise<string | null> {
+  if (isTauriRuntime()) {
+    return invoke<string | null>('pick_folder_path')
+  }
+
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  return window.prompt('输入文档目录路径')
+}
+
+export async function validateSourcePath(path: string): Promise<SourcePathValidation> {
+  if (isTauriRuntime()) {
+    return invoke<SourcePathValidation>('validate_source_path', { path })
+  }
+
+  return {
+    exists: Boolean(path.trim()),
+    isDirectory: Boolean(path.trim()),
+  }
 }
 
 function readBrowserWorkspaces(): WorkspaceDetail[] {

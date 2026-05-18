@@ -3,6 +3,7 @@
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
+use std::path::Path;
 
 const WORKSPACE_DB_SCHEMA: &str = r#"
 create table if not exists workspaces (
@@ -118,6 +119,13 @@ struct WorkspaceSummaryRow {
   created_at: String,
   updated_at: String,
   last_opened_at: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SourcePathValidationPayload {
+  exists: bool,
+  is_directory: bool,
 }
 
 #[tauri::command]
@@ -249,11 +257,36 @@ fn mark_workspace_opened(app: AppHandle, workspace_id: String) -> Result<Option<
   load_workspace_detail(&connection, summary).map(Some)
 }
 
+#[tauri::command]
+fn pick_folder_path() -> Option<String> {
+  rfd::FileDialog::new()
+    .pick_folder()
+    .map(|path| path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn validate_source_path(path: String) -> SourcePathValidationPayload {
+  let metadata = std::fs::metadata(Path::new(&path));
+
+  match metadata {
+    Ok(metadata) => SourcePathValidationPayload {
+      exists: true,
+      is_directory: metadata.is_dir(),
+    },
+    Err(_) => SourcePathValidationPayload {
+      exists: false,
+      is_directory: false,
+    },
+  }
+}
+
 fn main() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![
       list_workspace_details,
       mark_workspace_opened,
+      pick_folder_path,
+      validate_source_path,
       upsert_workspace
     ])
     .run(tauri::generate_context!())

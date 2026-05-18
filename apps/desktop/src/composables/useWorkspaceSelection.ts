@@ -1,5 +1,5 @@
 import { computed, shallowRef } from 'vue'
-import type { WorkspaceDetail, WorkspaceUpsertInput } from '@docs-atlas/shared-types/workspace'
+import type { WorkspaceDetail, WorkspaceSourceNodeInput, WorkspaceUpsertInput } from '@docs-atlas/shared-types/workspace'
 import type { DocsSourceGroup } from '@/types/docs'
 import { listWorkspaceDetails, markWorkspaceOpened, upsertWorkspace, type WorkspaceSaveInput } from '@/api/workspaces'
 import { mockWorkspaces } from '@/mocks/workspaces'
@@ -8,6 +8,7 @@ const workspaces = shallowRef<WorkspaceDetail[]>([])
 const currentWorkspaceId = shallowRef('')
 const isLoadingWorkspaces = shallowRef(false)
 const isSavingWorkspace = shallowRef(false)
+const isSavingWorkspaceSources = shallowRef(false)
 let loadTask: Promise<void> | null = null
 
 export function useWorkspaceSelection(sourceGroups: DocsSourceGroup[]) {
@@ -73,6 +74,31 @@ export function useWorkspaceSelection(sourceGroups: DocsSourceGroup[]) {
     }
   }
 
+  async function saveWorkspaceSources(workspaceId: string, sources: WorkspaceSourceNodeInput[]) {
+    const workspace = workspaces.value.find((item) => item.id === workspaceId)
+    if (!workspace) {
+      return null
+    }
+
+    isSavingWorkspaceSources.value = true
+
+    try {
+      const updated = await upsertWorkspace({
+        id: workspace.id,
+        name: workspace.name,
+        description: workspace.description,
+        icon: workspace.icon,
+        color: workspace.color,
+        lastOpenedAt: workspace.lastOpenedAt,
+        sources,
+      })
+      mergeWorkspace(updated)
+      return updated
+    } finally {
+      isSavingWorkspaceSources.value = false
+    }
+  }
+
   return {
     createWorkspace,
     currentWorkspace,
@@ -81,6 +107,8 @@ export function useWorkspaceSelection(sourceGroups: DocsSourceGroup[]) {
     ensureLoaded,
     isLoadingWorkspaces,
     isSavingWorkspace,
+    isSavingWorkspaceSources,
+    saveWorkspaceSources,
     selectWorkspace,
     workspaces,
   }

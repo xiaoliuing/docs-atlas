@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
+import type { WorkspaceSourceNode } from '@docs-atlas/shared-types/workspace'
 import DesktopDocReader from '@/components/docs/DesktopDocReader.vue'
 import DesktopDocsSidebar from '@/components/docs/DesktopDocsSidebar.vue'
 import DesktopDocToc from '@/components/docs/DesktopDocToc.vue'
 import DesktopSearchPanel from '@/components/docs/DesktopSearchPanel.vue'
+import DesktopSourceTreeDialog from '@/components/workspace/DesktopSourceTreeDialog.vue'
 import DesktopWorkspaceDialog from '@/components/workspace/DesktopWorkspaceDialog.vue'
 import { useDesktopActiveHeadings } from '@/composables/useDesktopActiveHeadings'
 import { useDesktopDocsBrowser } from '@/composables/useDesktopDocsBrowser'
@@ -32,6 +34,8 @@ const {
   ensureLoaded,
   isLoadingWorkspaces,
   isSavingWorkspace,
+  isSavingWorkspaceSources,
+  saveWorkspaceSources,
   selectWorkspace,
   workspaces,
 } =
@@ -54,6 +58,7 @@ const {
 const { activeId, scrollToHeading } = useDesktopActiveHeadings(headings)
 
 const isSettingsOpen = shallowRef(false)
+const isSourceTreeDialogOpen = shallowRef(false)
 const isWorkspaceDialogOpen = shallowRef(false)
 const searchPanelRef = useTemplateRef<InstanceType<typeof DesktopSearchPanel>>('searchPanel')
 
@@ -64,7 +69,7 @@ const searchQuery = computed({
     setQuery(value)
   },
 })
-const sourceCount = computed(() => currentWorkspaceSourceIds.value.length)
+const sourceCount = computed(() => countWorkspaceFolderSources(currentWorkspace.value?.sources ?? []))
 const visibleSourceGroups = computed(() => filterSourceGroups(sourceGroups, new Set(currentWorkspaceSourceIds.value)))
 const docCount = computed(() => countDocs(visibleSourceGroups.value))
 
@@ -98,6 +103,15 @@ function toggleSettingsPanel() {
   }
 }
 
+function openSourceTreeDialog() {
+  if (!currentWorkspace.value) {
+    return
+  }
+
+  isSettingsOpen.value = false
+  isSourceTreeDialogOpen.value = true
+}
+
 function handleSubmitSearch(slug?: string) {
   const targetSlug = slug || activeResult.value?.slug
   if (!targetSlug) {
@@ -129,6 +143,19 @@ async function handleCreateWorkspace(payload: { name: string; description: strin
   isWorkspaceDialogOpen.value = false
 }
 
+async function handleSaveWorkspaceSources(sources: Parameters<typeof saveWorkspaceSources>[1]) {
+  if (!currentWorkspace.value) {
+    return
+  }
+
+  const updated = await saveWorkspaceSources(currentWorkspace.value.id, sources)
+  if (!updated) {
+    return
+  }
+
+  isSourceTreeDialogOpen.value = false
+}
+
 onMounted(() => {
   void ensureLoaded()
 })
@@ -157,6 +184,13 @@ function countDocs(groups: typeof sourceGroups): number {
     const sectionDocs = group.sections.reduce((sectionCount, section) => sectionCount + section.docs.length, 0)
     const childDocs = countDocs(group.children)
     return count + group.rootDocs.length + sectionDocs + childDocs
+  }, 0)
+}
+
+function countWorkspaceFolderSources(nodes: WorkspaceSourceNode[]): number {
+  return nodes.reduce((count, node) => {
+    const selfCount = node.kind === 'folder' ? 1 : 0
+    return count + selfCount + countWorkspaceFolderSources(node.children)
   }, 0)
 }
 
@@ -275,6 +309,14 @@ function filterSourceGroups(groups: typeof sourceGroups, allowedSourceIds: Set<s
           <span>文档总数</span>
           <strong>{{ docCount }}</strong>
         </div>
+        <button
+          :disabled="!currentWorkspace"
+          class="desktop-titlebar__settings-action"
+          type="button"
+          @click="openSourceTreeDialog"
+        >
+          编辑文档源
+        </button>
       </div>
     </div>
 
@@ -323,6 +365,14 @@ function filterSourceGroups(groups: typeof sourceGroups, allowedSourceIds: Set<s
       :is-saving="isSavingWorkspace"
       @close="isWorkspaceDialogOpen = false"
       @submit="handleCreateWorkspace"
+    />
+
+    <DesktopSourceTreeDialog
+      v-model:open="isSourceTreeDialogOpen"
+      :is-saving="isSavingWorkspaceSources"
+      :workspace="currentWorkspace"
+      @close="isSourceTreeDialogOpen = false"
+      @save="handleSaveWorkspaceSources"
     />
   </div>
 </template>
@@ -477,6 +527,29 @@ function filterSourceGroups(groups: typeof sourceGroups, allowedSourceIds: Set<s
 .desktop-titlebar__settings-item strong {
   color: var(--desktop-ink);
   font-size: 0.82rem;
+}
+
+.desktop-titlebar__settings-action {
+  min-height: 2.2rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.18);
+  border-radius: 12px;
+  background: rgba(var(--desktop-accent-rgb), 0.08);
+  color: var(--desktop-accent);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.desktop-titlebar__settings-action:hover:not(:disabled) {
+  border-color: rgba(var(--desktop-accent-rgb), 0.28);
+  background: rgba(var(--desktop-accent-rgb), 0.12);
+}
+
+.desktop-titlebar__settings-action:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
 }
 
 .desktop-workbench {
