@@ -377,4 +377,8 @@ defineExpose({
     background: rgba(14, 22, 36, 0.86);
   }
 }
+
+:global(:root[data-theme-mode='dark']) .desktop-search-panel__field {
+  background: rgba(14, 22, 36, 0.86);
+}
 </style>

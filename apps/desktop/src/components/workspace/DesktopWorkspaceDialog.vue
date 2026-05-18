@@ -319,4 +319,9 @@ function handleClose() {
     background: rgba(14, 22, 36, 0.84);
   }
 }
+
+:global(:root[data-theme-mode='dark']) .desktop-workspace-dialog__input,
+:global(:root[data-theme-mode='dark']) .desktop-workspace-dialog__textarea {
+  background: rgba(14, 22, 36, 0.84);
+}
 </style>

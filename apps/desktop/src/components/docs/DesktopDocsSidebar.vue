@@ -8,13 +8,16 @@ const props = defineProps<{
   currentDocSlug: string | null
   currentSectionId: string | null
   currentSourceId: string | null
+  currentWorkspaceDocCount: number
   currentWorkspaceId: string
+  currentWorkspaceSourceCount: number
   sourceGroups: DocsSourceGroup[]
   workspaces: WorkspaceDetail[]
 }>()
 
 const emit = defineEmits<{
   createWorkspace: []
+  editSources: []
   selectDoc: [slug: string]
   selectWorkspace: [workspaceId: string]
 }>()
@@ -228,6 +231,27 @@ function countDocs(group: DocsSourceGroup): number {
           </button>
         </div>
       </div>
+
+      <div class="desktop-docs-sidebar__workspace-meta">
+        <div class="desktop-docs-sidebar__workspace-stats">
+          <div class="desktop-docs-sidebar__workspace-stat">
+            <strong>{{ props.currentWorkspaceSourceCount }}</strong>
+            <span>目录源</span>
+          </div>
+          <div class="desktop-docs-sidebar__workspace-stat">
+            <strong>{{ props.currentWorkspaceDocCount }}</strong>
+            <span>文档</span>
+          </div>
+        </div>
+
+        <button
+          class="desktop-docs-sidebar__workspace-action"
+          type="button"
+          @click="emit('editSources')"
+        >
+          管理文档源
+        </button>
+      </div>
     </div>
 
     <div class="desktop-docs-sidebar__directory-panel">
@@ -337,6 +361,12 @@ function countDocs(group: DocsSourceGroup): number {
 .desktop-docs-sidebar__workspace-switcher {
   position: relative;
   margin-top: 0.7rem;
+}
+
+.desktop-docs-sidebar__workspace-meta {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
 }
 
 .desktop-docs-sidebar__workspace-trigger {
@@ -469,6 +499,51 @@ function countDocs(group: DocsSourceGroup): number {
 .desktop-docs-sidebar__workspace-option-copy span {
   color: var(--desktop-muted);
   font-size: 0.74rem;
+}
+
+.desktop-docs-sidebar__workspace-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.desktop-docs-sidebar__workspace-stat {
+  display: grid;
+  gap: 0.12rem;
+  padding: 0.68rem 0.72rem;
+  border: 1px solid var(--desktop-line);
+  border-radius: 14px;
+  background: rgba(var(--desktop-accent-rgb), 0.035);
+}
+
+.desktop-docs-sidebar__workspace-stat strong {
+  color: var(--desktop-ink);
+  font-size: 0.94rem;
+  font-weight: 650;
+}
+
+.desktop-docs-sidebar__workspace-stat span {
+  color: var(--desktop-muted);
+  font-size: 0.71rem;
+}
+
+.desktop-docs-sidebar__workspace-action {
+  min-height: 2.4rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.18);
+  border-radius: 14px;
+  background: rgba(var(--desktop-accent-rgb), 0.07);
+  color: var(--desktop-accent);
+  font: inherit;
+  font-size: 0.79rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+}
+
+.desktop-docs-sidebar__workspace-action:hover {
+  border-color: rgba(var(--desktop-accent-rgb), 0.28);
+  background: rgba(var(--desktop-accent-rgb), 0.12);
+  transform: translateY(-1px);
 }
 
 .desktop-docs-sidebar__directory-panel {

@@ -59,7 +59,8 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme-mode]),
+  :root[data-theme-mode='system'] {
     --desktop-bg: #0c1320;
     --desktop-surface: rgba(15, 23, 37, 0.88);
     --desktop-surface-strong: rgba(17, 25, 40, 0.96);
@@ -77,6 +78,25 @@
     --preview-button-fg: #edf3ff;
     --preview-caption-bg: rgba(20, 28, 43, 0.9);
   }
+}
+
+:root[data-theme-mode='dark'] {
+  --desktop-bg: #0c1320;
+  --desktop-surface: rgba(15, 23, 37, 0.88);
+  --desktop-surface-strong: rgba(17, 25, 40, 0.96);
+  --desktop-surface-muted: rgba(21, 31, 49, 0.94);
+  --desktop-line: rgba(122, 153, 214, 0.12);
+  --desktop-line-strong: rgba(95, 147, 255, 0.22);
+  --desktop-ink: #edf3ff;
+  --desktop-muted: #aab6ca;
+  --desktop-soft: #91a0b5;
+  --desktop-shadow: 0, 0, 0;
+  --desktop-focus-ring: 0 0 0 3px rgba(var(--desktop-accent-rgb), 0.28);
+  --preview-surface: rgba(20, 28, 43, 0.9);
+  --preview-surface-strong: rgba(17, 25, 40, 0.96);
+  --preview-button-bg: rgba(21, 31, 49, 0.92);
+  --preview-button-fg: #edf3ff;
+  --preview-caption-bg: rgba(20, 28, 43, 0.9);
 }
 
 * {

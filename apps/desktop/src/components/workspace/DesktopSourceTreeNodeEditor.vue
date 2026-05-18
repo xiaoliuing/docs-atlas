@@ -255,4 +255,9 @@ const nodeIssues = computed(() => props.issuesByNodeId[node.value.id] ?? [])
     background: rgba(14, 22, 36, 0.84);
   }
 }
+
+:global(:root[data-theme-mode='dark']) .desktop-source-tree-node__name,
+:global(:root[data-theme-mode='dark']) .desktop-source-tree-node__path {
+  background: rgba(14, 22, 36, 0.84);
+}
 </style>

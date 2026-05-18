@@ -5,10 +5,12 @@ import DesktopDocReader from '@/components/docs/DesktopDocReader.vue'
 import DesktopDocsSidebar from '@/components/docs/DesktopDocsSidebar.vue'
 import DesktopDocToc from '@/components/docs/DesktopDocToc.vue'
 import DesktopSearchPanel from '@/components/docs/DesktopSearchPanel.vue'
+import DesktopSystemSettingsPanel from '@/components/settings/DesktopSystemSettingsPanel.vue'
 import DesktopSourceTreeDialog from '@/components/workspace/DesktopSourceTreeDialog.vue'
 import DesktopWorkspaceDialog from '@/components/workspace/DesktopWorkspaceDialog.vue'
 import { useDesktopActiveHeadings } from '@/composables/useDesktopActiveHeadings'
 import { useDesktopDocsBrowser } from '@/composables/useDesktopDocsBrowser'
+import { useDesktopPreferences } from '@/composables/useDesktopPreferences'
 import { useDesktopDocsSearch } from '@/composables/useDesktopDocsSearch'
 import { useWorkspaceSelection } from '@/composables/useWorkspaceSelection'
 
@@ -55,6 +57,7 @@ const {
 } = useDesktopDocsSearch({
   workspaceSourceIds: currentWorkspaceSourceIds,
 })
+const { accentOptions, preferences, setAccent, setThemeMode } = useDesktopPreferences()
 const { activeId, scrollToHeading } = useDesktopActiveHeadings(headings)
 
 const isSettingsOpen = shallowRef(false)
@@ -108,7 +111,7 @@ function openSourceTreeDialog() {
     return
   }
 
-  isSettingsOpen.value = false
+  closeFloatingPanels()
   isSourceTreeDialogOpen.value = true
 }
 
@@ -294,29 +297,16 @@ function filterSourceGroups(groups: typeof sourceGroups, allowedSourceIds: Set<s
 
       <div
         v-if="isSettingsOpen"
-        class="desktop-titlebar__settings-popover"
+        class="desktop-floating-layer__settings"
         @click.stop
       >
-        <div class="desktop-titlebar__settings-item">
-          <span>工作空间</span>
-          <strong>{{ currentWorkspace?.name ?? '未选择' }}</strong>
-        </div>
-        <div class="desktop-titlebar__settings-item">
-          <span>文档来源</span>
-          <strong>{{ sourceCount }}</strong>
-        </div>
-        <div class="desktop-titlebar__settings-item">
-          <span>文档总数</span>
-          <strong>{{ docCount }}</strong>
-        </div>
-        <button
-          :disabled="!currentWorkspace"
-          class="desktop-titlebar__settings-action"
-          type="button"
-          @click="openSourceTreeDialog"
-        >
-          编辑文档源
-        </button>
+        <DesktopSystemSettingsPanel
+          :accent-id="preferences.accentId"
+          :accent-options="accentOptions"
+          :theme-mode="preferences.themeMode"
+          @update-accent="setAccent"
+          @update-theme-mode="setThemeMode"
+        />
       </div>
     </div>
 
@@ -324,12 +314,15 @@ function filterSourceGroups(groups: typeof sourceGroups, allowedSourceIds: Set<s
       <aside class="desktop-workbench__sidebar">
         <DesktopDocsSidebar
           :current-doc-slug="selectedDocSlug || null"
+          :current-workspace-doc-count="docCount"
           :current-section-id="currentSectionId"
           :current-source-id="currentSourceId"
           :current-workspace-id="currentWorkspaceId"
+          :current-workspace-source-count="sourceCount"
           :source-groups="visibleSourceGroups"
           :workspaces="workspaces"
           @create-workspace="isWorkspaceDialogOpen = true"
+          @edit-sources="openSourceTreeDialog"
           @select-doc="handleSelectDoc"
           @select-workspace="handleSelectWorkspace"
         />
@@ -499,57 +492,10 @@ function filterSourceGroups(groups: typeof sourceGroups, allowedSourceIds: Set<s
   right: 0.95rem;
 }
 
-.desktop-titlebar__settings-popover {
+.desktop-floating-layer__settings {
   position: absolute;
   top: 0.9rem;
   right: 0.95rem;
-  display: grid;
-  gap: 0.45rem;
-  min-width: 220px;
-  padding: 0.75rem;
-  border: 1px solid var(--desktop-line);
-  border-radius: 16px;
-  background: var(--desktop-surface-strong);
-  box-shadow: 0 16px 32px rgba(var(--desktop-shadow), 0.12);
-}
-
-.desktop-titlebar__settings-item {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.8rem;
-  padding: 0.55rem 0.6rem;
-  border-radius: 10px;
-  background: rgba(var(--desktop-accent-rgb), 0.04);
-  color: var(--desktop-muted);
-  font-size: 0.8rem;
-}
-
-.desktop-titlebar__settings-item strong {
-  color: var(--desktop-ink);
-  font-size: 0.82rem;
-}
-
-.desktop-titlebar__settings-action {
-  min-height: 2.2rem;
-  border: 1px solid rgba(var(--desktop-accent-rgb), 0.18);
-  border-radius: 12px;
-  background: rgba(var(--desktop-accent-rgb), 0.08);
-  color: var(--desktop-accent);
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: border-color 0.18s ease, background-color 0.18s ease;
-}
-
-.desktop-titlebar__settings-action:hover:not(:disabled) {
-  border-color: rgba(var(--desktop-accent-rgb), 0.28);
-  background: rgba(var(--desktop-accent-rgb), 0.12);
-}
-
-.desktop-titlebar__settings-action:disabled {
-  opacity: 0.52;
-  cursor: not-allowed;
 }
 
 .desktop-workbench {
@@ -593,6 +539,14 @@ function filterSourceGroups(groups: typeof sourceGroups, allowedSourceIds: Set<s
   .desktop-titlebar__icon-button {
     background: rgba(20, 30, 46, 0.8);
   }
+}
+
+:global(:root[data-theme-mode='dark']) .desktop-titlebar {
+  background: rgba(18, 27, 42, 0.86);
+}
+
+:global(:root[data-theme-mode='dark']) .desktop-titlebar__icon-button {
+  background: rgba(20, 30, 46, 0.8);
 }
 
 @media (max-width: 1320px) {
