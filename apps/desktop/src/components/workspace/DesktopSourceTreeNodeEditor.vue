@@ -12,6 +12,7 @@ const props = defineProps<{
   dragOverNodeId?: string | null
   dragPlacement?: DraftNodeDropPlacement | null
   draggedNodeId?: string | null
+  expandedNodeIds: string[]
   isValidatingPathByNodeId: Record<string, boolean | undefined>
   issuesByNodeId: Record<string, string[]>
   siblingCount?: number
@@ -33,6 +34,7 @@ const emit = defineEmits<{
   moveNode: [nodeId: string, direction: -1 | 1]
   dropNode: [payload: { targetNodeId: string; placement: DraftNodeDropPlacement }]
   removeNode: [nodeId: string]
+  toggleExpand: [nodeId: string]
 }>()
 
 const nodeIssues = computed(() => props.issuesByNodeId[node.value.id] ?? [])
@@ -97,6 +99,8 @@ const isDraggingSelf = computed(() => props.draggedNodeId === node.value.id)
 const isDropBeforeActive = computed(() => props.dragOverNodeId === node.value.id && props.dragPlacement === 'before')
 const isDropInsideActive = computed(() => props.dragOverNodeId === node.value.id && props.dragPlacement === 'inside')
 const isDropAfterActive = computed(() => props.dragOverNodeId === node.value.id && props.dragPlacement === 'after')
+const hasChildren = computed(() => node.value.children.length > 0)
+const isExpanded = computed(() => props.expandedNodeIds.includes(node.value.id))
 
 function forwardMoveNode(nodeId: string, direction: -1 | 1) {
   emit('moveNode', nodeId, direction)
@@ -182,6 +186,23 @@ function resolveDropPlacement(event: DragEvent): DraftNodeDropPlacement {
       @drop="handleDrop"
     >
       <div class="desktop-source-tree-node__row">
+        <button
+          v-if="hasChildren"
+          :aria-label="isExpanded ? '收起子节点' : '展开子节点'"
+          :disabled="disabled"
+          class="desktop-source-tree-node__expand"
+          type="button"
+          @click="emit('toggleExpand', node.id)"
+        >
+          <DesktopUiIcon
+            name="chevron-down"
+            :size="14"
+            :class="[
+              'desktop-source-tree-node__expand-icon',
+              { 'desktop-source-tree-node__expand-icon--collapsed': !isExpanded },
+            ]"
+          />
+        </button>
         <button
           :disabled="disabled"
           class="desktop-source-tree-node__drag-handle"
@@ -320,7 +341,7 @@ function resolveDropPlacement(event: DragEvent): DraftNodeDropPlacement {
     </div>
 
     <div
-      v-if="node.children.length > 0"
+      v-if="hasChildren && isExpanded"
       class="desktop-source-tree-node__children"
     >
       <DesktopSourceTreeNodeEditor
@@ -332,6 +353,7 @@ function resolveDropPlacement(event: DragEvent): DraftNodeDropPlacement {
         :drag-over-node-id="dragOverNodeId"
         :drag-placement="dragPlacement"
         :dragged-node-id="draggedNodeId"
+        :expanded-node-ids="expandedNodeIds"
         :is-validating-path-by-node-id="isValidatingPathByNodeId"
         :issues-by-node-id="issuesByNodeId"
         :sibling-count="node.children.length"
@@ -347,6 +369,7 @@ function resolveDropPlacement(event: DragEvent): DraftNodeDropPlacement {
         @move-node="forwardMoveNode"
         @drop-node="emit('dropNode', $event)"
         @remove-node="emit('removeNode', $event)"
+        @toggle-expand="emit('toggleExpand', $event)"
       />
     </div>
   </section>
@@ -426,6 +449,29 @@ function resolveDropPlacement(event: DragEvent): DraftNodeDropPlacement {
 .desktop-source-tree-node__kind--folder {
   background: rgba(47, 123, 95, 0.1);
   color: #2f7b5f;
+}
+
+.desktop-source-tree-node__expand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1.7rem;
+  min-height: 1.7rem;
+  padding: 0;
+  border: 1px solid var(--desktop-line);
+  border-radius: 10px;
+  background: rgba(var(--desktop-accent-rgb), 0.03);
+  color: var(--desktop-soft);
+  cursor: pointer;
+}
+
+.desktop-source-tree-node__expand-icon {
+  transition: transform 0.16s ease;
+}
+
+.desktop-source-tree-node__expand-icon--collapsed {
+  transform: rotate(-90deg);
 }
 
 .desktop-source-tree-node__drag-handle {

@@ -44,11 +44,16 @@ const state = reactive({
   dragOverNodeId: null as string | null,
   dragPlacement: null as DraftNodeDropPlacement | null,
   draggedNodeId: null as string | null,
-  importSummary: '',
+  expandedNodeIds: [] as string[],
+  feedbackMessage: '',
+  feedbackTone: 'muted' as 'muted' | 'success' | 'warning',
   pathStatuses: {} as Record<string, { exists: boolean; isDirectory: boolean } | undefined>,
   pathValidationTokens: {} as Record<string, number>,
   validatingPathIds: {} as Record<string, boolean | undefined>,
 })
+
+let dragExpandTimer: ReturnType<typeof window.setTimeout> | null = null
+let dragExpandTargetId: string | null = null
 
 const issues = computed(() => collectSourceTreeIssues(state.draftNodes, state.pathStatuses))
 const issuesByNodeId = computed<Record<string, string[]>>(() =>
@@ -78,8 +83,9 @@ watch(
     }
 
     state.draftNodes = cloneSourceNodes(props.workspace.sources)
+    state.expandedNodeIds = collectExpandedNodeIds(state.draftNodes)
     resetDragState()
-    state.importSummary = ''
+    clearFeedback()
     state.pathStatuses = {}
     void validateAllFolderNodes()
   },
@@ -111,8 +117,11 @@ watch(folderPathSnapshot, (entries, previousEntries = []) => {
 })
 
 async function handleAddRootGroup() {
-  state.draftNodes = insertDraftChild(state.draftNodes, null, (index) => createGroupDraft(null, index))
+  const draft = createGroupDraft(null, state.draftNodes.length)
+  state.draftNodes = insertDraftChild(state.draftNodes, null, () => draft)
   syncDraftParentIds(state.draftNodes)
+  ensureNodeExpanded(draft.id)
+  setFeedback('已添加根分组。')
 }
 
 function handleAddRootFolder() {
@@ -127,21 +136,28 @@ async function handleAddRootFolders() {
 
   const { addedCount, skippedCount } = appendFolderNodes(null, folderPaths)
   if (addedCount === 0 && skippedCount > 0) {
-    state.importSummary = `没有导入新目录，已跳过 ${skippedCount} 个重复路径。`
+    setFeedback(`没有导入新目录，已跳过 ${skippedCount} 个重复路径。`, 'warning')
     return
   }
 
-  state.importSummary =
+  setFeedback(
     skippedCount > 0
       ? `已导入 ${addedCount} 个目录，跳过 ${skippedCount} 个重复路径。`
-      : `已导入 ${addedCount} 个目录。`
+      : `已导入 ${addedCount} 个目录。`,
+    'success',
+  )
 
   await validateAllFolderNodes()
 }
 
 async function handleAddNestedGroup(parentId: string) {
-  state.draftNodes = insertDraftChild(state.draftNodes, parentId, (index) => createGroupDraft(parentId, index))
+  const parentNode = findDraftNode(state.draftNodes, parentId)
+  const draft = createGroupDraft(parentId, parentNode?.children.length ?? 0)
+  state.draftNodes = insertDraftChild(state.draftNodes, parentId, () => draft)
   syncDraftParentIds(state.draftNodes)
+  ensureNodeExpanded(parentId)
+  ensureNodeExpanded(draft.id)
+  setFeedback('已添加子分组。')
 }
 
 function handleAddNestedFolder(parentId: string) {
@@ -167,14 +183,31 @@ async function handleBrowseFolder(nodeId: string) {
 }
 
 function handleRemoveNode(nodeId: string) {
+  const targetNode = findDraftNode(state.draftNodes, nodeId)
   state.draftNodes = removeDraftNode(state.draftNodes, nodeId)
-  delete state.pathStatuses[nodeId]
+  if (targetNode) {
+    const relatedNodeIds = flattenDraftNodes([targetNode]).map((node) => node.id)
+    const relatedNodeIdSet = new Set(relatedNodeIds)
+    state.expandedNodeIds = state.expandedNodeIds.filter((id) => !relatedNodeIdSet.has(id))
+    relatedNodeIds.forEach((relatedNodeId) => {
+      delete state.pathStatuses[relatedNodeId]
+      delete state.pathValidationTokens[relatedNodeId]
+      delete state.validatingPathIds[relatedNodeId]
+    })
+  }
   syncDraftParentIds(state.draftNodes)
+  setFeedback('已删除当前节点。')
 }
 
 function handleMoveNode(nodeId: string, direction: -1 | 1) {
-  state.draftNodes = moveDraftNode(state.draftNodes, nodeId, direction)
+  const nextNodes = moveDraftNode(state.draftNodes, nodeId, direction)
+  if (nextNodes === state.draftNodes) {
+    return
+  }
+
+  state.draftNodes = nextNodes
   syncDraftParentIds(state.draftNodes)
+  setFeedback(direction < 0 ? '已上移节点。' : '已下移节点。', 'success')
 }
 
 function handleDragStart(nodeId: string) {
@@ -188,6 +221,13 @@ function handleDragOver(payload: { targetNodeId: string; placement: DraftNodeDro
 
   state.dragOverNodeId = payload.targetNodeId
   state.dragPlacement = payload.placement
+
+  if (payload.placement === 'inside') {
+    scheduleDragExpand(payload.targetNodeId)
+    return
+  }
+
+  clearDragExpandTimer()
 }
 
 function handleDrop(payload: { targetNodeId: string; placement: DraftNodeDropPlacement }) {
@@ -195,17 +235,24 @@ function handleDrop(payload: { targetNodeId: string; placement: DraftNodeDropPla
     return
   }
 
-  state.draftNodes = moveDraftNodeByDrop(
+  const nextNodes = moveDraftNodeByDrop(
     state.draftNodes,
     state.draggedNodeId,
     payload.targetNodeId,
     payload.placement,
   )
+  const didMove = nextNodes !== state.draftNodes
+  state.draftNodes = nextNodes
   syncDraftParentIds(state.draftNodes)
+  if (didMove && payload.placement === 'inside') {
+    ensureNodeExpanded(payload.targetNodeId)
+  }
+  setFeedback(didMove ? '已更新文档源层级。' : '当前拖拽位置无效。', didMove ? 'success' : 'warning')
   resetDragState()
 }
 
 function resetDragState() {
+  clearDragExpandTimer()
   state.dragOverNodeId = null
   state.dragPlacement = null
   state.draggedNodeId = null
@@ -227,10 +274,14 @@ function handleSave() {
 }
 
 function addFolderNode(parentId: string | null) {
-  state.draftNodes = insertDraftChild(state.draftNodes, parentId, (index) =>
-    createFolderDraft(parentId, index),
-  )
+  const parentNode = parentId ? findDraftNode(state.draftNodes, parentId) : null
+  const draft = createFolderDraft(parentId, parentNode?.children.length ?? state.draftNodes.length)
+  state.draftNodes = insertDraftChild(state.draftNodes, parentId, () => draft)
   syncDraftParentIds(state.draftNodes)
+  if (parentId) {
+    ensureNodeExpanded(parentId)
+  }
+  setFeedback(parentId ? '已添加子目录卡片。' : '已添加根目录卡片。')
 }
 
 function appendFolderNodes(parentId: string | null, folderPaths: string[]) {
@@ -250,10 +301,17 @@ function appendFolderNodes(parentId: string | null, folderPaths: string[]) {
     }
 
     normalizedExistingPaths.add(normalizedPath)
-    state.draftNodes = insertDraftChild(state.draftNodes, parentId, (index) =>
-      createFolderDraft(parentId, index, rawPath, inferUniqueFolderName(rawPath, parentId)),
+    const draft = createFolderDraft(
+      parentId,
+      getSiblingNodes(parentId).length,
+      rawPath,
+      inferUniqueFolderName(rawPath, parentId),
     )
+    state.draftNodes = insertDraftChild(state.draftNodes, parentId, () => draft)
     syncDraftParentIds(state.draftNodes)
+    if (parentId) {
+      ensureNodeExpanded(parentId)
+    }
     addedCount += 1
   }
 
@@ -349,6 +407,69 @@ function getSiblingNodes(parentId: string | null) {
 function normalizePathValue(pathValue: string) {
   return pathValue.replace(/\\/g, '/').replace(/\/+$/, '').trim().toLowerCase()
 }
+
+function toggleExpand(nodeId: string) {
+  if (state.expandedNodeIds.includes(nodeId)) {
+    state.expandedNodeIds = state.expandedNodeIds.filter((id) => id !== nodeId)
+    return
+  }
+
+  state.expandedNodeIds = [...state.expandedNodeIds, nodeId]
+}
+
+function ensureNodeExpanded(nodeId: string) {
+  if (!nodeId || state.expandedNodeIds.includes(nodeId)) {
+    return
+  }
+
+  state.expandedNodeIds = [...state.expandedNodeIds, nodeId]
+}
+
+function collectExpandedNodeIds(nodes: WorkspaceSourceNodeDraft[]): string[] {
+  return nodes.flatMap((node) => [
+    ...(node.children.length > 0 ? [node.id] : []),
+    ...collectExpandedNodeIds(node.children),
+  ])
+}
+
+function clearFeedback() {
+  state.feedbackMessage = ''
+  state.feedbackTone = 'muted'
+}
+
+function setFeedback(message: string, tone: 'muted' | 'success' | 'warning' = 'muted') {
+  state.feedbackMessage = message
+  state.feedbackTone = tone
+}
+
+function scheduleDragExpand(nodeId: string) {
+  const targetNode = findDraftNode(state.draftNodes, nodeId)
+  if (!targetNode || targetNode.children.length === 0 || state.expandedNodeIds.includes(nodeId)) {
+    clearDragExpandTimer()
+    return
+  }
+
+  if (dragExpandTargetId === nodeId && dragExpandTimer !== null) {
+    return
+  }
+
+  clearDragExpandTimer()
+  dragExpandTargetId = nodeId
+  dragExpandTimer = window.setTimeout(() => {
+    ensureNodeExpanded(nodeId)
+    dragExpandTimer = null
+    dragExpandTargetId = null
+  }, 380)
+}
+
+function clearDragExpandTimer() {
+  if (dragExpandTimer !== null) {
+    window.clearTimeout(dragExpandTimer)
+  }
+
+  dragExpandTimer = null
+  dragExpandTargetId = null
+}
 </script>
 
 <template>
@@ -410,10 +531,13 @@ function normalizePathValue(pathValue: string) {
       </div>
 
       <div
-        v-if="state.importSummary"
-        class="desktop-source-tree-dialog__toolbar-note"
+        v-if="state.feedbackMessage"
+        :class="[
+          'desktop-source-tree-dialog__toolbar-note',
+          `desktop-source-tree-dialog__toolbar-note--${state.feedbackTone}`,
+        ]"
       >
-        {{ state.importSummary }}
+        {{ state.feedbackMessage }}
       </div>
 
       <div
@@ -436,6 +560,7 @@ function normalizePathValue(pathValue: string) {
           :drag-over-node-id="state.dragOverNodeId"
           :drag-placement="state.dragPlacement"
           :dragged-node-id="state.draggedNodeId"
+          :expanded-node-ids="state.expandedNodeIds"
           :is-validating-path-by-node-id="state.validatingPathIds"
           :issues-by-node-id="issuesByNodeId"
           :sibling-count="state.draftNodes.length"
@@ -451,6 +576,7 @@ function normalizePathValue(pathValue: string) {
           @move-node="handleMoveNode"
           @drop-node="handleDrop"
           @remove-node="handleRemoveNode"
+          @toggle-expand="toggleExpand"
         />
       </div>
 
@@ -523,6 +649,14 @@ function normalizePathValue(pathValue: string) {
   color: var(--desktop-soft);
   font-size: 0.74rem;
   line-height: 1.45;
+}
+
+.desktop-source-tree-dialog__toolbar-note--success {
+  color: #2f7b5f;
+}
+
+.desktop-source-tree-dialog__toolbar-note--warning {
+  color: #b87529;
 }
 
 .desktop-source-tree-dialog__header-copy {
