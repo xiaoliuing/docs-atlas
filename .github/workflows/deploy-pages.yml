@@ -4,6 +4,16 @@ on:
   push:
     branches:
       - main
+    paths:
+      - '.github/workflows/deploy-pages.yml'
+      - 'apps/web/**'
+      - 'packages/shared-types/**'
+      - 'docs/**'
+      - 'README.md'
+      - 'config.example.yaml'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
   workflow_dispatch:
 
 permissions:
@@ -42,14 +52,14 @@ jobs:
         run: rm -f config.yaml config.yml docs-atlas.config.yaml docs-atlas.config.yml docs-cms.config.yaml docs-cms.config.yml
 
       - name: Build demo site
-        run: pnpm build
+        run: pnpm build:web
         env:
           GITHUB_PAGES: 'true'
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: ./dist
+          path: ./apps/web/dist
 
   deploy:
     needs: build

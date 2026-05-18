@@ -78,10 +78,11 @@ export function resolveDocsConfig(
   projectRoot: string,
   env: Record<string, string | undefined>,
 ): ResolvedDocsConfig {
-  const configPath = findDocsConfigFile(projectRoot)
+  const workspaceRoot = resolveWorkspaceRoot(projectRoot)
+  const configPath = findDocsConfigFile(projectRoot, workspaceRoot)
 
   if (configPath) {
-    return resolveFromYaml(configPath, projectRoot)
+    return resolveFromYaml(configPath, workspaceRoot)
   }
 
   const envDocsDir = env.DOCS_CMS_DOCS_DIR?.trim()
@@ -89,18 +90,32 @@ export function resolveDocsConfig(
     ? { path: envDocsDir }
     : { path: DEFAULT_DOCS_DIR, name: 'docs' }
 
-  return normalizeConfigEntries([fallbackSource], projectRoot)
+  return normalizeConfigEntries([fallbackSource], workspaceRoot)
 }
 
-function findDocsConfigFile(projectRoot: string): string | null {
-  for (const filename of CONFIG_FILE_CANDIDATES) {
-    const absolutePath = path.resolve(projectRoot, filename)
-    if (fs.existsSync(absolutePath)) {
-      return absolutePath
+function findDocsConfigFile(projectRoot: string, workspaceRoot: string): string | null {
+  const searchRoots =
+    workspaceRoot === projectRoot ? [projectRoot] : [workspaceRoot, projectRoot]
+
+  for (const root of searchRoots) {
+    for (const filename of CONFIG_FILE_CANDIDATES) {
+      const absolutePath = path.resolve(root, filename)
+      if (fs.existsSync(absolutePath)) {
+        return absolutePath
+      }
     }
   }
 
   return null
+}
+
+function resolveWorkspaceRoot(projectRoot: string): string {
+  const candidate = path.resolve(projectRoot, '../..')
+  if (fs.existsSync(path.resolve(candidate, 'pnpm-workspace.yaml'))) {
+    return candidate
+  }
+
+  return projectRoot
 }
 
 function resolveFromYaml(configPath: string, projectRoot: string): ResolvedDocsConfig {

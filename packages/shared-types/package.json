@@ -1,0 +1,17 @@
+{
+  "name": "@docs-atlas/shared-types",
+  "private": true,
+  "version": "0.10.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./docs": "./src/docs.ts",
+    "./workspace": "./src/workspace.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  }
+}

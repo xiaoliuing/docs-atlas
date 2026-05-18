@@ -1,0 +1,107 @@
+:root {
+  color-scheme: light dark;
+  --desktop-bg: #f4f7fb;
+  --desktop-surface: rgba(255, 255, 255, 0.9);
+  --desktop-surface-strong: rgba(255, 255, 255, 0.98);
+  --desktop-surface-muted: #eef3fb;
+  --desktop-line: rgba(19, 36, 77, 0.09);
+  --desktop-line-strong: rgba(31, 84, 217, 0.2);
+  --desktop-ink: #16243c;
+  --desktop-muted: #5f6f88;
+  --desktop-soft: #8090a7;
+  --desktop-accent: #1f54d9;
+  --desktop-accent-rgb: 31, 84, 217;
+  --desktop-shadow: 13, 29, 55;
+  --desktop-radius-lg: 22px;
+  --desktop-radius-md: 16px;
+  --desktop-radius-sm: 12px;
+  --desktop-focus-ring: 0 0 0 3px rgba(var(--desktop-accent-rgb), 0.16);
+  --desktop-font-sans:
+    "SF Pro Display",
+    "Segoe UI",
+    "PingFang SC",
+    "Helvetica Neue",
+    sans-serif;
+  --desktop-font-mono:
+    "JetBrains Mono",
+    "SFMono-Regular",
+    "SF Mono",
+    monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --desktop-bg: #0f1726;
+    --desktop-surface: rgba(18, 26, 42, 0.92);
+    --desktop-surface-strong: rgba(15, 22, 36, 0.98);
+    --desktop-surface-muted: rgba(22, 31, 49, 0.96);
+    --desktop-line: rgba(122, 153, 214, 0.16);
+    --desktop-line-strong: rgba(95, 147, 255, 0.26);
+    --desktop-ink: #edf3ff;
+    --desktop-muted: #aebbd0;
+    --desktop-soft: #92a1b7;
+    --desktop-shadow: 0, 0, 0;
+    --desktop-focus-ring: 0 0 0 3px rgba(var(--desktop-accent-rgb), 0.28);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(var(--desktop-accent-rgb), 0.08), transparent 24%),
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.025), transparent 28%),
+    radial-gradient(circle at 1px 1px, rgba(var(--desktop-accent-rgb), 0.05) 1px, transparent 0),
+    var(--desktop-bg);
+  background-size: auto, auto, 22px 22px, auto;
+  color: var(--desktop-ink);
+  font-family: var(--desktop-font-sans);
+  line-height: 1.5;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: var(--desktop-focus-ring);
+}
+
+.desktop-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--desktop-accent-rgb), 0.35) transparent;
+}
+
+.desktop-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.desktop-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(var(--desktop-accent-rgb), 0.32);
+}
+
+.desktop-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
