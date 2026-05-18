@@ -104,8 +104,16 @@ const visibleSourceGroups = computed(() => sourceGroups.value)
 const docCount = computed(() => docs.value.length)
 const workspaceDialogWorkspace = computed(() => (workspaceDialogMode.value === 'edit' ? currentWorkspace.value : null))
 
-function handleSelectWorkspace(workspaceId: string) {
-  void selectWorkspace(workspaceId)
+async function handleSelectWorkspace(workspaceId: string) {
+  const restoredSlug = readingState.getSelectedDocForWorkspace(workspaceId)
+
+  await selectWorkspace(workspaceId)
+
+  if (restoredSlug) {
+    await waitForDocAvailability(restoredSlug)
+    selectDoc(restoredSlug)
+  }
+
   isSettingsOpen.value = false
 }
 
