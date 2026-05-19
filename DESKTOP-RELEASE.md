@@ -8,7 +8,7 @@ Web 示例站继续使用 GitHub Pages。
 
 - 工作流文件：`.github/workflows/release-desktop.yml`
 - 触发方式：
-  - 推送 tag：`desktop-v0.31.8`
+  - 推送 tag：`desktop-v0.31.9`
   - GitHub Actions 页面手动执行 `Release Docs Atlas Desktop`
 
 ## 发布前需要做什么
@@ -81,8 +81,8 @@ openssl base64 -in developer-id-application.p12 -out apple-certificate.base64.tx
 推荐用 tag 触发正式发布：
 
 ```bash
-git tag desktop-v0.31.8
-git push origin desktop-v0.31.8
+git tag desktop-v0.31.9
+git push origin desktop-v0.31.9
 ```
 
 工作流会：

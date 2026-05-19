@@ -26,6 +26,13 @@ concurrency:
 
 jobs:
   release:
+    env:
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
     strategy:
       fail-fast: false
       matrix:
@@ -75,12 +82,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Import Apple signing certificate
-        if: matrix.platform == 'macos-latest' && secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' && secrets.APPLE_KEYCHAIN_PASSWORD != ''
+        if: matrix.platform == 'macos-latest' && env.APPLE_CERTIFICATE != '' && env.APPLE_CERTIFICATE_PASSWORD != '' && env.APPLE_KEYCHAIN_PASSWORD != ''
         shell: bash
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
         run: |
           CERT_PATH="$RUNNER_TEMP/docs-atlas-signing.p12"
           KEYCHAIN_PATH="$RUNNER_TEMP/docs-atlas-signing.keychain-db"
@@ -105,16 +108,12 @@ jobs:
           echo "APPLE_SIGNING_IDENTITY=$SIGNING_IDENTITY" >> "$GITHUB_ENV"
 
       - name: Skip Apple signing
-        if: matrix.platform == 'macos-latest' && (secrets.APPLE_CERTIFICATE == '' || secrets.APPLE_CERTIFICATE_PASSWORD == '' || secrets.APPLE_KEYCHAIN_PASSWORD == '')
+        if: matrix.platform == 'macos-latest' && (env.APPLE_CERTIFICATE == '' || env.APPLE_CERTIFICATE_PASSWORD == '' || env.APPLE_KEYCHAIN_PASSWORD == '')
         run: echo "Apple signing secrets are not configured. Building an unsigned macOS bundle."
 
       - name: Prepare Apple notarization key
-        if: matrix.platform == 'macos-latest' && secrets.APPLE_API_ISSUER != '' && secrets.APPLE_API_KEY != '' && secrets.APPLE_API_PRIVATE_KEY != ''
+        if: matrix.platform == 'macos-latest' && env.APPLE_API_ISSUER != '' && env.APPLE_API_KEY != '' && env.APPLE_API_PRIVATE_KEY != ''
         shell: bash
-        env:
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
         run: |
           PRIVATE_KEYS_DIR="$RUNNER_TEMP/private_keys"
           KEY_PATH="$PRIVATE_KEYS_DIR/AuthKey_${APPLE_API_KEY}.p8"
@@ -126,7 +125,7 @@ jobs:
           echo "APPLE_API_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
 
       - name: Skip Apple notarization
-        if: matrix.platform == 'macos-latest' && (secrets.APPLE_API_ISSUER == '' || secrets.APPLE_API_KEY == '' || secrets.APPLE_API_PRIVATE_KEY == '')
+        if: matrix.platform == 'macos-latest' && (env.APPLE_API_ISSUER == '' || env.APPLE_API_KEY == '' || env.APPLE_API_PRIVATE_KEY == '')
         run: echo "Apple notarization secrets are not configured. Publishing the macOS bundle without notarization."
 
       - name: Build and publish desktop bundles
