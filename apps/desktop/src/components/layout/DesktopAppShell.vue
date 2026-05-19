@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
+import type { UnlistenFn } from '@tauri-apps/api/event'
 import type { WorkspaceSourceNode } from '@docs-atlas/shared-types/workspace'
-import { exportLogsFile, openAppDataDirectory, openLogsDirectory } from '@/api/system'
+import { getCurrentWindow } from '@tauri-apps/api/window'
+import {
+  exportLogsFile,
+  listenDesktopMenuActions,
+  openAppDataDirectory,
+  openLogsDirectory,
+  type DesktopMenuAction,
+} from '@/api/system'
 import DesktopDocReader from '@/components/docs/DesktopDocReader.vue'
 import DesktopDocsSidebar from '@/components/docs/DesktopDocsSidebar.vue'
 import DesktopDocToc from '@/components/docs/DesktopDocToc.vue'
@@ -98,6 +106,7 @@ const hasRestoredInitialWorkspace = shallowRef(false)
 const pendingRestoreWorkspaceId = shallowRef('')
 const pendingRestoreDocSlug = shallowRef('')
 const searchPanelRef = useTemplateRef<InstanceType<typeof DesktopSearchPanel>>('searchPanel')
+let desktopMenuActionUnlisten: UnlistenFn | null = null
 let settingsActionMessageTimer: number | null = null
 
 const floatingPanelVisible = computed(() => isOpen.value || isSettingsOpen.value)
@@ -135,6 +144,10 @@ async function toggleSearchPanel() {
     return
   }
 
+  await showSearchPanel()
+}
+
+async function showSearchPanel() {
   isSettingsOpen.value = false
   openSearch()
   await nextTick()
@@ -146,10 +159,15 @@ function toggleSettingsPanel() {
   isSettingsOpen.value = nextOpen
 
   if (nextOpen) {
-    closeSearch()
+    openSettingsPanel()
   } else {
     clearSettingsActionMessage()
   }
+}
+
+function openSettingsPanel() {
+  isSettingsOpen.value = true
+  closeSearch()
 }
 
 function openSourceTreeDialog() {
@@ -326,12 +344,54 @@ async function handleExportLogsFile() {
   await runSystemSettingsAction('export', exportLogsFile, '日志文件已导出')
 }
 
+async function handleTitlebarDoubleClick() {
+  if (!isTauriRuntime()) {
+    return
+  }
+
+  const currentWindow = getCurrentWindow()
+  const isMaximized = await currentWindow.isMaximized()
+
+  if (isMaximized) {
+    await currentWindow.unmaximize()
+    return
+  }
+
+  await currentWindow.maximize()
+}
+
+async function handleDesktopMenuAction(action: DesktopMenuAction) {
+  switch (action) {
+    case 'open-search':
+      await showSearchPanel()
+      break
+    case 'open-settings':
+      openSettingsPanel()
+      break
+    case 'import-workspace':
+      await handleImportWorkspace()
+      break
+    case 'export-workspace':
+      await handleExportWorkspace()
+      break
+  }
+}
+
+async function bindDesktopMenuActions() {
+  desktopMenuActionUnlisten = await listenDesktopMenuActions((action) => {
+    void handleDesktopMenuAction(action)
+  })
+}
+
 onMounted(() => {
   void restoreInitialWorkspace()
+  void bindDesktopMenuActions()
 })
 
 onBeforeUnmount(() => {
   clearSettingsActionMessage()
+  desktopMenuActionUnlisten?.()
+  desktopMenuActionUnlisten = null
 })
 
 watch(
@@ -520,11 +580,18 @@ function waitForDocAvailability(slug: string, timeoutMs = 5000) {
     }, timeoutMs)
   })
 }
+
+function isTauriRuntime() {
+  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+}
 </script>
 
 <template>
   <div class="desktop-app-shell">
-    <header class="desktop-titlebar">
+    <header
+      class="desktop-titlebar"
+      @dblclick="handleTitlebarDoubleClick"
+    >
       <div
         class="desktop-titlebar__brand"
         data-tauri-drag-region
@@ -544,6 +611,7 @@ function waitForDocAvailability(slug: string, timeoutMs = 5000) {
           aria-label="打开搜索"
           :class="['desktop-titlebar__icon-button', { 'desktop-titlebar__icon-button--active': isOpen }]"
           type="button"
+          @dblclick.stop
           @click="toggleSearchPanel"
         >
           <DesktopUiIcon name="search" :size="18" />
@@ -553,6 +621,7 @@ function waitForDocAvailability(slug: string, timeoutMs = 5000) {
           aria-label="打开设置"
           :class="['desktop-titlebar__icon-button', { 'desktop-titlebar__icon-button--active': isSettingsOpen }]"
           type="button"
+          @dblclick.stop
           @click="toggleSettingsPanel"
         >
           <DesktopUiIcon name="settings" :size="18" />

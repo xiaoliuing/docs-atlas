@@ -10,7 +10,8 @@ use std::process::Command;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, Position, Size, State, Window, WindowEvent};
 
 const DESKTOP_SEED_VERSION_KEY: &str = "desktop_seed_version";
 const CURRENT_DESKTOP_SEED_VERSION: &str = "2";
@@ -18,6 +19,18 @@ const WORKSPACE_SOURCES_CHANGED_EVENT: &str = "workspace-sources-changed";
 const WORKSPACE_SOURCE_WATCH_INTERVAL_MS: u64 = 1_500;
 const APP_LOGS_DIR_NAME: &str = "logs";
 const APP_LOG_FILE_NAME: &str = "docs-atlas.log";
+const APP_WINDOW_STATE_KEY: &str = "desktop_main_window_state";
+const DESKTOP_MENU_ACTION_EVENT: &str = "desktop-menu-action";
+const MENU_ID_IMPORT_WORKSPACE: &str = "workspace.import";
+const MENU_ID_EXPORT_WORKSPACE: &str = "workspace.export";
+const MENU_ID_OPEN_SEARCH: &str = "view.open-search";
+const MENU_ID_OPEN_SETTINGS: &str = "view.open-settings";
+const MENU_ID_OPEN_APP_DATA_DIRECTORY: &str = "system.open-app-data-directory";
+const MENU_ID_OPEN_LOGS_DIRECTORY: &str = "system.open-logs-directory";
+const MENU_ACTION_IMPORT_WORKSPACE: &str = "import-workspace";
+const MENU_ACTION_EXPORT_WORKSPACE: &str = "export-workspace";
+const MENU_ACTION_OPEN_SEARCH: &str = "open-search";
+const MENU_ACTION_OPEN_SETTINGS: &str = "open-settings";
 static IMPORT_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 const WORKSPACE_DB_SCHEMA: &str = r#"
@@ -217,6 +230,22 @@ struct WorkspaceTransferWorkspacePayload {
 #[serde(rename_all = "camelCase")]
 struct CachedWorkspaceSourcePayload {
   documents: Vec<WorkspaceSourceDocumentPayload>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct DesktopMenuActionPayload {
+  action: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+struct PersistedWindowState {
+  x: Option<i32>,
+  y: Option<i32>,
+  width: Option<u32>,
+  height: Option<u32>,
+  maximized: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -670,8 +699,277 @@ fn export_logs_file(app: AppHandle) -> Result<bool, String> {
   Ok(true)
 }
 
+fn build_desktop_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+  let import_workspace = MenuItem::with_id(
+    app,
+    MENU_ID_IMPORT_WORKSPACE,
+    "导入工作区…",
+    true,
+    Some("CmdOrCtrl+O"),
+  )?;
+  let export_workspace = MenuItem::with_id(
+    app,
+    MENU_ID_EXPORT_WORKSPACE,
+    "导出当前工作区…",
+    true,
+    Some("CmdOrCtrl+Shift+E"),
+  )?;
+  let open_search = MenuItem::with_id(
+    app,
+    MENU_ID_OPEN_SEARCH,
+    "搜索文档",
+    true,
+    Some("CmdOrCtrl+K"),
+  )?;
+  let open_settings = MenuItem::with_id(
+    app,
+    MENU_ID_OPEN_SETTINGS,
+    "系统设置",
+    true,
+    Some("CmdOrCtrl+,"),
+  )?;
+  let open_app_data_directory = MenuItem::with_id(
+    app,
+    MENU_ID_OPEN_APP_DATA_DIRECTORY,
+    "打开数据目录",
+    true,
+    None::<&str>,
+  )?;
+  let open_logs_directory = MenuItem::with_id(
+    app,
+    MENU_ID_OPEN_LOGS_DIRECTORY,
+    "打开日志目录",
+    true,
+    None::<&str>,
+  )?;
+  Menu::with_items(
+    app,
+    &[
+      #[cfg(target_os = "macos")]
+      &Submenu::with_items(
+        app,
+        "Docs Atlas",
+        true,
+        &[
+          &PredefinedMenuItem::about(app, Some("关于 Docs Atlas"), None)?,
+          &PredefinedMenuItem::separator(app)?,
+          &PredefinedMenuItem::hide(app, None)?,
+          &PredefinedMenuItem::hide_others(app, None)?,
+          &PredefinedMenuItem::separator(app)?,
+          &PredefinedMenuItem::quit(app, None)?,
+        ],
+      )?,
+      &Submenu::with_items(
+        app,
+        "File",
+        true,
+        &[
+          &import_workspace,
+          &export_workspace,
+          &PredefinedMenuItem::separator(app)?,
+          &open_app_data_directory,
+          &open_logs_directory,
+          &PredefinedMenuItem::separator(app)?,
+          &PredefinedMenuItem::close_window(app, None)?,
+          #[cfg(not(target_os = "macos"))]
+          &PredefinedMenuItem::quit(app, None)?,
+        ],
+      )?,
+      &Submenu::with_items(
+        app,
+        "Edit",
+        true,
+        &[
+          &PredefinedMenuItem::undo(app, None)?,
+          &PredefinedMenuItem::redo(app, None)?,
+          &PredefinedMenuItem::separator(app)?,
+          &PredefinedMenuItem::cut(app, None)?,
+          &PredefinedMenuItem::copy(app, None)?,
+          &PredefinedMenuItem::paste(app, None)?,
+          &PredefinedMenuItem::select_all(app, None)?,
+        ],
+      )?,
+      &Submenu::with_items(
+        app,
+        "View",
+        true,
+        &[
+          &open_search,
+          &open_settings,
+        ],
+      )?,
+      &Submenu::with_items(
+        app,
+        "Window",
+        true,
+        &[
+          &PredefinedMenuItem::minimize(app, None)?,
+          &PredefinedMenuItem::maximize(app, None)?,
+          &PredefinedMenuItem::separator(app)?,
+          &PredefinedMenuItem::close_window(app, None)?,
+        ],
+      )?,
+      #[cfg(not(target_os = "macos"))]
+      &Submenu::with_items(
+        app,
+        "Help",
+        true,
+        &[&PredefinedMenuItem::about(app, Some("关于 Docs Atlas"), None)?],
+      )?,
+    ],
+  )
+}
+
+fn emit_desktop_menu_action(app: &AppHandle, action: &str) {
+  let _ = app.emit(
+    DESKTOP_MENU_ACTION_EVENT,
+    DesktopMenuActionPayload {
+      action: action.to_string(),
+    },
+  );
+  record_app_info(app, "menu.action", &format!("action={action}"));
+}
+
+fn handle_desktop_menu_event(app: &AppHandle, menu_id: &str) {
+  match menu_id {
+    MENU_ID_IMPORT_WORKSPACE => emit_desktop_menu_action(app, MENU_ACTION_IMPORT_WORKSPACE),
+    MENU_ID_EXPORT_WORKSPACE => emit_desktop_menu_action(app, MENU_ACTION_EXPORT_WORKSPACE),
+    MENU_ID_OPEN_SEARCH => emit_desktop_menu_action(app, MENU_ACTION_OPEN_SEARCH),
+    MENU_ID_OPEN_SETTINGS => emit_desktop_menu_action(app, MENU_ACTION_OPEN_SETTINGS),
+    MENU_ID_OPEN_APP_DATA_DIRECTORY => {
+      if let Err(error) = open_app_data_directory(app.clone()) {
+        record_app_error(app, "menu.action", &format!("action=open-app-data error={error}"));
+      }
+    }
+    MENU_ID_OPEN_LOGS_DIRECTORY => {
+      if let Err(error) = open_logs_directory(app.clone()) {
+        record_app_error(app, "menu.action", &format!("action=open-logs error={error}"));
+      }
+    }
+    _ => {}
+  }
+}
+
+fn restore_main_window_state(app: &AppHandle) {
+  let connection = match open_workspace_database(app) {
+    Ok(connection) => connection,
+    Err(error) => {
+      record_app_error(app, "window.state", &format!("restore_db_error={error}"));
+      return;
+    }
+  };
+
+  let Some(saved_state) = read_app_setting_json::<PersistedWindowState>(&connection, APP_WINDOW_STATE_KEY)
+    .ok()
+    .flatten()
+  else {
+    return;
+  };
+
+  let Some(window) = app.get_webview_window("main") else {
+    return;
+  };
+
+  if let (Some(width), Some(height)) = (saved_state.width, saved_state.height) {
+    let _ = window.set_size(Size::Physical(PhysicalSize::new(width, height)));
+  }
+
+  if let (Some(x), Some(y)) = (saved_state.x, saved_state.y) {
+    let _ = window.set_position(Position::Physical(PhysicalPosition::new(x, y)));
+  }
+
+  if saved_state.maximized {
+    let _ = window.maximize();
+  }
+
+  record_app_info(
+    app,
+    "window.state",
+    &format!(
+      "restored maximized={} width={:?} height={:?} x={:?} y={:?}",
+      saved_state.maximized, saved_state.width, saved_state.height, saved_state.x, saved_state.y
+    ),
+  );
+}
+
+fn snapshot_main_window_state(window: &Window) -> Result<PersistedWindowState, String> {
+  let connection = open_workspace_database(window.app_handle())?;
+  let mut next_state =
+    read_app_setting_json::<PersistedWindowState>(&connection, APP_WINDOW_STATE_KEY)?.unwrap_or_default();
+
+  let is_maximized = window.is_maximized().map_err(|error| error.to_string())?;
+  next_state.maximized = is_maximized;
+
+  if !is_maximized {
+    let position = window.outer_position().map_err(|error| error.to_string())?;
+    let size = window.inner_size().map_err(|error| error.to_string())?;
+    next_state.x = Some(position.x);
+    next_state.y = Some(position.y);
+    next_state.width = Some(size.width);
+    next_state.height = Some(size.height);
+  }
+
+  Ok(next_state)
+}
+
+fn persist_main_window_state(window: &Window, reason: &str, log_success: bool) {
+  let app = window.app_handle();
+  let state = match snapshot_main_window_state(window) {
+    Ok(state) => state,
+    Err(error) => {
+      record_app_error(app, "window.state", &format!("snapshot_error reason={reason} error={error}"));
+      return;
+    }
+  };
+
+  let connection = match open_workspace_database(app) {
+    Ok(connection) => connection,
+    Err(error) => {
+      record_app_error(app, "window.state", &format!("persist_db_error reason={reason} error={error}"));
+      return;
+    }
+  };
+
+  if let Err(error) = write_app_setting_json(&connection, APP_WINDOW_STATE_KEY, &state) {
+    record_app_error(app, "window.state", &format!("persist_error reason={reason} error={error}"));
+    return;
+  }
+
+  if log_success {
+    record_app_info(
+      app,
+      "window.state",
+      &format!(
+        "persisted reason={} maximized={} width={:?} height={:?} x={:?} y={:?}",
+        reason, state.maximized, state.width, state.height, state.x, state.y
+      ),
+    );
+  }
+}
+
 fn main() {
   tauri::Builder::default()
+    .menu(build_desktop_menu)
+    .on_menu_event(|app, event| {
+      handle_desktop_menu_event(app, event.id().as_ref());
+    })
+    .on_window_event(|window, event| {
+      if window.label() != "main" {
+        return;
+      }
+
+      match event {
+        WindowEvent::Focused(false) => persist_main_window_state(window, "blur", false),
+        WindowEvent::CloseRequested { .. } => persist_main_window_state(window, "close-requested", true),
+        WindowEvent::Destroyed => persist_main_window_state(window, "destroyed", false),
+        _ => {}
+      }
+    })
+    .setup(|app| {
+      let app_handle = app.handle().clone();
+      restore_main_window_state(&app_handle);
+      Ok(())
+    })
     .manage(WorkspaceSourceWatchState::default())
     .invoke_handler(tauri::generate_handler![
       delete_workspace,
@@ -1001,6 +1299,17 @@ fn contains_legacy_seed_marker(source: &WorkspaceSourceNodePayload) -> bool {
 }
 
 fn read_app_setting_string(connection: &Connection, key: &str) -> Result<Option<String>, String> {
+  read_app_setting_json(connection, key)
+}
+
+fn write_app_setting_string(connection: &Connection, key: &str, value: &str) -> Result<(), String> {
+  write_app_setting_json(connection, key, &value.to_string())
+}
+
+fn read_app_setting_json<T>(connection: &Connection, key: &str) -> Result<Option<T>, String>
+where
+  T: for<'de> Deserialize<'de>,
+{
   let raw_value = connection
     .query_row(
       "select value_json from app_settings where key = ?1",
@@ -1011,14 +1320,17 @@ fn read_app_setting_string(connection: &Connection, key: &str) -> Result<Option<
     .map_err(|error| error.to_string())?;
 
   match raw_value {
-    Some(value) => serde_json::from_str::<String>(&value)
+    Some(value) => serde_json::from_str::<T>(&value)
       .map(Some)
       .map_err(|error| error.to_string()),
     None => Ok(None),
   }
 }
 
-fn write_app_setting_string(connection: &Connection, key: &str, value: &str) -> Result<(), String> {
+fn write_app_setting_json<T>(connection: &Connection, key: &str, value: &T) -> Result<(), String>
+where
+  T: Serialize,
+{
   let now = current_timestamp();
   let value_json = serde_json::to_string(value).map_err(|error| error.to_string())?;
 
