@@ -1,6 +1,9 @@
 node_modules
 dist
 apps/*/dist
+apps/desktop/src-tauri/icons-generated
+apps/desktop/src-tauri/icons/.iconbuild
+apps/desktop/src-tauri/icons/icon.iconset
 .DS_Store
 .pnpm-store
 .env.local

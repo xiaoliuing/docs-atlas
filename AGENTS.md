@@ -3,14 +3,15 @@
 ## Scope
 
 - `Docs Atlas` 是本地 Markdown 聚合文档站。
-- 技术栈：`Vue 3 + TypeScript + Vite 8 + vite-ssg`
-- 只做阅读、导航、搜索，不做后台编辑和后端 API。
+- 技术栈：`Vue 3 + TypeScript + Vite 8 + vite-ssg + Tauri`
+- Web 和桌面端都保留阅读、导航、搜索这套核心能力。
 
 ## Content Rules
 
 - 默认文档目录是 `docs/`
-- 支持 `config.yaml` 配置多个文档源和嵌套分组，推荐统一使用 `items`，`name` 作为左侧模块名、路由命名空间和静态资源命名空间
-- 一级目录视为专题，`README.md` 是专题导读
+- 支持 `config.yaml` 配置多个文档源和嵌套分组，统一使用 `items`
+- `name` 作为左侧模块名、路由命名空间和静态资源命名空间
+- 一级目录视为专题，`README.md` 是专题入口
 - 其余 Markdown 视为教程详情
 - 如果文档源根下直接是 Markdown，则左侧直接显示文档标题，不额外包一层专题
 - 目录排序默认采用目录优先、`README.md` 优先、自然数字排序
@@ -31,6 +32,7 @@
 - HTML 必须先清洗
 - 相对 `.md` 链接改写为站内路由
 - `README.md` 链接改写到专题页
+- 相对图片必须复制到静态资源目录，并带上 source namespace
 - `h2 / h3` 进入右侧目录
 - 首个 `h1` 在正文中移除，避免和标题卡片重复
 
@@ -49,11 +51,12 @@
 - 不引入 Pinia，优先用 composables
 - 视图组件保持薄，复杂逻辑放到 composables
 - 不手改 `dist/` 和 `node_modules/`
+- 桌面端图标只保留 `apps/desktop/src-tauri/icons/icon.png`、`icon.ico`、`icon.icns`
 
 ## Release
 
 - 默认每次完成改动后自动 `commit` 并 `push`
-- 版本号按范围递增：
+- 版本号按范围递增
 - `patch`：文档、样式、修复、小改动
 - `minor`：新增功能，且没有破坏兼容
 - `major`：破坏性变更、路由或配置不兼容调整
