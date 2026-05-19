@@ -5,6 +5,7 @@
 在线示例：
 
 - https://xiaoliuing.github.io/docs-atlas/
+- 桌面端发布说明：[DESKTOP-RELEASE.md](./DESKTOP-RELEASE.md)
 
 产品规划：
 
@@ -100,6 +101,12 @@ pnpm dev
 
 ```bash
 pnpm build
+```
+
+如果要本地打桌面端包：
+
+```bash
+pnpm build:desktop
 ```
 
 ## 文档组织规则

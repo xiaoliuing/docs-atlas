@@ -9,10 +9,8 @@ on:
       - 'apps/web/**'
       - 'packages/shared-types/**'
       - 'docs/**'
-      - 'README.md'
       - 'config.example.yaml'
       - 'pnpm-lock.yaml'
-      - 'package.json'
       - 'pnpm-workspace.yaml'
   workflow_dispatch:
 
