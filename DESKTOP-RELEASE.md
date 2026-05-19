@@ -8,7 +8,7 @@ Web 示例站继续使用 GitHub Pages。
 
 - 工作流文件：`.github/workflows/release-desktop.yml`
 - 触发方式：
-  - 推送 tag：`desktop-v0.31.6`
+  - 推送 tag：`desktop-v0.31.8`
   - GitHub Actions 页面手动执行 `Release Docs Atlas Desktop`
 
 ## 发布前需要做什么
@@ -26,7 +26,7 @@ pnpm --filter @docs-atlas/desktop build:web-shell
 cd apps/desktop/src-tauri && cargo check
 ```
 
-3. 如果要让 macOS 用户下载后可直接打开，必须配置 Apple 签名与 notarization Secrets：
+3. 如果要让 macOS 用户下载后可直接打开，需要配置 Apple 签名与 notarization Secrets：
 
 - `APPLE_CERTIFICATE`
 - `TAURI_SIGNING_PRIVATE_KEY`
@@ -52,7 +52,11 @@ cd apps/desktop/src-tauri && cargo check
 - `APPLE_API_PRIVATE_KEY`
   下载得到的 `AuthKey_XXXXXX.p8` 文件全文内容
 
-如果不配置这些 Apple 相关 secrets，macOS 构建虽然可能产出安装包，但用户下载后大概率会看到“已损坏，无法打开”。
+如果不配置这些 Apple 相关 secrets：
+
+- workflow 现在不会失败
+- 仍会继续构建未签名的 macOS 安装包
+- 但普通用户下载后大概率会看到“已损坏，无法打开”或需要手动放行
 
 ## Apple 准备
 
@@ -77,8 +81,8 @@ openssl base64 -in developer-id-application.p12 -out apple-certificate.base64.tx
 推荐用 tag 触发正式发布：
 
 ```bash
-git tag desktop-v0.31.6
-git push origin desktop-v0.31.6
+git tag desktop-v0.31.8
+git push origin desktop-v0.31.8
 ```
 
 工作流会：
