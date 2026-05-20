@@ -712,6 +712,15 @@ fn open_external_url(app: AppHandle, url: String) -> Result<bool, String> {
   Ok(true)
 }
 
+#[tauri::command]
+fn set_window_background_color(window: Window, color: String) -> Result<bool, String> {
+  let parsed = parse_hex_color(&color)?;
+  window
+    .set_background_color(Some(parsed))
+    .map_err(|error| error.to_string())?;
+  Ok(true)
+}
+
 fn build_desktop_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
   let import_workspace = MenuItem::with_id(
     app,
@@ -983,6 +992,9 @@ fn main() {
     .setup(|app| {
       let app_handle = app.handle().clone();
       restore_main_window_state(&app_handle);
+      if let Some(window) = app.get_webview_window("main") {
+        let _ = window.set_background_color(Some(tauri::window::Color(31, 84, 217, 255)));
+      }
       Ok(())
     })
     .manage(WorkspaceSourceWatchState::default())
@@ -1000,6 +1012,7 @@ fn main() {
       pick_folder_path,
       pick_folder_paths,
       scan_workspace_sources,
+      set_window_background_color,
       unwatch_workspace_sources,
       validate_source_path,
       watch_workspace_sources,
@@ -1042,6 +1055,28 @@ fn ensure_log_file_path(app: &AppHandle) -> Result<PathBuf, String> {
     std::fs::write(&log_file_path, "").map_err(|error| error.to_string())?;
   }
   Ok(log_file_path)
+}
+
+fn parse_hex_color(color: &str) -> Result<tauri::window::Color, String> {
+  let trimmed = color.trim();
+  let hex = trimmed.strip_prefix('#').unwrap_or(trimmed);
+
+  match hex.len() {
+    6 => {
+      let red = u8::from_str_radix(&hex[0..2], 16).map_err(|error| error.to_string())?;
+      let green = u8::from_str_radix(&hex[2..4], 16).map_err(|error| error.to_string())?;
+      let blue = u8::from_str_radix(&hex[4..6], 16).map_err(|error| error.to_string())?;
+      Ok(tauri::window::Color(red, green, blue, 255))
+    }
+    8 => {
+      let red = u8::from_str_radix(&hex[0..2], 16).map_err(|error| error.to_string())?;
+      let green = u8::from_str_radix(&hex[2..4], 16).map_err(|error| error.to_string())?;
+      let blue = u8::from_str_radix(&hex[4..6], 16).map_err(|error| error.to_string())?;
+      let alpha = u8::from_str_radix(&hex[6..8], 16).map_err(|error| error.to_string())?;
+      Ok(tauri::window::Color(red, green, blue, alpha))
+    }
+    _ => Err(format!("unsupported color format: {trimmed}")),
+  }
 }
 
 fn append_app_log(app: &AppHandle, level: &str, scope: &str, message: &str) -> Result<(), String> {

@@ -13,6 +13,8 @@
   --desktop-soft: #8190a7;
   --desktop-accent: #1f54d9;
   --desktop-accent-rgb: 31, 84, 217;
+  --desktop-titlebar-bg: var(--desktop-accent);
+  --desktop-titlebar-bg-runtime: var(--desktop-titlebar-bg);
   --desktop-shadow: 13, 29, 55;
   --desktop-radius-lg: 18px;
   --desktop-radius-md: 12px;
@@ -58,6 +60,9 @@
   --preview-button-fg: #172033;
   --preview-caption-bg: rgba(255, 255, 255, 0.88);
   --preview-frame-shadow: 0 20px 48px rgba(var(--desktop-shadow), 0.18);
+  --desktop-scrollbar-thumb: rgba(31, 84, 217, 0.3);
+  --desktop-scrollbar-thumb-hover: rgba(31, 84, 217, 0.46);
+  --desktop-scrollbar-track: rgba(31, 84, 217, 0.08);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -74,6 +79,7 @@
     --desktop-ink: #edf3ff;
     --desktop-muted: #aab6ca;
     --desktop-soft: #91a0b5;
+    --desktop-titlebar-bg: color-mix(in srgb, var(--desktop-accent) 34%, #101722);
     --desktop-shadow: 0, 0, 0;
     --desktop-focus-ring: 0 0 0 3px rgba(var(--desktop-accent-rgb), 0.28);
     --preview-surface: rgba(20, 28, 43, 0.9);
@@ -96,6 +102,7 @@
   --desktop-ink: #edf3ff;
   --desktop-muted: #aab6ca;
   --desktop-soft: #91a0b5;
+  --desktop-titlebar-bg: color-mix(in srgb, var(--desktop-accent) 34%, #101722);
   --desktop-shadow: 0, 0, 0;
   --desktop-focus-ring: 0 0 0 3px rgba(var(--desktop-accent-rgb), 0.28);
   --preview-surface: rgba(20, 28, 43, 0.9);
@@ -214,11 +221,13 @@
 }
 
 :root[data-theme-accent='pure-white'] {
-  --desktop-bg: rgb(250, 250, 250);
-  --desktop-surface: rgba(255, 255, 255, 0.82);
-  --desktop-surface-strong: rgba(255, 255, 255, 0.97);
-  --desktop-surface-muted: rgba(255, 255, 255, 0.92);
-  --desktop-line: rgba(160, 160, 160, 0.2);
+  --desktop-bg: rgb(255, 255, 255);
+  --desktop-surface: rgba(255, 255, 255, 0.96);
+  --desktop-surface-strong: rgba(255, 255, 255, 1);
+  --desktop-surface-muted: rgba(255, 255, 255, 1);
+  --desktop-field-bg: rgba(255, 255, 255, 1);
+  --desktop-field-bg-strong: rgba(255, 255, 255, 1);
+  --desktop-line: rgba(160, 160, 160, 0.18);
   --desktop-line-strong: rgba(33, 90, 229, 0.2);
   --desktop-accent: #215ae5;
   --desktop-accent-rgb: 33, 90, 229;
@@ -232,6 +241,7 @@
   --desktop-surface-muted: rgba(14, 24, 48, 0.94);
   --desktop-line: rgba(79, 123, 230, 0.18);
   --desktop-line-strong: rgba(79, 123, 230, 0.26);
+  --desktop-titlebar-bg: #1a2d57;
   --desktop-shadow: 3, 8, 25;
 }
 
@@ -242,6 +252,7 @@
   --desktop-surface-muted: rgba(12, 33, 37, 0.94);
   --desktop-line: rgba(78, 145, 150, 0.24);
   --desktop-line-strong: rgba(78, 145, 150, 0.3);
+  --desktop-titlebar-bg: #163b3f;
   --desktop-shadow: 2, 11, 13;
 }
 
@@ -252,6 +263,7 @@
   --desktop-surface-muted: rgba(14, 34, 28, 0.94);
   --desktop-line: rgba(95, 159, 131, 0.23);
   --desktop-line-strong: rgba(95, 159, 131, 0.3);
+  --desktop-titlebar-bg: #19392f;
   --desktop-shadow: 3, 12, 10;
 }
 
@@ -262,6 +274,7 @@
   --desktop-surface-muted: rgba(37, 29, 14, 0.94);
   --desktop-line: rgba(182, 144, 64, 0.24);
   --desktop-line-strong: rgba(182, 144, 64, 0.3);
+  --desktop-titlebar-bg: #46361b;
   --desktop-shadow: 14, 10, 2;
 }
 
@@ -272,6 +285,7 @@
   --desktop-surface-muted: rgba(36, 20, 28, 0.94);
   --desktop-line: rgba(179, 111, 136, 0.24);
   --desktop-line-strong: rgba(179, 111, 136, 0.3);
+  --desktop-titlebar-bg: #472433;
   --desktop-shadow: 11, 4, 7;
 }
 
@@ -282,6 +296,7 @@
   --desktop-surface-muted: rgba(22, 27, 47, 0.94);
   --desktop-line: rgba(112, 127, 191, 0.25);
   --desktop-line-strong: rgba(112, 127, 191, 0.32);
+  --desktop-titlebar-bg: #2a3154;
   --desktop-shadow: 6, 8, 18;
 }
 
@@ -292,6 +307,7 @@
   --desktop-surface-muted: rgba(38, 24, 20, 0.94);
   --desktop-line: rgba(185, 122, 102, 0.26);
   --desktop-line-strong: rgba(185, 122, 102, 0.32);
+  --desktop-titlebar-bg: #4a2a23;
   --desktop-shadow: 10, 5, 4;
 }
 
@@ -302,6 +318,7 @@
   --desktop-surface-muted: rgba(31, 22, 38, 0.94);
   --desktop-line: rgba(162, 120, 185, 0.26);
   --desktop-line-strong: rgba(162, 120, 185, 0.32);
+  --desktop-titlebar-bg: #402c49;
   --desktop-shadow: 8, 4, 11;
 }
 
@@ -312,6 +329,7 @@
   --desktop-surface-muted: rgba(34, 25, 19, 0.94);
   --desktop-line: rgba(170, 132, 102, 0.24);
   --desktop-line-strong: rgba(170, 132, 102, 0.32);
+  --desktop-titlebar-bg: #3f3025;
   --desktop-shadow: 9, 6, 3;
 }
 
@@ -322,6 +340,7 @@
   --desktop-surface-muted: rgba(37, 42, 49, 0.94);
   --desktop-line: rgba(140, 147, 160, 0.2);
   --desktop-line-strong: rgba(83, 129, 240, 0.3);
+  --desktop-titlebar-bg: #2d3138;
   --desktop-shadow: 4, 6, 10;
 }
 
@@ -404,19 +423,32 @@ select:focus-visible {
 
 .desktop-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(var(--desktop-accent-rgb), 0.22) transparent;
+  scrollbar-color: var(--desktop-scrollbar-thumb) var(--desktop-scrollbar-track);
 }
 
 .desktop-scroll::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 9px;
+  height: 9px;
+  -webkit-appearance: none;
 }
 
 .desktop-scroll::-webkit-scrollbar-thumb {
+  min-height: 42px;
+  border: 2px solid transparent;
   border-radius: 999px;
-  background: rgba(var(--desktop-accent-rgb), 0.22);
+  background-color: var(--desktop-scrollbar-thumb);
+  background-clip: padding-box;
+}
+
+.desktop-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--desktop-scrollbar-thumb-hover);
 }
 
 .desktop-scroll::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background-color: var(--desktop-scrollbar-track);
+}
+
+.desktop-scroll::-webkit-scrollbar-corner {
   background: transparent;
 }

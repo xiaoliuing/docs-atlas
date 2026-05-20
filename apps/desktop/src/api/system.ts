@@ -46,6 +46,14 @@ export async function openExternalUrl(url: string): Promise<boolean> {
   return invoke<boolean>('open_external_url', { url })
 }
 
+export async function syncWindowBackgroundColor(color: string): Promise<boolean> {
+  if (!isTauriRuntime() || !color.trim()) {
+    return false
+  }
+
+  return invoke<boolean>('set_window_background_color', { color })
+}
+
 export async function listenDesktopMenuActions(
   handler: (action: DesktopMenuAction) => void,
 ): Promise<UnlistenFn> {

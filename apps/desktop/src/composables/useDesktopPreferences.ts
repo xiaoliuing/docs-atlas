@@ -1,5 +1,5 @@
 import { computed, shallowRef } from 'vue'
-import { getCurrentWindow } from '@tauri-apps/api/window'
+import { syncWindowBackgroundColor } from '@/api/system'
 
 const STORAGE_KEY = 'docs-atlas.desktop.preferences.v1'
 
@@ -147,6 +147,10 @@ function applyPreferences(value: DesktopPreferences) {
   root.dataset.theme = resolvedTheme
   root.dataset.themeAccent = accent.id
   root.style.setProperty('color-scheme', resolvedTheme)
+  root.style.setProperty('--desktop-titlebar-bg-runtime', resolveTitlebarColor(accent.id, resolvedTheme))
+  root.style.setProperty('--desktop-scrollbar-thumb', resolveScrollbarThumb(accent.rgb, resolvedTheme))
+  root.style.setProperty('--desktop-scrollbar-thumb-hover', resolveScrollbarThumbHover(accent.rgb, resolvedTheme))
+  root.style.setProperty('--desktop-scrollbar-track', resolveScrollbarTrack(accent.rgb, resolvedTheme))
 
   void syncNativeWindowChrome(resolveTitlebarColor(accent.id, resolvedTheme))
 }
@@ -194,13 +198,17 @@ function resolveTitlebarColor(accentId: DesktopAccentId, theme: 'light' | 'dark'
 }
 
 async function syncNativeWindowChrome(color: string) {
-  if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) {
-    return
-  }
+  await syncWindowBackgroundColor(color)
+}
 
-  try {
-    await getCurrentWindow().setBackgroundColor(color)
-  } catch {
-    // Ignore native window sync failures and keep the webview theme active.
-  }
+function resolveScrollbarThumb(rgb: string, theme: 'light' | 'dark') {
+  return `rgba(${rgb}, ${theme === 'dark' ? '0.48' : '0.30'})`
+}
+
+function resolveScrollbarThumbHover(rgb: string, theme: 'light' | 'dark') {
+  return `rgba(${rgb}, ${theme === 'dark' ? '0.68' : '0.46'})`
+}
+
+function resolveScrollbarTrack(rgb: string, theme: 'light' | 'dark') {
+  return `rgba(${rgb}, ${theme === 'dark' ? '0.16' : '0.08'})`
 }
