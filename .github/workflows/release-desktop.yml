@@ -110,7 +110,9 @@ jobs:
 
       - name: Resolve release tag
         id: release_meta
-        run: echo "tag=desktop-v$(node -p \"JSON.parse(require('node:fs').readFileSync('apps/desktop/package.json', 'utf8')).version\")" >> "$GITHUB_OUTPUT"
+        run: |
+          version=$(node -p 'JSON.parse(require("node:fs").readFileSync("apps/desktop/package.json", "utf8")).version')
+          echo "tag=desktop-v${version}" >> "$GITHUB_OUTPUT"
 
       - name: Generate and upload latest.json
         env:
