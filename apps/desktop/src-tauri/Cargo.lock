@@ -856,7 +856,7 @@ dependencies = [
 
 [[package]]
 name = "docs-atlas"
-version = "0.34.5"
+version = "0.34.6"
 dependencies = [
  "rfd",
  "rusqlite",
