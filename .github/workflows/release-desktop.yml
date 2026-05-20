@@ -26,13 +26,6 @@ concurrency:
 
 jobs:
   release:
-    env:
-      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      APPLE_KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
-      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-      APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
     strategy:
       fail-fast: false
       matrix:
@@ -81,60 +74,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Import Apple signing certificate
-        if: matrix.platform == 'macos-latest' && env.APPLE_CERTIFICATE != '' && env.APPLE_CERTIFICATE_PASSWORD != '' && env.APPLE_KEYCHAIN_PASSWORD != ''
-        shell: bash
-        run: |
-          CERT_PATH="$RUNNER_TEMP/docs-atlas-signing.p12"
-          KEYCHAIN_PATH="$RUNNER_TEMP/docs-atlas-signing.keychain-db"
-
-          echo -n "$APPLE_CERTIFICATE" | base64 --decode > "$CERT_PATH"
-
-          security create-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$CERT_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
-          security default-keychain -d user -s "$KEYCHAIN_PATH"
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$APPLE_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-
-          SIGNING_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep "Developer ID Application" | head -n 1 | sed -E 's/.*"(.+)"/\1/')
-
-          if [[ -z "$SIGNING_IDENTITY" ]]; then
-            echo "::error::No Developer ID Application identity was found in the imported certificate."
-            exit 1
-          fi
-
-          echo "APPLE_SIGNING_IDENTITY=$SIGNING_IDENTITY" >> "$GITHUB_ENV"
-
-      - name: Skip Apple signing
-        if: matrix.platform == 'macos-latest' && (env.APPLE_CERTIFICATE == '' || env.APPLE_CERTIFICATE_PASSWORD == '' || env.APPLE_KEYCHAIN_PASSWORD == '')
-        run: echo "Apple signing secrets are not configured. Building an unsigned macOS bundle."
-
-      - name: Prepare Apple notarization key
-        if: matrix.platform == 'macos-latest' && env.APPLE_API_ISSUER != '' && env.APPLE_API_KEY != '' && env.APPLE_API_PRIVATE_KEY != ''
-        shell: bash
-        run: |
-          PRIVATE_KEYS_DIR="$RUNNER_TEMP/private_keys"
-          KEY_PATH="$PRIVATE_KEYS_DIR/AuthKey_${APPLE_API_KEY}.p8"
-
-          mkdir -p "$PRIVATE_KEYS_DIR"
-          printf '%s' "$APPLE_API_PRIVATE_KEY" > "$KEY_PATH"
-          chmod 600 "$KEY_PATH"
-
-          echo "APPLE_API_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
-
-      - name: Skip Apple notarization
-        if: matrix.platform == 'macos-latest' && (env.APPLE_API_ISSUER == '' || env.APPLE_API_KEY == '' || env.APPLE_API_PRIVATE_KEY == '')
-        run: echo "Apple notarization secrets are not configured. Publishing the macOS bundle without notarization."
-
       - name: Build and publish desktop bundles
         uses: tauri-apps/tauri-action@action-v0.6.2
         env:
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          APPLE_API_KEY_PATH: ${{ env.APPLE_API_KEY_PATH }}
-          APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}

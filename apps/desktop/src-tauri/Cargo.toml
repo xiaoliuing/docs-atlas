@@ -1,6 +1,6 @@
 [package]
 name = "docs-atlas-desktop"
-version = "0.31.9"
+version = "0.31.10"
 description = "Docs Atlas Desktop"
 authors = ["Docs Atlas"]
 edition = "2021"
