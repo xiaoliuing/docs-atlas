@@ -100,6 +100,7 @@ const primaryView = shallowRef<DesktopPrimaryView>('reader')
 const settingsSection = shallowRef<DesktopSettingsSection>('appearance')
 const isSourceTreeDialogOpen = shallowRef(false)
 const isWorkspaceDialogOpen = shallowRef(false)
+const currentReaderScrollTop = shallowRef(0)
 const restoredScrollTop = shallowRef(0)
 const settingsActionMessage = shallowRef('')
 const settingsBusyAction = shallowRef<'app-data' | 'logs' | 'export' | null>(null)
@@ -169,12 +170,14 @@ function toggleSettingsPanel() {
 }
 
 function openSettingsView(section: DesktopSettingsSection = 'appearance') {
+  persistCurrentDocScrollTop()
   settingsSection.value = section
   primaryView.value = 'settings'
   closeSearch()
 }
 
 function closeSettingsView() {
+  restoreCurrentDocScrollTop()
   primaryView.value = 'reader'
   clearSettingsActionMessage()
 }
@@ -481,6 +484,7 @@ watch(
   [currentWorkspaceId, selectedDocSlug],
   ([workspaceId, slug]) => {
     if (!workspaceId || !slug) {
+      currentReaderScrollTop.value = 0
       restoredScrollTop.value = 0
       return
     }
@@ -496,6 +500,7 @@ watch(
 
     readingState.setSelectedDocForWorkspace(workspaceId, slug)
     restoredScrollTop.value = readingState.getDocScrollTop(workspaceId, slug)
+    currentReaderScrollTop.value = restoredScrollTop.value
   },
   { immediate: true },
 )
@@ -558,11 +563,37 @@ function handleDocScrollTopChange(top: number) {
   const workspaceId = currentWorkspaceId.value
   const slug = selectedDocSlug.value
 
+  currentReaderScrollTop.value = Math.max(0, Math.round(top))
+
   if (!workspaceId || !slug) {
     return
   }
 
-  readingState.setDocScrollTop(workspaceId, slug, top)
+  readingState.setDocScrollTop(workspaceId, slug, currentReaderScrollTop.value)
+}
+
+function persistCurrentDocScrollTop() {
+  const workspaceId = currentWorkspaceId.value
+  const slug = selectedDocSlug.value
+
+  if (!workspaceId || !slug) {
+    return
+  }
+
+  restoredScrollTop.value = currentReaderScrollTop.value
+  readingState.setDocScrollTop(workspaceId, slug, currentReaderScrollTop.value)
+}
+
+function restoreCurrentDocScrollTop() {
+  const workspaceId = currentWorkspaceId.value
+  const slug = selectedDocSlug.value
+
+  if (!workspaceId || !slug) {
+    return
+  }
+
+  const savedScrollTop = readingState.getDocScrollTop(workspaceId, slug)
+  restoredScrollTop.value = currentReaderScrollTop.value || savedScrollTop
 }
 
 function waitForDocAvailability(slug: string, timeoutMs = 5000) {
