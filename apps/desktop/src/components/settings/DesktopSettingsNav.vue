@@ -1,5 +1,5 @@
 <script setup lang="ts">
-export type DesktopSettingsSection = 'appearance' | 'workspace' | 'data'
+export type DesktopSettingsSection = 'appearance' | 'updates' | 'workspace' | 'data'
 
 const props = defineProps<{
   activeSection: DesktopSettingsSection
@@ -16,6 +16,10 @@ const items: Array<{
   {
     id: 'appearance',
     title: '外观',
+  },
+  {
+    id: 'updates',
+    title: '更新',
   },
   {
     id: 'workspace',

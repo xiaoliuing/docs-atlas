@@ -699,6 +699,19 @@ fn export_logs_file(app: AppHandle) -> Result<bool, String> {
   Ok(true)
 }
 
+#[tauri::command]
+fn open_external_url(app: AppHandle, url: String) -> Result<bool, String> {
+  let normalized_url = url.trim();
+
+  if !(normalized_url.starts_with("https://") || normalized_url.starts_with("http://")) {
+    return Err("only http and https URLs are supported".into());
+  }
+
+  open_url_in_browser(normalized_url)?;
+  record_app_info(&app, "system.open_url", normalized_url);
+  Ok(true)
+}
+
 fn build_desktop_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
   let import_workspace = MenuItem::with_id(
     app,
@@ -979,6 +992,7 @@ fn main() {
       import_workspace_config,
       list_workspace_details,
       mark_workspace_opened,
+      open_external_url,
       open_app_data_directory,
       open_logs_directory,
       pick_folder_path,
@@ -1079,6 +1093,30 @@ fn open_path_in_file_manager(path: &Path) -> Result<(), String> {
       Ok(())
     } else {
       Err(format!("failed to open path {}", path.to_string_lossy()))
+    }
+  })
+}
+
+fn open_url_in_browser(url: &str) -> Result<(), String> {
+  let mut command = if cfg!(target_os = "macos") {
+    let mut command = Command::new("open");
+    command.arg(url);
+    command
+  } else if cfg!(target_os = "windows") {
+    let mut command = Command::new("cmd");
+    command.args(["/C", "start", "", url]);
+    command
+  } else {
+    let mut command = Command::new("xdg-open");
+    command.arg(url);
+    command
+  };
+
+  command.status().map_err(|error| error.to_string()).and_then(|status| {
+    if status.success() {
+      Ok(())
+    } else {
+      Err(format!("failed to open url {url}"))
     }
   })
 }

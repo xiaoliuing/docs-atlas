@@ -17,7 +17,7 @@ const emit = defineEmits<{
       <p class="desktop-settings-panel__kicker">Data</p>
       <h3 class="desktop-settings-panel__title">数据与日志</h3>
       <p class="desktop-settings-panel__summary">
-        查看应用数据目录、定位日志文件，并导出诊断信息。后续恢复和健康检查入口也会放在这里。
+        查看应用数据目录、定位日志文件，并导出诊断信息。
       </p>
     </header>
 

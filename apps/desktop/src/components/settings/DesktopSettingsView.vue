@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { WorkspaceDetail } from '@docs-atlas/shared-types/workspace'
 import type { DesktopAccentId, DesktopAccentOption, DesktopThemeMode } from '@/composables/useDesktopPreferences'
+import type { DesktopLatestRelease, DesktopReleaseUpdateStatus } from '@/composables/useDesktopReleaseUpdates'
 import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
 import DesktopAppearanceSettingsPanel from '@/components/settings/DesktopAppearanceSettingsPanel.vue'
 import DesktopDataSettingsPanel from '@/components/settings/DesktopDataSettingsPanel.vue'
 import DesktopSettingsNav, { type DesktopSettingsSection } from '@/components/settings/DesktopSettingsNav.vue'
+import DesktopUpdatesSettingsPanel from '@/components/settings/DesktopUpdatesSettingsPanel.vue'
 import DesktopWorkspaceSettingsPanel from '@/components/settings/DesktopWorkspaceSettingsPanel.vue'
 
 const props = defineProps<{
@@ -13,17 +15,23 @@ const props = defineProps<{
   actionMessage?: string
   activeSection: DesktopSettingsSection
   busyAction?: 'app-data' | 'logs' | 'export' | null
+  currentVersion?: string
   currentWorkspace: WorkspaceDetail | null
   docCount: number
   isExportingWorkspace: boolean
   isImportingWorkspace: boolean
+  lastCheckedAt?: string
+  latestRelease: DesktopLatestRelease | null
   sourceCount: number
   themeMode: DesktopThemeMode
+  updateMessage?: string
+  updateStatus: DesktopReleaseUpdateStatus
   unhealthySourceCount: number
   workspaceCount: number
 }>()
 
 const emit = defineEmits<{
+  checkUpdates: []
   close: []
   createWorkspace: []
   editSources: []
@@ -31,6 +39,7 @@ const emit = defineEmits<{
   exportLogs: []
   exportWorkspace: []
   importWorkspace: []
+  openLatestRelease: []
   openAppDataDirectory: []
   openLogsDirectory: []
   selectSection: [section: DesktopSettingsSection]
@@ -87,6 +96,17 @@ const emit = defineEmits<{
           @edit-workspace="emit('editWorkspace')"
           @export-workspace="emit('exportWorkspace')"
           @import-workspace="emit('importWorkspace')"
+        />
+
+        <DesktopUpdatesSettingsPanel
+          v-else-if="props.activeSection === 'updates'"
+          :current-version="props.currentVersion"
+          :last-checked-at="props.lastCheckedAt"
+          :latest-release="props.latestRelease"
+          :update-message="props.updateMessage"
+          :update-status="props.updateStatus"
+          @check-updates="emit('checkUpdates')"
+          @open-latest-release="emit('openLatestRelease')"
         />
 
         <DesktopDataSettingsPanel

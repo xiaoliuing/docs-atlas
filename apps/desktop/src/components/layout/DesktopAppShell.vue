@@ -22,6 +22,7 @@ import DesktopWorkspaceDialog from '@/components/workspace/DesktopWorkspaceDialo
 import { useDesktopActiveHeadings } from '@/composables/useDesktopActiveHeadings'
 import { useDesktopDocsBrowser } from '@/composables/useDesktopDocsBrowser'
 import { useDesktopPreferences } from '@/composables/useDesktopPreferences'
+import { useDesktopReleaseUpdates } from '@/composables/useDesktopReleaseUpdates'
 import { useDesktopReadingState } from '@/composables/useDesktopReadingState'
 import { useDesktopDocsSearch } from '@/composables/useDesktopDocsSearch'
 import { useDesktopSearchCatalog } from '@/composables/useDesktopSearchCatalog'
@@ -93,6 +94,16 @@ const {
 })
 const { accentOptions, preferences, setAccent, setThemeMode } = useDesktopPreferences()
 const { activeId, scrollToHeading } = useDesktopActiveHeadings(headings)
+const {
+  checkForUpdates,
+  currentVersion,
+  lastCheckedAt,
+  latestRelease,
+  loadCurrentVersion,
+  message: updateMessage,
+  openLatestRelease,
+  status: updateStatus,
+} = useDesktopReleaseUpdates()
 
 type DesktopPrimaryView = 'reader' | 'settings'
 
@@ -360,15 +371,22 @@ async function handleTitlebarDoubleClick() {
     return
   }
 
-  const currentWindow = getCurrentWindow()
-  const isMaximized = await currentWindow.isMaximized()
+  await getCurrentWindow().toggleMaximize()
+}
 
-  if (isMaximized) {
-    await currentWindow.unmaximize()
+async function handleTitlebarMouseDown(event: MouseEvent) {
+  if (!isTauriRuntime() || event.button !== 0) {
     return
   }
 
-  await currentWindow.maximize()
+  event.preventDefault()
+
+  if (event.detail === 2) {
+    await handleTitlebarDoubleClick()
+    return
+  }
+
+  await getCurrentWindow().startDragging()
 }
 
 async function handleDesktopMenuAction(action: DesktopMenuAction) {
@@ -397,6 +415,7 @@ async function bindDesktopMenuActions() {
 onMounted(() => {
   void restoreInitialWorkspace()
   void bindDesktopMenuActions()
+  void loadCurrentVersion()
 })
 
 onBeforeUnmount(() => {
@@ -627,22 +646,14 @@ function isTauriRuntime() {
 
 <template>
   <div class="desktop-app-shell">
-    <header
-      class="desktop-titlebar"
-      @dblclick="handleTitlebarDoubleClick"
-    >
+    <header class="desktop-titlebar">
       <div
-        class="desktop-titlebar__brand"
+        class="desktop-titlebar__drag-region"
         data-tauri-drag-region
+        @mousedown="handleTitlebarMouseDown"
       >
-        <span class="desktop-titlebar__traffic-gap" />
-        <span class="desktop-titlebar__brand-mark" aria-hidden="true">
-          <DesktopUiIcon name="atlas" :size="16" />
-        </span>
-        <span class="desktop-titlebar__brand-copy">
-          <strong>Docs Atlas</strong>
-          <span>{{ currentWorkspace?.name ?? 'Desktop' }}</span>
-        </span>
+        <span class="desktop-titlebar__traffic-gap" data-tauri-drag-region />
+        <div class="desktop-titlebar__drag-pad" data-tauri-drag-region />
       </div>
 
       <div class="desktop-titlebar__actions">
@@ -650,6 +661,7 @@ function isTauriRuntime() {
           aria-label="打开搜索"
           :class="['desktop-titlebar__icon-button', { 'desktop-titlebar__icon-button--active': isOpen }]"
           type="button"
+          @mousedown.stop
           @dblclick.stop
           @click="toggleSearchPanel"
         >
@@ -660,10 +672,11 @@ function isTauriRuntime() {
           aria-label="打开设置"
           :class="['desktop-titlebar__icon-button', { 'desktop-titlebar__icon-button--active': isSettingsView }]"
           type="button"
+          @mousedown.stop
           @dblclick.stop
           @click="toggleSettingsPanel"
         >
-          <DesktopUiIcon name="settings" :size="18" />
+          <DesktopUiIcon name="settings" :size="19" />
         </button>
       </div>
     </header>
@@ -750,14 +763,20 @@ function isTauriRuntime() {
         :action-message="settingsActionMessage"
         :active-section="settingsSection"
         :busy-action="settingsBusyAction"
+        :current-version="currentVersion"
         :current-workspace="currentWorkspace"
         :doc-count="docCount"
         :is-exporting-workspace="isExportingWorkspace"
         :is-importing-workspace="isImportingWorkspace"
+        :last-checked-at="lastCheckedAt"
+        :latest-release="latestRelease"
         :source-count="sourceCount"
         :theme-mode="preferences.themeMode"
+        :update-message="updateMessage"
+        :update-status="updateStatus"
         :unhealthy-source-count="workspaceDocs.unhealthySourceCount"
         :workspace-count="workspaces.length"
+        @check-updates="checkForUpdates"
         @close="closeSettingsView"
         @create-workspace="openCreateWorkspaceDialog"
         @edit-sources="openSourceTreeDialog"
@@ -765,6 +784,7 @@ function isTauriRuntime() {
         @export-logs="handleExportLogsFile"
         @export-workspace="handleExportWorkspace"
         @import-workspace="handleImportWorkspace"
+        @open-latest-release="openLatestRelease"
         @open-app-data-directory="handleOpenAppDataDirectory"
         @open-logs-directory="handleOpenLogsDirectory"
         @select-section="settingsSection = $event"
@@ -807,7 +827,7 @@ function isTauriRuntime() {
 .desktop-app-shell {
   position: relative;
   display: grid;
-  grid-template-rows: 46px minmax(0, 1fr);
+  grid-template-rows: 38px minmax(0, 1fr);
   height: 100vh;
   overflow: hidden;
 }
@@ -818,22 +838,25 @@ function isTauriRuntime() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 0 0.9rem 0 0.2rem;
-  background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.15), rgba(var(--desktop-accent-rgb), 0.05) 62%, transparent),
-    var(--desktop-surface-strong);
-  border-bottom: 1px solid var(--desktop-line);
-  box-shadow: inset 0 -1px 0 rgba(var(--desktop-accent-rgb), 0.08);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  gap: 0.75rem;
+  padding: 0 0.7rem 0 0.12rem;
+  background: var(--desktop-titlebar-bg);
+  border-bottom: 0;
+  box-shadow: none;
+  user-select: none;
 }
 
-.desktop-titlebar__brand {
+.desktop-titlebar__drag-region {
   display: flex;
   align-items: center;
-  gap: 0.72rem;
+  flex: 1 1 auto;
   min-width: 0;
+  height: 100%;
+}
+
+.desktop-titlebar__drag-pad {
+  flex: 1 1 auto;
+  min-width: 2rem;
   height: 100%;
 }
 
@@ -843,86 +866,42 @@ function isTauriRuntime() {
   height: 100%;
 }
 
-.desktop-titlebar__brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.9rem;
-  height: 1.9rem;
-  border-radius: 12px;
-  background: rgba(var(--desktop-accent-rgb), 0.1);
-  color: var(--desktop-accent);
-}
-
-.desktop-titlebar__brand-mark svg {
-  width: 1rem;
-  height: 1rem;
-}
-
-.desktop-titlebar__brand-copy {
-  display: grid;
-  gap: 0.05rem;
-  min-width: 0;
-}
-
-.desktop-titlebar__brand-copy strong,
-.desktop-titlebar__brand-copy span {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.desktop-titlebar__brand-copy strong {
-  color: var(--desktop-ink);
-  font-size: 0.82rem;
-  font-weight: 650;
-}
-
-.desktop-titlebar__brand-copy span {
-  color: var(--desktop-soft);
-  font-size: 0.68rem;
-}
-
 .desktop-titlebar__actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
+  height: 100%;
 }
 
 .desktop-titlebar__icon-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.2rem;
-  height: 2.2rem;
-  border: 1px solid var(--desktop-line);
-  border-radius: 12px;
-  background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.09), transparent 85%),
-    var(--desktop-surface);
-  color: var(--desktop-muted);
+  width: 1.95rem;
+  height: 1.95rem;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.9);
   cursor: pointer;
   transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
 
 .desktop-titlebar__icon-button svg {
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1rem;
+  height: 1rem;
 }
 
 .desktop-titlebar__icon-button:hover,
 .desktop-titlebar__icon-button--active {
-  border-color: var(--desktop-line-strong);
-  background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.18), rgba(var(--desktop-accent-rgb), 0.08)),
-    var(--desktop-surface-strong);
-  color: var(--desktop-accent);
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
   transform: translateY(-1px);
 }
 
 .desktop-floating-layer {
   position: absolute;
-  inset: 46px 0 0;
+  inset: 38px 0 0;
   z-index: 25;
 }
 

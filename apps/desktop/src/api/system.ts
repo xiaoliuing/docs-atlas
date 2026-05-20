@@ -33,6 +33,19 @@ export async function exportLogsFile(): Promise<boolean> {
   return invoke<boolean>('export_logs_file')
 }
 
+export async function openExternalUrl(url: string): Promise<boolean> {
+  if (!url.trim()) {
+    return false
+  }
+
+  if (!isTauriRuntime()) {
+    window.open(url, '_blank', 'noopener,noreferrer')
+    return true
+  }
+
+  return invoke<boolean>('open_external_url', { url })
+}
+
 export async function listenDesktopMenuActions(
   handler: (action: DesktopMenuAction) => void,
 ): Promise<UnlistenFn> {
