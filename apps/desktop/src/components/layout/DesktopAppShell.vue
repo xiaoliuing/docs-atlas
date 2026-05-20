@@ -14,7 +14,8 @@ import DesktopDocReader from '@/components/docs/DesktopDocReader.vue'
 import DesktopDocsSidebar from '@/components/docs/DesktopDocsSidebar.vue'
 import DesktopDocToc from '@/components/docs/DesktopDocToc.vue'
 import DesktopSearchPanel from '@/components/docs/DesktopSearchPanel.vue'
-import DesktopSystemSettingsPanel from '@/components/settings/DesktopSystemSettingsPanel.vue'
+import DesktopSettingsView from '@/components/settings/DesktopSettingsView.vue'
+import type { DesktopSettingsSection } from '@/components/settings/DesktopSettingsNav.vue'
 import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
 import DesktopSourceTreeDialog from '@/components/workspace/DesktopSourceTreeDialog.vue'
 import DesktopWorkspaceDialog from '@/components/workspace/DesktopWorkspaceDialog.vue'
@@ -93,7 +94,10 @@ const {
 const { accentOptions, preferences, setAccent, setThemeMode } = useDesktopPreferences()
 const { activeId, scrollToHeading } = useDesktopActiveHeadings(headings)
 
-const isSettingsOpen = shallowRef(false)
+type DesktopPrimaryView = 'reader' | 'settings'
+
+const primaryView = shallowRef<DesktopPrimaryView>('reader')
+const settingsSection = shallowRef<DesktopSettingsSection>('appearance')
 const isSourceTreeDialogOpen = shallowRef(false)
 const isWorkspaceDialogOpen = shallowRef(false)
 const restoredScrollTop = shallowRef(0)
@@ -109,7 +113,9 @@ const searchPanelRef = useTemplateRef<InstanceType<typeof DesktopSearchPanel>>('
 let desktopMenuActionUnlisten: UnlistenFn | null = null
 let settingsActionMessageTimer: number | null = null
 
-const floatingPanelVisible = computed(() => isOpen.value || isSettingsOpen.value)
+const isReaderView = computed(() => primaryView.value === 'reader')
+const isSettingsView = computed(() => primaryView.value === 'settings')
+const floatingPanelVisible = computed(() => isOpen.value)
 const searchQuery = computed({
   get: () => query.value,
   set: (value: string) => {
@@ -131,7 +137,7 @@ async function handleSelectWorkspace(workspaceId: string) {
     selectDoc(restoredSlug)
   }
 
-  isSettingsOpen.value = false
+  closeSearch()
 }
 
 function handleSelectDoc(slug: string) {
@@ -148,26 +154,29 @@ async function toggleSearchPanel() {
 }
 
 async function showSearchPanel() {
-  isSettingsOpen.value = false
   openSearch()
   await nextTick()
   searchPanelRef.value?.focusInput()
 }
 
 function toggleSettingsPanel() {
-  const nextOpen = !isSettingsOpen.value
-  isSettingsOpen.value = nextOpen
-
-  if (nextOpen) {
-    openSettingsPanel()
-  } else {
-    clearSettingsActionMessage()
+  if (isSettingsView.value) {
+    closeSettingsView()
+    return
   }
+
+  openSettingsView('appearance')
 }
 
-function openSettingsPanel() {
-  isSettingsOpen.value = true
+function openSettingsView(section: DesktopSettingsSection = 'appearance') {
+  settingsSection.value = section
+  primaryView.value = 'settings'
   closeSearch()
+}
+
+function closeSettingsView() {
+  primaryView.value = 'reader'
+  clearSettingsActionMessage()
 }
 
 function openSourceTreeDialog() {
@@ -199,7 +208,6 @@ async function handleSubmitSearch(slug?: string) {
 
 function closeFloatingPanels() {
   closeSearch()
-  isSettingsOpen.value = false
 }
 
 async function handleCreateWorkspace(payload: {
@@ -366,7 +374,7 @@ async function handleDesktopMenuAction(action: DesktopMenuAction) {
       await showSearchPanel()
       break
     case 'open-settings':
-      openSettingsPanel()
+      openSettingsView('appearance')
       break
     case 'import-workspace':
       await handleImportWorkspace()
@@ -619,7 +627,7 @@ function isTauriRuntime() {
 
         <button
           aria-label="打开设置"
-          :class="['desktop-titlebar__icon-button', { 'desktop-titlebar__icon-button--active': isSettingsOpen }]"
+          :class="['desktop-titlebar__icon-button', { 'desktop-titlebar__icon-button--active': isSettingsView }]"
           type="button"
           @dblclick.stop
           @click="toggleSettingsPanel"
@@ -652,73 +660,86 @@ function isTauriRuntime() {
         />
       </div>
 
-      <div
-        v-if="isSettingsOpen"
-        class="desktop-floating-layer__settings"
-        @click.stop
-      >
-        <DesktopSystemSettingsPanel
-          :accent-id="preferences.accentId"
-          :accent-options="accentOptions"
-          :action-message="settingsActionMessage"
-          :busy-action="settingsBusyAction"
-          :theme-mode="preferences.themeMode"
-          @export-logs="handleExportLogsFile"
-          @open-app-data-directory="handleOpenAppDataDirectory"
-          @open-logs-directory="handleOpenLogsDirectory"
-          @update-accent="setAccent"
-          @update-theme-mode="setThemeMode"
-        />
-      </div>
     </div>
 
-    <div class="desktop-workbench">
-      <aside class="desktop-workbench__sidebar">
-        <DesktopDocsSidebar
-          v-model:open-branch-ids="sidebarOpenBranchIds"
-          v-model:open-section-id="sidebarOpenSectionId"
-          :current-doc-slug="selectedDocSlug || null"
-          :current-workspace-doc-count="docCount"
-          :current-section-id="currentSectionId"
-          :current-source-id="currentSourceId"
-          :current-workspace-id="currentWorkspaceId"
-          :current-workspace-unhealthy-source-count="workspaceDocs.unhealthySourceCount"
-          :current-workspace-source-count="sourceCount"
-          :source-groups="visibleSourceGroups"
-          :workspaces="workspaces"
-          @create-workspace="openCreateWorkspaceDialog"
-          @edit-workspace="openEditWorkspaceDialog"
-          @edit-sources="openSourceTreeDialog"
-          @select-doc="handleSelectDoc"
-          @select-workspace="handleSelectWorkspace"
-        />
-      </aside>
-
-      <main
-        class="desktop-workbench__main"
-        :class="{ 'desktop-workbench__main--with-toc': headings.length > 0 }"
-      >
-        <DesktopDocReader
-          :doc="currentDoc"
-          :highlight-query="query"
-          :next-doc="nextDoc"
-          :prev-doc="prevDoc"
-          :restore-scroll-top="restoredScrollTop"
-          @select-doc="handleSelectDoc"
-          @scroll-top-change="handleDocScrollTopChange"
-        />
-
-        <aside
-          v-if="headings.length > 0"
-          class="desktop-workbench__toc"
-        >
-          <DesktopDocToc
-            :active-id="activeId"
-            :headings="headings"
-            @select="scrollToHeading"
+    <div class="desktop-workbench" :class="{ 'desktop-workbench--settings': isSettingsView }">
+      <template v-if="isReaderView">
+        <aside class="desktop-workbench__sidebar">
+          <DesktopDocsSidebar
+            v-model:open-branch-ids="sidebarOpenBranchIds"
+            v-model:open-section-id="sidebarOpenSectionId"
+            :current-doc-slug="selectedDocSlug || null"
+            :current-workspace-doc-count="docCount"
+            :current-section-id="currentSectionId"
+            :current-source-id="currentSourceId"
+            :current-workspace-id="currentWorkspaceId"
+            :current-workspace-unhealthy-source-count="workspaceDocs.unhealthySourceCount"
+            :current-workspace-source-count="sourceCount"
+            :source-groups="visibleSourceGroups"
+            :workspaces="workspaces"
+            @create-workspace="openCreateWorkspaceDialog"
+            @edit-workspace="openEditWorkspaceDialog"
+            @edit-sources="openSourceTreeDialog"
+            @select-doc="handleSelectDoc"
+            @select-workspace="handleSelectWorkspace"
           />
         </aside>
-      </main>
+
+        <main
+          class="desktop-workbench__main"
+          :class="{ 'desktop-workbench__main--with-toc': headings.length > 0 }"
+        >
+          <DesktopDocReader
+            :doc="currentDoc"
+            :highlight-query="query"
+            :next-doc="nextDoc"
+            :prev-doc="prevDoc"
+            :restore-scroll-top="restoredScrollTop"
+            @select-doc="handleSelectDoc"
+            @scroll-top-change="handleDocScrollTopChange"
+          />
+
+          <aside
+            v-if="headings.length > 0"
+            class="desktop-workbench__toc"
+          >
+            <DesktopDocToc
+              :active-id="activeId"
+              :headings="headings"
+              @select="scrollToHeading"
+            />
+          </aside>
+        </main>
+      </template>
+
+      <DesktopSettingsView
+        v-else
+        :accent-id="preferences.accentId"
+        :accent-options="accentOptions"
+        :action-message="settingsActionMessage"
+        :active-section="settingsSection"
+        :busy-action="settingsBusyAction"
+        :current-workspace="currentWorkspace"
+        :doc-count="docCount"
+        :is-exporting-workspace="isExportingWorkspace"
+        :is-importing-workspace="isImportingWorkspace"
+        :source-count="sourceCount"
+        :theme-mode="preferences.themeMode"
+        :unhealthy-source-count="workspaceDocs.unhealthySourceCount"
+        :workspace-count="workspaces.length"
+        @close="closeSettingsView"
+        @create-workspace="openCreateWorkspaceDialog"
+        @edit-sources="openSourceTreeDialog"
+        @edit-workspace="openEditWorkspaceDialog"
+        @export-logs="handleExportLogsFile"
+        @export-workspace="handleExportWorkspace"
+        @import-workspace="handleImportWorkspace"
+        @open-app-data-directory="handleOpenAppDataDirectory"
+        @open-logs-directory="handleOpenLogsDirectory"
+        @select-section="settingsSection = $event"
+        @update-accent="setAccent"
+        @update-theme-mode="setThemeMode"
+      />
     </div>
 
     <DesktopWorkspaceDialog
@@ -880,12 +901,6 @@ function isTauriRuntime() {
   right: 0.95rem;
 }
 
-.desktop-floating-layer__settings {
-  position: absolute;
-  top: 0.9rem;
-  right: 0.95rem;
-}
-
 .desktop-workbench {
   display: grid;
   grid-template-columns: 318px minmax(0, 1fr);
@@ -893,6 +908,10 @@ function isTauriRuntime() {
   min-height: 0;
   padding: 0.9rem;
   overflow: hidden;
+}
+
+.desktop-workbench--settings {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .desktop-workbench__sidebar,
