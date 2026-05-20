@@ -12,6 +12,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   checkUpdates: []
+  installUpdate: []
   openLatestRelease: []
 }>()
 
@@ -21,7 +22,15 @@ const updateActionLabel = computed(() => {
   }
 
   if (props.updateStatus === 'available') {
-    return '下载更新'
+    return '下载并安装'
+  }
+
+  if (props.updateStatus === 'downloading') {
+    return '下载中…'
+  }
+
+  if (props.updateStatus === 'installing' || props.updateStatus === 'relaunching') {
+    return '安装中…'
   }
 
   return '检查更新'
@@ -90,13 +99,21 @@ const latestReleaseMeta = computed(() => {
 
         <button
           class="desktop-settings-panel__update-action"
-          :disabled="props.updateStatus === 'checking'"
+          :disabled="props.updateStatus === 'checking' || props.updateStatus === 'downloading' || props.updateStatus === 'installing' || props.updateStatus === 'relaunching'"
           type="button"
-          @click="props.updateStatus === 'available' ? emit('openLatestRelease') : emit('checkUpdates')"
+          @click="props.updateStatus === 'available' ? emit('installUpdate') : emit('checkUpdates')"
         >
           {{ updateActionLabel }}
         </button>
       </div>
+
+      <button
+        class="desktop-settings-panel__release-link"
+        type="button"
+        @click="emit('openLatestRelease')"
+      >
+        打开 GitHub Release 页面
+      </button>
 
       <p
         v-if="props.updateMessage"
@@ -246,5 +263,20 @@ const latestReleaseMeta = computed(() => {
   border-color: rgba(199, 72, 92, 0.22);
   background: rgba(199, 72, 92, 0.08);
   color: var(--desktop-ink);
+}
+
+.desktop-settings-panel__release-link {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--desktop-accent);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.desktop-settings-panel__release-link:hover {
+  text-decoration: underline;
 }
 </style>

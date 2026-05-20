@@ -962,6 +962,8 @@ fn persist_main_window_state(window: &Window, reason: &str, log_success: bool) {
 
 fn main() {
   tauri::Builder::default()
+    .plugin(tauri_plugin_process::init())
+    .plugin(tauri_plugin_updater::Builder::new().build())
     .menu(build_desktop_menu)
     .on_menu_event(|app, event| {
       handle_desktop_menu_event(app, event.id().as_ref());

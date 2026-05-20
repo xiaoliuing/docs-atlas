@@ -39,6 +39,7 @@ const emit = defineEmits<{
   exportLogs: []
   exportWorkspace: []
   importWorkspace: []
+  installUpdate: []
   openLatestRelease: []
   openAppDataDirectory: []
   openLogsDirectory: []
@@ -106,6 +107,7 @@ const emit = defineEmits<{
           :update-message="props.updateMessage"
           :update-status="props.updateStatus"
           @check-updates="emit('checkUpdates')"
+          @install-update="emit('installUpdate')"
           @open-latest-release="emit('openLatestRelease')"
         />
 

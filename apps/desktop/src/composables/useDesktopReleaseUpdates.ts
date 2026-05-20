@@ -1,24 +1,19 @@
-import { computed, shallowRef } from 'vue'
+import { shallowRef } from 'vue'
 import { getVersion } from '@tauri-apps/api/app'
+import { relaunch } from '@tauri-apps/plugin-process'
+import { check } from '@tauri-apps/plugin-updater'
 import { openExternalUrl } from '@/api/system'
 
 const RELEASES_URL = 'https://github.com/xiaoliuing/docs-atlas/releases'
-const LATEST_RELEASE_API_URL = 'https://api.github.com/repos/xiaoliuing/docs-atlas/releases/latest'
-
-type GithubLatestReleasePayload = {
-  tag_name?: string
-  name?: string
-  html_url?: string
-  published_at?: string
-  draft?: boolean
-  prerelease?: boolean
-}
 
 export type DesktopReleaseUpdateStatus =
   | 'idle'
   | 'checking'
-  | 'up-to-date'
   | 'available'
+  | 'downloading'
+  | 'installing'
+  | 'relaunching'
+  | 'up-to-date'
   | 'error'
   | 'unsupported'
 
@@ -35,8 +30,6 @@ export function useDesktopReleaseUpdates() {
   const lastCheckedAt = shallowRef('')
   const status = shallowRef<DesktopReleaseUpdateStatus>('idle')
   const message = shallowRef('')
-
-  const hasAvailableUpdate = computed(() => status.value === 'available' && latestRelease.value !== null)
 
   async function loadCurrentVersion() {
     if (!isTauriRuntime()) {
@@ -75,35 +68,101 @@ export function useDesktopReleaseUpdates() {
     }
 
     status.value = 'checking'
-    message.value = '正在检查最新版本…'
+    message.value = '正在检查更新…'
 
     try {
-      const response = await fetch(LATEST_RELEASE_API_URL, {
-        headers: {
-          Accept: 'application/vnd.github+json',
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error(`更新服务暂时不可用（${response.status}）`)
-      }
-
-      const payload = (await response.json()) as GithubLatestReleasePayload
-      const release = normalizeLatestRelease(payload)
-      latestRelease.value = release
+      const update = await check()
       lastCheckedAt.value = new Date().toISOString()
 
-      if (compareVersions(release.version, currentVersion.value) > 0) {
+      if (update) {
+        latestRelease.value = {
+          version: update.version,
+          name: `Docs Atlas ${update.version}`,
+          htmlUrl: RELEASES_URL,
+          publishedAt: update.date ?? '',
+        }
         status.value = 'available'
-        message.value = `发现新版本 ${release.version}`
+        message.value = `发现新版本 ${update.version}`
         return
       }
 
       status.value = 'up-to-date'
       message.value = `当前已是最新版本 ${currentVersion.value}`
+      latestRelease.value = null
     } catch (error) {
       status.value = 'error'
       message.value = error instanceof Error ? error.message : '检查更新失败，请稍后重试'
+    }
+  }
+
+  async function installUpdate() {
+    if (!isTauriRuntime()) {
+      status.value = 'unsupported'
+      message.value = '仅桌面应用支持安装更新。'
+      return
+    }
+
+    status.value = 'checking'
+    message.value = '正在准备更新包…'
+
+    try {
+      const update = await check()
+
+      if (!update) {
+        status.value = 'up-to-date'
+        message.value = `当前已是最新版本 ${currentVersion.value}`
+        latestRelease.value = null
+        return
+      }
+
+      latestRelease.value = {
+        version: update.version,
+        name: `Docs Atlas ${update.version}`,
+        htmlUrl: RELEASES_URL,
+        publishedAt: update.date ?? '',
+      }
+      lastCheckedAt.value = new Date().toISOString()
+
+      let downloadedBytes = 0
+      let contentLength: number | null = null
+      status.value = 'downloading'
+      message.value = `正在下载更新 ${update.version}…`
+
+      await update.downloadAndInstall((event) => {
+        if (event.event === 'Started') {
+          contentLength = event.data.contentLength ?? null
+          status.value = 'downloading'
+          message.value = contentLength
+            ? `正在下载更新… 0%`
+            : `正在下载更新 ${update.version}…`
+          return
+        }
+
+        if (event.event === 'Progress') {
+          downloadedBytes += event.data.chunkLength
+          status.value = 'downloading'
+
+          const percent = contentLength
+            ? Math.min(100, Math.round((downloadedBytes / contentLength) * 100))
+            : null
+
+          message.value =
+            percent === null
+              ? `正在下载更新… ${(downloadedBytes / 1024 / 1024).toFixed(1)} MB`
+              : `正在下载更新… ${percent}%`
+          return
+        }
+
+        status.value = 'installing'
+        message.value = '正在安装更新…'
+      })
+
+      status.value = 'relaunching'
+      message.value = '更新已安装，正在重启应用…'
+      await relaunch()
+    } catch (error) {
+      status.value = 'error'
+      message.value = error instanceof Error ? error.message : '安装更新失败，请稍后重试'
     }
   }
 
@@ -115,7 +174,7 @@ export function useDesktopReleaseUpdates() {
   return {
     checkForUpdates,
     currentVersion,
-    hasAvailableUpdate,
+    installUpdate,
     lastCheckedAt,
     latestRelease,
     loadCurrentVersion,
@@ -123,64 +182,6 @@ export function useDesktopReleaseUpdates() {
     openLatestRelease,
     status,
   }
-}
-
-function normalizeLatestRelease(payload: GithubLatestReleasePayload): DesktopLatestRelease {
-  const version = normalizeVersion(payload.tag_name)
-
-  if (!version) {
-    throw new Error('最新版本信息格式不正确')
-  }
-
-  if (payload.draft || payload.prerelease) {
-    throw new Error('当前没有可用的正式版本')
-  }
-
-  return {
-    version,
-    name: payload.name?.trim() || `Docs Atlas Desktop ${version}`,
-    htmlUrl: payload.html_url?.trim() || RELEASES_URL,
-    publishedAt: payload.published_at?.trim() || '',
-  }
-}
-
-function normalizeVersion(input?: string) {
-  if (!input) {
-    return ''
-  }
-
-  return input.trim().replace(/^desktop-v/i, '').replace(/^v/i, '')
-}
-
-function compareVersions(left: string, right: string) {
-  const leftParts = parseVersionParts(left)
-  const rightParts = parseVersionParts(right)
-  const length = Math.max(leftParts.length, rightParts.length)
-
-  for (let index = 0; index < length; index += 1) {
-    const leftPart = leftParts[index] ?? 0
-    const rightPart = rightParts[index] ?? 0
-
-    if (leftPart !== rightPart) {
-      return leftPart > rightPart ? 1 : -1
-    }
-  }
-
-  return 0
-}
-
-function parseVersionParts(input: string) {
-  const normalized = normalizeVersion(input)
-
-  if (!normalized) {
-    return [0]
-  }
-
-  return normalized
-    .split('-')[0]
-    .split('.')
-    .map((part) => Number.parseInt(part, 10))
-    .map((part) => (Number.isFinite(part) ? part : 0))
 }
 
 function isTauriRuntime() {

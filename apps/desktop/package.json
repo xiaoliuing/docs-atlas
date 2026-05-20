@@ -1,7 +1,7 @@
 {
   "name": "@docs-atlas/desktop",
   "private": true,
-  "version": "0.33.0",
+  "version": "0.34.0",
   "type": "module",
   "scripts": {
     "dev": "tauri dev",
@@ -13,6 +13,8 @@
   "dependencies": {
     "@docs-atlas/shared-types": "workspace:*",
     "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.10.1",
     "highlight.js": "^11.11.1",
     "markdown-it": "^14.1.0",
     "sanitize-html": "^2.17.0",

@@ -97,6 +97,7 @@ const { activeId, scrollToHeading } = useDesktopActiveHeadings(headings)
 const {
   checkForUpdates,
   currentVersion,
+  installUpdate,
   lastCheckedAt,
   latestRelease,
   loadCurrentVersion,
@@ -784,6 +785,7 @@ function isTauriRuntime() {
         @export-logs="handleExportLogsFile"
         @export-workspace="handleExportWorkspace"
         @import-workspace="handleImportWorkspace"
+        @install-update="installUpdate"
         @open-latest-release="openLatestRelease"
         @open-app-data-directory="handleOpenAppDataDirectory"
         @open-logs-directory="handleOpenLogsDirectory"
