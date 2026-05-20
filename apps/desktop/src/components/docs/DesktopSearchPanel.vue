@@ -241,17 +241,28 @@ defineExpose({
 }
 
 .desktop-search-panel__input {
+  appearance: none;
+  -webkit-appearance: none;
   width: 100%;
   min-width: 0;
   min-height: 2.2rem;
   border: 0;
   background: transparent;
+  box-shadow: none;
   color: var(--desktop-ink);
   font-size: 0.92rem;
 }
 
 .desktop-search-panel__input:focus {
   outline: none;
+  box-shadow: none;
+}
+
+.desktop-search-panel__input::-webkit-search-decoration,
+.desktop-search-panel__input::-webkit-search-cancel-button,
+.desktop-search-panel__input::-webkit-search-results-button,
+.desktop-search-panel__input::-webkit-search-results-decoration {
+  -webkit-appearance: none;
 }
 
 .desktop-search-panel__clear,

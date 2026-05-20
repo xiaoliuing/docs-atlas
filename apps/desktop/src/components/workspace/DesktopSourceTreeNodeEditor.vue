@@ -44,15 +44,15 @@ const pathStatusLabel = computed(() => {
   }
 
   if (!node.value.path.trim()) {
-    return '支持手动输入目录，也可以在上方批量导入多个目录。'
+    return '未设置目录'
   }
 
   if (isValidatingPath.value) {
-    return '正在校验目录...'
+    return '校验中'
   }
 
   if (!pathStatus.value) {
-    return '等待目录校验结果。'
+    return '待校验'
   }
 
   if (!pathStatus.value.exists) {
@@ -63,7 +63,7 @@ const pathStatusLabel = computed(() => {
     return '路径不是目录'
   }
 
-  return '目录有效，保存后会参与文档扫描。'
+  return '目录有效'
 })
 
 const pathStatusTone = computed(() => {
@@ -162,7 +162,7 @@ function handlePointerDown(event: PointerEvent) {
             `desktop-source-tree-node__kind--${node.kind}`,
           ]"
         >
-          {{ node.kind === 'group' ? 'Group' : 'Source' }}
+          {{ node.kind === 'group' ? '分组' : '目录' }}
         </span>
 
         <input
@@ -200,38 +200,38 @@ function handlePointerDown(event: PointerEvent) {
           type="button"
           @click="emit('browseFolder', node.id)"
         >
-          选择目录
+          选择
         </button>
       </div>
 
       <div
-        v-if="node.kind === 'folder'"
-        :class="[
-          'desktop-source-tree-node__path-hint',
-          `desktop-source-tree-node__path-hint--${pathStatusTone}`,
-        ]"
+        v-if="node.kind === 'folder' || nodeIssues.length > 0"
+        class="desktop-source-tree-node__meta"
       >
-        {{ pathStatusLabel }}
-      </div>
+        <span
+          v-if="node.kind === 'folder'"
+          :class="[
+            'desktop-source-tree-node__status-chip',
+            `desktop-source-tree-node__status-chip--${pathStatusTone}`,
+          ]"
+        >
+          {{ pathStatusLabel }}
+        </span>
 
-      <div
-        v-if="node.kind === 'folder' && runtimeSourceStatus"
-        :class="[
-          'desktop-source-tree-node__runtime-status',
-          `desktop-source-tree-node__runtime-status--${runtimeStatusTone}`,
-        ]"
-      >
-        {{ runtimeSourceStatus.message }}
-      </div>
+        <span
+          v-if="node.kind === 'folder' && runtimeSourceStatus"
+          :class="[
+            'desktop-source-tree-node__status-chip',
+            `desktop-source-tree-node__status-chip--${runtimeStatusTone}`,
+          ]"
+        >
+          {{ runtimeSourceStatus.message }}
+        </span>
 
-      <div
-        v-if="nodeIssues.length > 0"
-        class="desktop-source-tree-node__issues"
-      >
         <span
           v-for="issue in nodeIssues"
           :key="issue"
-          class="desktop-source-tree-node__issue"
+          class="desktop-source-tree-node__status-chip desktop-source-tree-node__status-chip--error"
         >
           {{ issue }}
         </span>
@@ -242,19 +242,19 @@ function handlePointerDown(event: PointerEvent) {
           :disabled="disabled || !canMoveUp"
           class="desktop-source-tree-node__icon-action"
           type="button"
+          aria-label="上移节点"
           @click="emit('moveNode', node.id, -1)"
         >
           <DesktopUiIcon name="chevron-down" :size="14" class="desktop-source-tree-node__icon-action-icon desktop-source-tree-node__icon-action-icon--up" />
-          <span>上移</span>
         </button>
         <button
           :disabled="disabled || !canMoveDown"
           class="desktop-source-tree-node__icon-action"
           type="button"
+          aria-label="下移节点"
           @click="emit('moveNode', node.id, 1)"
         >
           <DesktopUiIcon name="chevron-down" :size="14" class="desktop-source-tree-node__icon-action-icon" />
-          <span>下移</span>
         </button>
         <button
           :disabled="disabled"
@@ -262,7 +262,7 @@ function handlePointerDown(event: PointerEvent) {
           type="button"
           @click="emit('addGroup', node.id)"
         >
-          添加分组
+          加分组
         </button>
         <button
           :disabled="disabled"
@@ -270,7 +270,7 @@ function handlePointerDown(event: PointerEvent) {
           type="button"
           @click="emit('addFolder', node.id)"
         >
-          新建目录卡片
+          加目录
         </button>
         <button
           :disabled="disabled"
@@ -318,17 +318,17 @@ function handlePointerDown(event: PointerEvent) {
 <style scoped>
 .desktop-source-tree-node {
   display: grid;
-  gap: 0.55rem;
+  gap: 0.45rem;
 }
 
 .desktop-source-tree-node__card {
   position: relative;
   display: grid;
-  gap: 0.6rem;
-  padding: 0.8rem;
-  margin-left: calc(var(--source-tree-depth, 0) * 0.85rem);
+  gap: 0.48rem;
+  padding: 0.68rem;
+  margin-left: calc(var(--source-tree-depth, 0) * 0.72rem);
   border: 1px solid var(--desktop-line);
-  border-radius: 16px;
+  border-radius: 14px;
   background: var(--desktop-surface);
   transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
 }
@@ -367,18 +367,17 @@ function handlePointerDown(event: PointerEvent) {
 .desktop-source-tree-node__actions {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.45rem;
 }
 
 .desktop-source-tree-node__kind {
   flex: none;
-  min-height: 1.75rem;
-  padding: 0.28rem 0.55rem;
+  min-height: 1.55rem;
+  padding: 0.18rem 0.48rem;
   border-radius: 999px;
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .desktop-source-tree-node__kind--group {
@@ -396,8 +395,8 @@ function handlePointerDown(event: PointerEvent) {
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 1.7rem;
-  min-height: 1.7rem;
+  width: 1.55rem;
+  min-height: 1.55rem;
   padding: 0;
   border: 1px solid var(--desktop-line);
   border-radius: 10px;
@@ -419,8 +418,8 @@ function handlePointerDown(event: PointerEvent) {
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 1.9rem;
-  min-height: 1.9rem;
+  width: 1.7rem;
+  min-height: 1.7rem;
   padding: 0;
   border: 1px solid var(--desktop-line);
   border-radius: 10px;
@@ -441,19 +440,20 @@ function handlePointerDown(event: PointerEvent) {
   width: 100%;
   min-width: 0;
   border: 1px solid var(--desktop-line);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--desktop-field-bg);
   color: var(--desktop-ink);
   font: inherit;
-  padding: 0.58rem 0.72rem;
+  padding: 0.52rem 0.68rem;
 }
 
 .desktop-source-tree-node__switch {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.28rem;
   color: var(--desktop-muted);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
+  white-space: nowrap;
 }
 
 .desktop-source-tree-node__switch input {
@@ -463,30 +463,30 @@ function handlePointerDown(event: PointerEvent) {
 .desktop-source-tree-node__browse,
 .desktop-source-tree-node__action {
   flex: none;
-  min-height: 2.2rem;
-  padding: 0.45rem 0.72rem;
+  min-height: 1.95rem;
+  padding: 0.4rem 0.62rem;
   border: 1px solid var(--desktop-line);
-  border-radius: 12px;
+  border-radius: 10px;
   background: rgba(var(--desktop-accent-rgb), 0.04);
   color: var(--desktop-ink);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   cursor: pointer;
 }
 
 .desktop-source-tree-node__icon-action {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  justify-content: center;
   flex: none;
-  min-height: 2.2rem;
-  padding: 0.45rem 0.72rem;
+  width: 1.95rem;
+  min-height: 1.95rem;
+  padding: 0;
   border: 1px solid var(--desktop-line);
-  border-radius: 12px;
+  border-radius: 10px;
   background: rgba(var(--desktop-accent-rgb), 0.04);
   color: var(--desktop-ink);
   font: inherit;
-  font-size: 0.78rem;
   cursor: pointer;
 }
 
@@ -501,38 +501,6 @@ function handlePointerDown(event: PointerEvent) {
   transform: rotate(180deg);
 }
 
-.desktop-source-tree-node__path-hint {
-  font-size: 0.74rem;
-  line-height: 1.45;
-  color: var(--desktop-muted);
-}
-
-.desktop-source-tree-node__path-hint--pending {
-  color: var(--desktop-soft);
-}
-
-.desktop-source-tree-node__path-hint--success {
-  color: #2f7b5f;
-}
-
-.desktop-source-tree-node__path-hint--error {
-  color: #c53c53;
-}
-
-.desktop-source-tree-node__runtime-status {
-  font-size: 0.73rem;
-  line-height: 1.45;
-  color: var(--desktop-soft);
-}
-
-.desktop-source-tree-node__runtime-status--success {
-  color: #2f7b5f;
-}
-
-.desktop-source-tree-node__runtime-status--error {
-  color: #c56b2f;
-}
-
 .desktop-source-tree-node__action--danger {
   color: #c55353;
 }
@@ -541,25 +509,39 @@ function handlePointerDown(event: PointerEvent) {
   flex-wrap: wrap;
 }
 
-.desktop-source-tree-node__issues {
+.desktop-source-tree-node__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
+  gap: 0.35rem;
 }
 
-.desktop-source-tree-node__issue {
-  min-height: 1.75rem;
-  padding: 0.28rem 0.55rem;
+.desktop-source-tree-node__status-chip {
+  min-height: 1.45rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 999px;
+  background: rgba(var(--desktop-accent-rgb), 0.06);
+  color: var(--desktop-muted);
+  font-size: 0.69rem;
+  font-weight: 600;
+}
+
+.desktop-source-tree-node__status-chip--pending {
+  color: var(--desktop-soft);
+}
+
+.desktop-source-tree-node__status-chip--success {
+  background: rgba(47, 123, 95, 0.1);
+  color: #2f7b5f;
+}
+
+.desktop-source-tree-node__status-chip--error {
   background: rgba(217, 72, 95, 0.12);
   color: #c53c53;
-  font-size: 0.72rem;
-  font-weight: 600;
 }
 
 .desktop-source-tree-node__children {
   display: grid;
-  gap: 0.55rem;
+  gap: 0.45rem;
 }
 
 </style>

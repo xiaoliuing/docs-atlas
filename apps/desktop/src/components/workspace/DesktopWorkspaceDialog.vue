@@ -220,7 +220,7 @@ function handleExport() {
         </label>
 
         <div class="desktop-workspace-dialog__field">
-          <span>主题色</span>
+          <span>工作区标识色</span>
           <div class="desktop-workspace-dialog__colors">
             <button
               v-for="accent in props.accentOptions"
@@ -235,6 +235,9 @@ function handleExport() {
               @click="form.color = accent.hex"
             />
           </div>
+          <p class="desktop-workspace-dialog__field-hint">
+            仅用于工作区圆点和识别标记，不会修改应用的全局主题配色。
+          </p>
         </div>
 
         <div class="desktop-workspace-dialog__field">
@@ -407,6 +410,13 @@ function handleExport() {
   color: var(--desktop-muted);
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+.desktop-workspace-dialog__field-hint {
+  margin: 0;
+  color: var(--desktop-soft);
+  font-size: 0.72rem;
+  line-height: 1.45;
 }
 
 .desktop-workspace-dialog__input,
