@@ -83,6 +83,7 @@ jobs:
         with:
           projectPath: apps/desktop
           tauriScript: pnpm tauri
+          includeUpdaterJson: false
           tagName: desktop-v__VERSION__
           releaseName: Docs Atlas Desktop v__VERSION__
           releaseBody: |
@@ -92,3 +93,26 @@ jobs:
           releaseDraft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft || false }}
           prerelease: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || false }}
           args: ${{ matrix.args }}
+
+  update-manifest:
+    name: Publish updater manifest
+    needs: release
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Resolve release tag
+        id: release_meta
+        run: echo "tag=desktop-v$(node -p \"JSON.parse(require('node:fs').readFileSync('apps/desktop/package.json', 'utf8')).version\")" >> "$GITHUB_OUTPUT"
+
+      - name: Generate and upload latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/release/generate-latest-json.mjs --tag "${{ steps.release_meta.outputs.tag }}"
