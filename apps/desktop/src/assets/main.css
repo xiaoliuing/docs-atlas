@@ -4,6 +4,8 @@
   --desktop-surface: rgba(255, 255, 255, 0.78);
   --desktop-surface-strong: rgba(255, 255, 255, 0.94);
   --desktop-surface-muted: #e7edf6;
+  --desktop-field-bg: rgba(255, 255, 255, 0.72);
+  --desktop-field-bg-strong: rgba(255, 255, 255, 0.9);
   --desktop-line: rgba(19, 36, 77, 0.08);
   --desktop-line-strong: rgba(31, 84, 217, 0.18);
   --desktop-ink: #18263d;
@@ -61,10 +63,12 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme-mode]),
   :root[data-theme-mode='system'] {
-    --desktop-bg: #0c1320;
-    --desktop-surface: rgba(15, 23, 37, 0.88);
-    --desktop-surface-strong: rgba(17, 25, 40, 0.96);
-    --desktop-surface-muted: rgba(21, 31, 49, 0.94);
+    --desktop-bg: #162031;
+    --desktop-surface: rgba(27, 38, 56, 0.88);
+    --desktop-surface-strong: rgba(31, 43, 63, 0.96);
+    --desktop-surface-muted: rgba(34, 47, 69, 0.94);
+    --desktop-field-bg: rgba(31, 43, 64, 0.82);
+    --desktop-field-bg-strong: rgba(36, 49, 72, 0.94);
     --desktop-line: rgba(122, 153, 214, 0.12);
     --desktop-line-strong: rgba(95, 147, 255, 0.22);
     --desktop-ink: #edf3ff;
@@ -81,10 +85,12 @@
 }
 
 :root[data-theme-mode='dark'] {
-  --desktop-bg: #0c1320;
-  --desktop-surface: rgba(15, 23, 37, 0.88);
-  --desktop-surface-strong: rgba(17, 25, 40, 0.96);
-  --desktop-surface-muted: rgba(21, 31, 49, 0.94);
+  --desktop-bg: #162031;
+  --desktop-surface: rgba(27, 38, 56, 0.88);
+  --desktop-surface-strong: rgba(31, 43, 63, 0.96);
+  --desktop-surface-muted: rgba(34, 47, 69, 0.94);
+  --desktop-field-bg: rgba(31, 43, 64, 0.82);
+  --desktop-field-bg-strong: rgba(36, 49, 72, 0.94);
   --desktop-line: rgba(122, 153, 214, 0.12);
   --desktop-line-strong: rgba(95, 147, 255, 0.22);
   --desktop-ink: #edf3ff;
@@ -310,13 +316,18 @@
 }
 
 :root[data-theme='dark'][data-theme-accent='pure-white'] {
-  --desktop-bg: rgb(13, 15, 18);
-  --desktop-surface: rgba(27, 30, 36, 0.88);
-  --desktop-surface-strong: rgba(27, 30, 36, 0.96);
-  --desktop-surface-muted: rgba(27, 30, 36, 0.94);
+  --desktop-bg: rgb(23, 26, 31);
+  --desktop-surface: rgba(35, 39, 47, 0.9);
+  --desktop-surface-strong: rgba(39, 44, 52, 0.97);
+  --desktop-surface-muted: rgba(37, 42, 49, 0.94);
   --desktop-line: rgba(140, 147, 160, 0.2);
   --desktop-line-strong: rgba(83, 129, 240, 0.3);
   --desktop-shadow: 4, 6, 10;
+}
+
+:root[data-theme='dark'] {
+  --desktop-field-bg: rgba(32, 44, 65, 0.82);
+  --desktop-field-bg-strong: rgba(37, 50, 74, 0.94);
 }
 
 * {
@@ -333,6 +344,7 @@ body,
 body {
   margin: 0;
   background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 42%),
     linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.04), transparent 22%),
     radial-gradient(circle at top left, rgba(var(--desktop-accent-rgb), 0.08), transparent 28%),
     var(--desktop-bg);
@@ -355,6 +367,27 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+input,
+textarea,
+select {
+  color: var(--desktop-ink);
+  caret-color: var(--desktop-accent);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--desktop-soft);
+}
+
+:root[data-theme='dark'] body {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 46%),
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.04), transparent 28%),
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.045), transparent 24%),
+    radial-gradient(circle at top left, rgba(var(--desktop-accent-rgb), 0.085), transparent 30%),
+    var(--desktop-bg);
 }
 
 button {

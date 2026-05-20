@@ -442,7 +442,7 @@ function handlePointerDown(event: PointerEvent) {
   min-width: 0;
   border: 1px solid var(--desktop-line);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--desktop-field-bg);
   color: var(--desktop-ink);
   font: inherit;
   padding: 0.58rem 0.72rem;
@@ -562,15 +562,4 @@ function handlePointerDown(event: PointerEvent) {
   gap: 0.55rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  .desktop-source-tree-node__name,
-  .desktop-source-tree-node__path {
-    background: rgba(14, 22, 36, 0.84);
-  }
-}
-
-:global(:root[data-theme-mode='dark']) .desktop-source-tree-node__name,
-:global(:root[data-theme-mode='dark']) .desktop-source-tree-node__path {
-  background: rgba(14, 22, 36, 0.84);
-}
 </style>

@@ -414,7 +414,7 @@ function handleExport() {
   width: 100%;
   border: 1px solid var(--desktop-line);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.66);
+  background: var(--desktop-field-bg);
   color: var(--desktop-ink);
   font: inherit;
   padding: 0.8rem 0.9rem;
@@ -564,15 +564,4 @@ function handleExport() {
   cursor: not-allowed;
 }
 
-@media (prefers-color-scheme: dark) {
-  .desktop-workspace-dialog__input,
-  .desktop-workspace-dialog__textarea {
-    background: rgba(14, 22, 36, 0.84);
-  }
-}
-
-:global(:root[data-theme-mode='dark']) .desktop-workspace-dialog__input,
-:global(:root[data-theme-mode='dark']) .desktop-workspace-dialog__textarea {
-  background: rgba(14, 22, 36, 0.84);
-}
 </style>
