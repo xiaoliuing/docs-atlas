@@ -14,7 +14,9 @@ use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, Position, Size, State, Window, WindowEvent};
 
 const DESKTOP_SEED_VERSION_KEY: &str = "desktop_seed_version";
-const CURRENT_DESKTOP_SEED_VERSION: &str = "2";
+const CURRENT_DESKTOP_SEED_VERSION: &str = "3";
+const BUNDLED_DEFAULT_DOCS_DIR_NAME: &str = "docs";
+const DEFAULT_DOCS_SENTINELS: [&str; 2] = ["what-is-docs-atlas.md", "getting-started/README.md"];
 const WORKSPACE_SOURCES_CHANGED_EVENT: &str = "workspace-sources-changed";
 const WORKSPACE_SOURCE_WATCH_INTERVAL_MS: u64 = 1_500;
 const APP_LOGS_DIR_NAME: &str = "logs";
@@ -518,8 +520,8 @@ fn scan_workspace_sources(
 }
 
 #[tauri::command]
-fn get_default_docs_path() -> Result<String, String> {
-  Ok(resolve_default_docs_path())
+fn get_default_docs_path(app: AppHandle) -> Result<String, String> {
+  Ok(resolve_default_docs_path(&app))
 }
 
 #[tauri::command]
@@ -1035,7 +1037,7 @@ fn open_workspace_database(app: &AppHandle) -> Result<Connection, String> {
     .execute_batch(WORKSPACE_DB_SCHEMA)
     .map_err(|error| error.to_string())?;
   migrate_workspace_database(&connection)?;
-  maybe_migrate_legacy_seed_workspaces(&mut connection)?;
+  maybe_migrate_legacy_seed_workspaces(app, &mut connection)?;
   Ok(connection)
 }
 
@@ -1184,14 +1186,14 @@ fn add_column_if_missing(connection: &Connection, statement: &str) -> Result<(),
   }
 }
 
-fn maybe_migrate_legacy_seed_workspaces(connection: &mut Connection) -> Result<(), String> {
+fn maybe_migrate_legacy_seed_workspaces(app: &AppHandle, connection: &mut Connection) -> Result<(), String> {
   let saved_seed_version = read_app_setting_string(connection, DESKTOP_SEED_VERSION_KEY)?;
   if saved_seed_version.as_deref() == Some(CURRENT_DESKTOP_SEED_VERSION) {
     return Ok(());
   }
 
-  if should_reset_legacy_seed_workspaces(connection)? {
-    reset_to_default_workspace(connection)?;
+  if should_reset_legacy_seed_workspaces(app, connection)? {
+    reset_to_default_workspace(app, connection)?;
   }
 
   write_app_setting_string(
@@ -1202,7 +1204,7 @@ fn maybe_migrate_legacy_seed_workspaces(connection: &mut Connection) -> Result<(
   Ok(())
 }
 
-fn should_reset_legacy_seed_workspaces(connection: &Connection) -> Result<bool, String> {
+fn should_reset_legacy_seed_workspaces(app: &AppHandle, connection: &Connection) -> Result<bool, String> {
   let workspaces = list_workspace_summaries(connection)?;
   if workspaces.is_empty() {
     return Ok(false);
@@ -1210,7 +1212,7 @@ fn should_reset_legacy_seed_workspaces(connection: &Connection) -> Result<bool, 
 
   if workspaces.len() == 1 && workspaces[0].id == "workspace:default" {
     let detail = load_workspace_detail(connection, workspaces[0].clone())?;
-    return Ok(!matches_current_default_workspace(&detail, &resolve_default_docs_path()));
+    return Ok(!matches_current_default_workspace(&detail, &resolve_default_docs_path(app)));
   }
 
   for workspace in workspaces {
@@ -1231,10 +1233,10 @@ fn should_reset_legacy_seed_workspaces(connection: &Connection) -> Result<bool, 
   Ok(true)
 }
 
-fn reset_to_default_workspace(connection: &mut Connection) -> Result<(), String> {
+fn reset_to_default_workspace(app: &AppHandle, connection: &mut Connection) -> Result<(), String> {
   let transaction = connection.transaction().map_err(|error| error.to_string())?;
   let now = current_timestamp();
-  let default_docs_path = resolve_default_docs_path();
+  let default_docs_path = resolve_default_docs_path(app);
 
   transaction
     .execute("delete from workspace_source_nodes", [])
@@ -1266,7 +1268,7 @@ fn reset_to_default_workspace(connection: &mut Connection) -> Result<(), String>
       params![
         "workspace:default",
         "项目文档",
-        "默认工作空间，指向当前项目的 docs 目录。",
+        "默认工作空间，指向内置示例文档目录。",
         "folder",
         "#1f54d9",
         "workspace",
@@ -1425,11 +1427,59 @@ where
   Ok(())
 }
 
-fn resolve_default_docs_path() -> String {
-  let docs_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../docs");
-  match docs_path.canonicalize() {
-    Ok(path) => path.to_string_lossy().to_string(),
-    Err(_) => docs_path.to_string_lossy().to_string(),
+fn resolve_default_docs_path(app: &AppHandle) -> String {
+  if let Some(path) = resolve_bundled_default_docs_path(app) {
+    return path;
+  }
+
+  normalize_existing_path(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../docs"))
+}
+
+fn resolve_bundled_default_docs_path(app: &AppHandle) -> Option<String> {
+  let resource_dir = app.path().resource_dir().ok()?;
+  find_docs_root_in_resource_dir(&resource_dir, 4).map(normalize_existing_path)
+}
+
+fn find_docs_root_in_resource_dir(path: &Path, remaining_depth: usize) -> Option<PathBuf> {
+  if is_docs_root_directory(path) {
+    return Some(path.to_path_buf());
+  }
+
+  let docs_path = path.join(BUNDLED_DEFAULT_DOCS_DIR_NAME);
+  if is_docs_root_directory(&docs_path) {
+    return Some(docs_path);
+  }
+
+  if remaining_depth == 0 {
+    return None;
+  }
+
+  let entries = std::fs::read_dir(path).ok()?;
+  for entry in entries.flatten() {
+    let entry_path = entry.path();
+    if !entry_path.is_dir() {
+      continue;
+    }
+
+    if let Some(found_path) = find_docs_root_in_resource_dir(&entry_path, remaining_depth - 1) {
+      return Some(found_path);
+    }
+  }
+
+  None
+}
+
+fn is_docs_root_directory(path: &Path) -> bool {
+  path.is_dir()
+    && DEFAULT_DOCS_SENTINELS
+      .iter()
+      .all(|relative_path| path.join(relative_path).exists())
+}
+
+fn normalize_existing_path(path: PathBuf) -> String {
+  match path.canonicalize() {
+    Ok(resolved) => resolved.to_string_lossy().to_string(),
+    Err(_) => path.to_string_lossy().to_string(),
   }
 }
 
