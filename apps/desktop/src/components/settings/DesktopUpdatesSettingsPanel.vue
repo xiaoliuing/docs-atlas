@@ -74,7 +74,7 @@ const latestReleaseMeta = computed(() => {
       <p class="desktop-settings-panel__kicker">Updates</p>
       <h3 class="desktop-settings-panel__title">应用更新</h3>
       <p class="desktop-settings-panel__summary">
-        检查桌面端是否有新的正式版本，并直接跳转到对应的 GitHub Release 下载页。
+        检查桌面端是否有新的正式版本，在应用内下载并安装更新，必要时也可以手动打开 GitHub Release 页面。
       </p>
     </header>
 
@@ -112,7 +112,7 @@ const latestReleaseMeta = computed(() => {
         type="button"
         @click="emit('openLatestRelease')"
       >
-        打开 GitHub Release 页面
+        在浏览器中打开 GitHub Release 页面
       </button>
 
       <p
