@@ -843,7 +843,7 @@ function isTauriRuntime() {
   gap: 0.75rem;
   padding: 0 0.7rem 0 0.12rem;
   background: var(--desktop-titlebar-bg-runtime, var(--desktop-titlebar-bg));
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--desktop-titlebar-line);
   box-shadow: none;
   user-select: none;
 }
@@ -883,8 +883,9 @@ function isTauriRuntime() {
   height: 1.95rem;
   border: 0;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.9);
+  background: var(--desktop-titlebar-control-bg);
+  border: 1px solid var(--desktop-titlebar-control-border);
+  color: var(--desktop-titlebar-control-ink);
   cursor: pointer;
   transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
@@ -896,8 +897,9 @@ function isTauriRuntime() {
 
 .desktop-titlebar__icon-button:hover,
 .desktop-titlebar__icon-button--active {
-  background: rgba(255, 255, 255, 0.22);
-  color: #ffffff;
+  background: var(--desktop-titlebar-control-bg-hover);
+  border-color: color-mix(in srgb, var(--desktop-titlebar-control-border) 40%, transparent);
+  color: var(--desktop-titlebar-control-ink-hover);
   transform: translateY(-1px);
 }
 

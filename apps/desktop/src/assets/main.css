@@ -15,6 +15,12 @@
   --desktop-accent-rgb: 31, 84, 217;
   --desktop-titlebar-bg: var(--desktop-accent);
   --desktop-titlebar-bg-runtime: var(--desktop-titlebar-bg);
+  --desktop-titlebar-line: rgba(255, 255, 255, 0.08);
+  --desktop-titlebar-control-bg: rgba(255, 255, 255, 0.14);
+  --desktop-titlebar-control-bg-hover: rgba(255, 255, 255, 0.22);
+  --desktop-titlebar-control-ink: rgba(255, 255, 255, 0.9);
+  --desktop-titlebar-control-ink-hover: #ffffff;
+  --desktop-titlebar-control-border: rgba(255, 255, 255, 0.08);
   --desktop-shadow: 13, 29, 55;
   --desktop-radius-lg: 18px;
   --desktop-radius-md: 12px;
@@ -80,6 +86,12 @@
     --desktop-muted: #aab6ca;
     --desktop-soft: #91a0b5;
     --desktop-titlebar-bg: color-mix(in srgb, var(--desktop-accent) 34%, #101722);
+    --desktop-titlebar-line: rgba(255, 255, 255, 0.08);
+    --desktop-titlebar-control-bg: rgba(255, 255, 255, 0.12);
+    --desktop-titlebar-control-bg-hover: rgba(255, 255, 255, 0.2);
+    --desktop-titlebar-control-ink: rgba(255, 255, 255, 0.92);
+    --desktop-titlebar-control-ink-hover: #ffffff;
+    --desktop-titlebar-control-border: rgba(255, 255, 255, 0.08);
     --desktop-shadow: 0, 0, 0;
     --desktop-focus-ring: 0 0 0 3px rgba(var(--desktop-accent-rgb), 0.28);
     --preview-surface: rgba(20, 28, 43, 0.9);
@@ -103,6 +115,12 @@
   --desktop-muted: #aab6ca;
   --desktop-soft: #91a0b5;
   --desktop-titlebar-bg: color-mix(in srgb, var(--desktop-accent) 34%, #101722);
+  --desktop-titlebar-line: rgba(255, 255, 255, 0.08);
+  --desktop-titlebar-control-bg: rgba(255, 255, 255, 0.12);
+  --desktop-titlebar-control-bg-hover: rgba(255, 255, 255, 0.2);
+  --desktop-titlebar-control-ink: rgba(255, 255, 255, 0.92);
+  --desktop-titlebar-control-ink-hover: #ffffff;
+  --desktop-titlebar-control-border: rgba(255, 255, 255, 0.08);
   --desktop-shadow: 0, 0, 0;
   --desktop-focus-ring: 0 0 0 3px rgba(var(--desktop-accent-rgb), 0.28);
   --preview-surface: rgba(20, 28, 43, 0.9);
@@ -231,6 +249,12 @@
   --desktop-line-strong: rgba(33, 90, 229, 0.2);
   --desktop-accent: #215ae5;
   --desktop-accent-rgb: 33, 90, 229;
+  --desktop-titlebar-line: rgba(24, 38, 61, 0.08);
+  --desktop-titlebar-control-bg: rgba(24, 38, 61, 0.05);
+  --desktop-titlebar-control-bg-hover: rgba(33, 90, 229, 0.14);
+  --desktop-titlebar-control-ink: rgba(24, 38, 61, 0.84);
+  --desktop-titlebar-control-ink-hover: #16378e;
+  --desktop-titlebar-control-border: rgba(24, 38, 61, 0.08);
   --desktop-shadow: 160, 160, 160;
 }
 
