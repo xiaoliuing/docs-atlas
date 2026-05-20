@@ -1,59 +1,57 @@
-# 准备你的文档目录
+# 下载桌面端并完成首次启动
 
-开始使用 `Docs Atlas` 之前，先准备一份清晰的 Markdown 目录结构。
+如果你是第一次接触 `Docs Atlas`，推荐直接从桌面端开始。
 
-## 推荐结构
+## 第一步：下载桌面端
 
-最常见的方式是按主题或项目分目录：
+下载地址：
 
-```text
-docs/
-├── backend/
-│   ├── README.md
-│   ├── 01-architecture.md
-│   └── 02-api-design.md
-├── mobile/
-│   ├── README.md
-│   └── 01-build-process.md
-└── team-rules.md
-```
+- Latest Release: https://github.com/xiaoliuing/docs-atlas/releases/latest
+- Releases 页面: https://github.com/xiaoliuing/docs-atlas/releases
 
-## 基本规则
+当前最新版本是 `desktop-v0.31.10`，发布时间为 `2026-05-20`。
 
-- 一级目录视为一个专题
-- 每个专题下的 `README.md` 是入口页
-- 其他 Markdown 文件按顺序展示
-- 根目录下的 Markdown 会作为独立文档直接显示
+当前可用安装包包括：
 
-## 文件命名建议
+- macOS Apple Silicon: `.dmg`
+- Windows x64: `.exe` / `.msi`
+- Linux x64: `.AppImage` / `.deb` / `.rpm`
 
-为了让阅读顺序更稳定，建议正文使用带序号的文件名：
+## 第二步：首次打开会看到什么
 
-```text
-01-architecture.md
-02-module-design.md
-03-deployment.md
-```
+桌面端首次启动后，会默认带一个工作空间，指向项目内的 `docs/` 示例目录。
 
-## 标题建议
+这个默认工作空间的意义是：
 
-每篇文档都建议以一个一级标题开头：
+- 让你不用先配置任何外部目录
+- 可以直接看到项目自带的示例文档
+- 可以快速理解目录、搜索、阅读和图片预览的整体体验
 
-```md
-# 后端架构设计
-```
+## 第三步：理解工作空间
 
-然后正文主要使用 `##` 和 `###`：
+在桌面端里，工作空间是最重要的概念。
 
-```md
-## 目标
-## 模块划分
-### API 层
-### Service 层
-```
+你可以把一个工作空间理解成：
+
+- 一组文档来源
+- 一套独立的阅读上下文
+- 一份长期保存的本地知识库入口
+
+每个工作空间都可以拥有：
+
+- 自己的名称和颜色
+- 自己的文档源树
+- 自己的默认搜索范围
+- 自己上次阅读的文档和位置
+
+## macOS 用户需要注意什么
+
+当前桌面端 macOS 包没有接入 Apple 签名与 notarization。
+
+这意味着在部分 macOS 设备上，首次打开时可能会遇到系统安全提示，需要用户手动放行后再启动。这个限制来自 macOS 平台本身，不影响 Windows 和 Linux 包下载。
 
 ## 下一步
 
-目录准备好之后，可以继续看：
+完成首次启动后，下一步就是把你自己的文档目录挂进工作空间：
 
-- [配置多个文档来源](./02-configure-multiple-sources.md)
+- [配置工作空间与文档源](./02-configure-multiple-sources.md)
