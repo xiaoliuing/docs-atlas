@@ -843,7 +843,7 @@ function isTauriRuntime() {
   gap: 0.75rem;
   padding: 0 0.7rem 0 0.12rem;
   background: var(--desktop-titlebar-bg);
-  border-bottom: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: none;
   user-select: none;
 }

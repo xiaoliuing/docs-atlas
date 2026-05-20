@@ -5,6 +5,7 @@ import { check } from '@tauri-apps/plugin-updater'
 import { openExternalUrl } from '@/api/system'
 
 const RELEASES_URL = 'https://github.com/xiaoliuing/docs-atlas/releases'
+const RELEASES_API_URL = 'https://api.github.com/repos/xiaoliuing/docs-atlas/releases/latest'
 
 export type DesktopReleaseUpdateStatus =
   | 'idle'
@@ -18,6 +19,13 @@ export type DesktopReleaseUpdateStatus =
   | 'unsupported'
 
 export type DesktopLatestRelease = {
+  version: string
+  name: string
+  htmlUrl: string
+  publishedAt: string
+}
+
+type DesktopReleaseSummary = {
   version: string
   name: string
   htmlUrl: string
@@ -75,12 +83,12 @@ export function useDesktopReleaseUpdates() {
       lastCheckedAt.value = new Date().toISOString()
 
       if (update) {
-        latestRelease.value = {
+        latestRelease.value = toLatestRelease({
           version: update.version,
           name: `Docs Atlas ${update.version}`,
-          htmlUrl: RELEASES_URL,
+          htmlUrl: buildReleaseUrl(update.version),
           publishedAt: update.date ?? '',
-        }
+        })
         status.value = 'available'
         message.value = `发现新版本 ${update.version}`
         return
@@ -90,8 +98,25 @@ export function useDesktopReleaseUpdates() {
       message.value = `当前已是最新版本 ${currentVersion.value}`
       latestRelease.value = null
     } catch (error) {
+      const fallbackRelease = await fetchLatestReleaseSummary()
+
+      if (fallbackRelease) {
+        lastCheckedAt.value = new Date().toISOString()
+        latestRelease.value = toLatestRelease(fallbackRelease)
+
+        if (compareVersions(fallbackRelease.version, currentVersion.value) > 0) {
+          status.value = 'error'
+          message.value = `已检测到新版本 ${fallbackRelease.version}，但应用内检查通道不可用，请先从 GitHub Release 手动更新。`
+          return
+        }
+
+        status.value = 'up-to-date'
+        message.value = `当前已是最新版本 ${currentVersion.value}`
+        return
+      }
+
       status.value = 'error'
-      message.value = error instanceof Error ? error.message : '检查更新失败，请稍后重试'
+      message.value = normalizeUnknownError(error, '检查更新失败，请稍后重试')
     }
   }
 
@@ -115,12 +140,12 @@ export function useDesktopReleaseUpdates() {
         return
       }
 
-      latestRelease.value = {
+      latestRelease.value = toLatestRelease({
         version: update.version,
         name: `Docs Atlas ${update.version}`,
-        htmlUrl: RELEASES_URL,
+        htmlUrl: buildReleaseUrl(update.version),
         publishedAt: update.date ?? '',
-      }
+      })
       lastCheckedAt.value = new Date().toISOString()
 
       let downloadedBytes = 0
@@ -162,7 +187,7 @@ export function useDesktopReleaseUpdates() {
       await relaunch()
     } catch (error) {
       status.value = 'error'
-      message.value = error instanceof Error ? error.message : '安装更新失败，请稍后重试'
+      message.value = normalizeUnknownError(error, '安装更新失败，请稍后重试')
     }
   }
 
@@ -186,4 +211,106 @@ export function useDesktopReleaseUpdates() {
 
 function isTauriRuntime() {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+}
+
+function toLatestRelease(release: DesktopReleaseSummary): DesktopLatestRelease {
+  return {
+    version: release.version,
+    name: release.name,
+    htmlUrl: release.htmlUrl,
+    publishedAt: release.publishedAt,
+  }
+}
+
+function buildReleaseUrl(version: string) {
+  return `${RELEASES_URL}/tag/desktop-v${version}`
+}
+
+async function fetchLatestReleaseSummary(): Promise<DesktopReleaseSummary | null> {
+  try {
+    const response = await fetch(RELEASES_API_URL, {
+      headers: {
+        accept: 'application/vnd.github+json',
+      },
+      cache: 'no-store',
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const payload = (await response.json()) as {
+      tag_name?: string
+      name?: string
+      html_url?: string
+      published_at?: string
+    }
+    const version = String(payload.tag_name ?? '').replace(/^desktop-v/, '').trim()
+
+    if (!version) {
+      return null
+    }
+
+    return {
+      version,
+      name: payload.name?.trim() || `Docs Atlas ${version}`,
+      htmlUrl: payload.html_url?.trim() || buildReleaseUrl(version),
+      publishedAt: payload.published_at?.trim() || '',
+    }
+  } catch {
+    return null
+  }
+}
+
+function compareVersions(left: string, right: string) {
+  const leftParts = splitVersion(left)
+  const rightParts = splitVersion(right)
+  const size = Math.max(leftParts.length, rightParts.length)
+
+  for (let index = 0; index < size; index += 1) {
+    const leftValue = leftParts[index] ?? 0
+    const rightValue = rightParts[index] ?? 0
+
+    if (leftValue > rightValue) {
+      return 1
+    }
+
+    if (leftValue < rightValue) {
+      return -1
+    }
+  }
+
+  return 0
+}
+
+function splitVersion(version: string) {
+  return version
+    .split('.')
+    .map((part) => Number.parseInt(part, 10))
+    .filter((part) => Number.isFinite(part))
+}
+
+function normalizeUnknownError(error: unknown, fallbackMessage: string) {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message
+  }
+
+  if (typeof error === 'string' && error.trim()) {
+    return error
+  }
+
+  if (error && typeof error === 'object') {
+    const message = Reflect.get(error, 'message')
+    if (typeof message === 'string' && message.trim()) {
+      return message
+    }
+
+    try {
+      return JSON.stringify(error)
+    } catch {
+      return fallbackMessage
+    }
+  }
+
+  return fallbackMessage
 }

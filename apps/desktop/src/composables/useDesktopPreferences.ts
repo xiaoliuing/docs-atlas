@@ -1,4 +1,5 @@
 import { computed, shallowRef } from 'vue'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 
 const STORAGE_KEY = 'docs-atlas.desktop.preferences.v1'
 
@@ -43,6 +44,19 @@ const accentOptions: DesktopAccentOption[] = [
 const defaultPreferences: DesktopPreferences = {
   themeMode: 'system',
   accentId: 'atlas-blue',
+}
+
+const darkTitlebarColors: Record<DesktopAccentId, string> = {
+  'atlas-blue': '#1a2d57',
+  'ocean-teal': '#163b3f',
+  'forest-green': '#19392f',
+  'sunset-amber': '#46361b',
+  'dusty-rose': '#472433',
+  'slate-indigo': '#2a3154',
+  terracotta: '#4a2a23',
+  'plum-orchid': '#402c49',
+  'walnut-brown': '#3f3025',
+  'pure-white': '#2d3138',
 }
 
 const preferences = shallowRef<DesktopPreferences>(defaultPreferences)
@@ -133,6 +147,8 @@ function applyPreferences(value: DesktopPreferences) {
   root.dataset.theme = resolvedTheme
   root.dataset.themeAccent = accent.id
   root.style.setProperty('color-scheme', resolvedTheme)
+
+  void syncNativeWindowChrome(resolveTitlebarColor(accent.id, resolvedTheme))
 }
 
 function isThemeMode(value: unknown): value is DesktopThemeMode {
@@ -167,4 +183,24 @@ function getSystemTheme(): 'light' | 'dark' {
   }
 
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+function resolveTitlebarColor(accentId: DesktopAccentId, theme: 'light' | 'dark') {
+  if (theme === 'dark') {
+    return darkTitlebarColors[accentId]
+  }
+
+  return accentOptions.find((option) => option.id === accentId)?.hex ?? '#1F54D9'
+}
+
+async function syncNativeWindowChrome(color: string) {
+  if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) {
+    return
+  }
+
+  try {
+    await getCurrentWindow().setBackgroundColor(color)
+  } catch {
+    // Ignore native window sync failures and keep the webview theme active.
+  }
 }
