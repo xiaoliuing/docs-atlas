@@ -2,9 +2,12 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-1f54d9.svg)](./LICENSE)
 
-本项目基于 [MIT License](./LICENSE) 开源，可自由使用、修改与分发。
+<div align="center">
+  <img src="./open-docs/ref.png" alt="替代文字" width="400">
+</div>
 
-Docs Atlas 是一个面向本机 Markdown 文档的聚合阅读器，当前以桌面端为主，Web 端作为预览、分享和静态发布入口。
+
+Docs Atlas 是一个面向本地 Markdown 文档的聚合阅读器，当前以桌面端为主，Web 端作为预览、分享和静态发布入口。
 
 它解决的问题很直接：设计文档、教程文档、接入说明和 AI 生成文档，往往散落在不同项目和不同目录里，阅读入口不统一，搜索范围也被割裂。Docs Atlas 用统一的目录、搜索和阅读体验，把这些分散内容重新组织起来。
 
