@@ -48,14 +48,14 @@ const isRecentView = computed(() => props.activeView === 'recent')
 const isFavoritesView = computed(() => props.activeView === 'favorites')
 const sectionTag = computed(() => {
   if (isReaderView.value) {
-    return '文档空间'
+    return '文档仓库'
   }
 
   return isRecentView.value ? '最近阅读' : '收藏'
 })
 const sectionTitle = computed(() => {
   if (isReaderView.value) {
-    return currentWorkspace.value?.name ?? '未选择文档空间'
+    return currentWorkspace.value?.name ?? '未选择文档仓库'
   }
 
   return isRecentView.value ? '最近阅读' : '收藏'
@@ -227,7 +227,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
             v-if="isReaderView"
             class="desktop-docs-sidebar__header-summary"
           >
-            {{ currentWorkspace?.description || '聚合当前文档空间的目录与阅读上下文。' }}
+            {{ currentWorkspace?.description || '聚合当前文档仓库的目录与阅读上下文。' }}
           </p>
 
           <div
@@ -256,7 +256,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
             type="button"
             @click="isWorkspaceMenuOpen = !isWorkspaceMenuOpen"
           >
-            <span>切换文档空间</span>
+            <span>切换文档仓库</span>
             <DesktopUiIcon
               name="chevron-down"
               :size="14"
@@ -269,7 +269,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
             type="button"
             @click="emit('editWorkspace')"
           >
-            文档空间设置
+            文档仓库设置
           </button>
 
           <button
@@ -332,7 +332,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
         </nav>
 
         <div v-else-if="isReaderView" class="desktop-docs-sidebar__empty">
-          当前文档空间还没有可显示的文档。
+          当前文档仓库还没有可显示的文档。
         </div>
 
         <div v-else class="desktop-docs-sidebar__empty">

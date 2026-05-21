@@ -7,7 +7,7 @@ Docs Atlas 现在以桌面端为主，所以这组文档的阅读顺序也按桌
 ## 推荐阅读顺序
 
 1. [下载桌面端并完成首次启动](./01-prepare-your-docs.md)
-2. [配置工作空间与文档源](./02-configure-multiple-sources.md)
+2. [配置文档仓库与文档源](./02-configure-multiple-sources.md)
 3. [编写适合 Docs Atlas 的文档，并接入 AI 生成流程](./03-ai-docs-workflow.md)
 4. [理解图片资源、Web 预览和静态发布](./04-images-and-preview.md)
 

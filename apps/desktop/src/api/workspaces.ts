@@ -466,7 +466,7 @@ function buildImportedWorkspaceDetail(payload: WorkspaceTransferPayload): Worksp
 
   return {
     id: workspaceId,
-    name: payload.workspace.name.trim() || '导入的文档空间',
+    name: payload.workspace.name.trim() || '导入的文档仓库',
     description: payload.workspace.description,
     icon: payload.workspace.icon || 'folder',
     color: payload.workspace.color || '#1f54d9',

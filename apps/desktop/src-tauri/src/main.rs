@@ -586,7 +586,7 @@ fn import_workspace_config(app: AppHandle) -> Result<Option<WorkspaceDetailPaylo
     serde_json::from_str::<WorkspaceTransferPayload>(&raw_value).map_err(|error| error.to_string())?;
 
   if payload.schema_version != 1 {
-    return Err("暂不支持该工作区导入版本".to_string());
+    return Err("暂不支持该文档仓库导入版本".to_string());
   }
 
   let imported_workspace = insert_imported_workspace(&app, payload)?;
@@ -727,14 +727,14 @@ fn build_desktop_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
   let import_workspace = MenuItem::with_id(
     app,
     MENU_ID_IMPORT_WORKSPACE,
-    "导入工作区…",
+    "导入文档仓库…",
     true,
     Some("CmdOrCtrl+O"),
   )?;
   let export_workspace = MenuItem::with_id(
     app,
     MENU_ID_EXPORT_WORKSPACE,
-    "导出当前工作区…",
+    "导出当前文档仓库…",
     true,
     Some("CmdOrCtrl+Shift+E"),
   )?;
@@ -1268,7 +1268,7 @@ fn reset_to_default_workspace(app: &AppHandle, connection: &mut Connection) -> R
       params![
         "workspace:default",
         "项目文档",
-        "默认工作空间，指向内置示例文档目录。",
+        "默认文档仓库，指向内置示例文档目录。",
         "folder",
         "#1f54d9",
         "workspace",
@@ -1826,7 +1826,7 @@ fn insert_imported_workspace(
 fn normalize_imported_workspace_name(value: &str) -> String {
   let trimmed = value.trim();
   if trimmed.is_empty() {
-    "导入的工作区".to_string()
+    "导入的文档仓库".to_string()
   } else {
     trimmed.to_string()
   }

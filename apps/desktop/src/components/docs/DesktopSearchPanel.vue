@@ -32,7 +32,7 @@ const emit = defineEmits<{
 const inputRef = useTemplateRef<HTMLInputElement>('input')
 const hasResults = computed(() => props.results.length > 0)
 const normalizedQuery = computed(() => query.value.trim())
-const scopeLabel = computed(() => (props.scope === 'workspace' ? `当前文档空间 · ${props.workspaceName}` : '全局搜索'))
+const scopeLabel = computed(() => (props.scope === 'workspace' ? `当前文档仓库 · ${props.workspaceName}` : '全局搜索'))
 const showWorkspaceFilter = computed(() => props.scope === 'global' && props.workspaceOptions.length > 1)
 const showSourceFilter = computed(() => props.sourceOptions.length > 1)
 const matchFieldLabelMap: Record<SearchResult['matchField'], string> = {
@@ -140,7 +140,7 @@ defineExpose({
           type="button"
           @click="emit('setScope', 'workspace')"
         >
-          当前文档空间
+          当前文档仓库
         </button>
       </div>
     </div>
@@ -174,14 +174,14 @@ defineExpose({
         v-if="showWorkspaceFilter"
         class="desktop-search-panel__filter"
       >
-        <span class="desktop-search-panel__filter-label">文档空间</span>
+        <span class="desktop-search-panel__filter-label">文档仓库</span>
         <span class="desktop-search-panel__select-wrap">
           <select
             class="desktop-search-panel__select"
             :value="props.workspaceFilter"
             @change="emit('setWorkspaceFilter', String(($event.target as HTMLSelectElement).value))"
           >
-            <option value="all">全部文档空间</option>
+            <option value="all">全部文档仓库</option>
             <option
               v-for="option in props.workspaceOptions"
               :key="option.id"
@@ -228,7 +228,7 @@ defineExpose({
         v-if="!normalizedQuery"
         class="desktop-search-panel__empty"
       >
-        默认会检索标题、摘要、目录和正文内容。你也可以先切换文档空间或文档源范围。
+        默认会检索标题、摘要、目录和正文内容。你也可以先切换文档仓库或文档源范围。
       </div>
 
       <div

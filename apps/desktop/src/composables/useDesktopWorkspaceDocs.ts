@@ -98,7 +98,7 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
         searchIndexRef.value = emptySearchIndex
         sourceGroupsRef.value = emptySourceGroups
         sourceStatusesRef.value = emptySourceStatuses
-        error.value = loadError instanceof Error ? loadError.message : '加载文档空间文档失败'
+        error.value = loadError instanceof Error ? loadError.message : '加载文档仓库文档失败'
       } finally {
         if (taskId === activeTaskId) {
           isLoading.value = false

@@ -25,17 +25,17 @@ const emit = defineEmits<{
     <header class="desktop-settings-panel__hero">
       <div class="desktop-settings-panel__hero-copy">
         <p class="desktop-settings-panel__kicker">Doc Space</p>
-        <h3 class="desktop-settings-panel__title">文档空间</h3>
+        <h3 class="desktop-settings-panel__title">文档仓库</h3>
         <p class="desktop-settings-panel__summary">
-          文档空间承载文档源、搜索范围和阅读上下文。这里集中管理当前文档空间和导入导出动作。
+          文档仓库承载文档源、搜索范围和阅读上下文。这里集中管理当前文档仓库和导入导出动作。
         </p>
       </div>
     </header>
 
     <section class="desktop-settings-panel__group">
       <div class="desktop-settings-panel__group-head">
-        <h4>当前文档空间</h4>
-        <p>保持当前阅读上下文不变的前提下，集中管理文档空间元信息和文档源。</p>
+        <h4>当前文档仓库</h4>
+        <p>保持当前阅读上下文不变的前提下，集中管理文档仓库元信息和文档源。</p>
       </div>
 
       <div v-if="props.currentWorkspace" class="desktop-settings-panel__workspace-card">
@@ -47,13 +47,13 @@ const emit = defineEmits<{
 
           <div class="desktop-settings-panel__workspace-copy">
             <strong>{{ props.currentWorkspace.name }}</strong>
-            <span>{{ props.currentWorkspace.description || '当前文档空间还没有补充描述。' }}</span>
+            <span>{{ props.currentWorkspace.description || '当前文档仓库还没有补充描述。' }}</span>
           </div>
         </div>
 
         <dl class="desktop-settings-panel__metrics">
           <div>
-            <dt>文档空间总数</dt>
+            <dt>文档仓库总数</dt>
             <dd>{{ props.workspaceCount }}</dd>
           </div>
           <div>
@@ -74,7 +74,7 @@ const emit = defineEmits<{
       <div class="desktop-settings-panel__list">
         <button class="desktop-settings-panel__row" type="button" @click="emit('editWorkspace')">
           <span class="desktop-settings-panel__row-copy">
-            <strong>编辑文档空间</strong>
+            <strong>编辑文档仓库</strong>
             <span>修改名称、描述、主题色和默认搜索范围。</span>
           </span>
           <span class="desktop-settings-panel__row-state">编辑</span>
@@ -95,8 +95,8 @@ const emit = defineEmits<{
           @click="emit('exportWorkspace')"
         >
           <span class="desktop-settings-panel__row-copy">
-            <strong>导出文档空间</strong>
-            <span>{{ props.isExportingWorkspace ? '导出中…' : '导出当前文档空间配置，便于迁移和备份。' }}</span>
+            <strong>导出文档仓库</strong>
+            <span>{{ props.isExportingWorkspace ? '导出中…' : '导出当前文档仓库配置，便于迁移和备份。' }}</span>
           </span>
           <span class="desktop-settings-panel__row-state">导出</span>
         </button>
@@ -108,15 +108,15 @@ const emit = defineEmits<{
           @click="emit('importWorkspace')"
         >
           <span class="desktop-settings-panel__row-copy">
-            <strong>导入文档空间</strong>
-            <span>{{ props.isImportingWorkspace ? '导入中…' : '从配置文件导入新的文档空间。' }}</span>
+            <strong>导入文档仓库</strong>
+            <span>{{ props.isImportingWorkspace ? '导入中…' : '从配置文件导入新的文档仓库。' }}</span>
           </span>
           <span class="desktop-settings-panel__row-state">导入</span>
         </button>
 
         <button class="desktop-settings-panel__row" type="button" @click="emit('createWorkspace')">
           <span class="desktop-settings-panel__row-copy">
-            <strong>新建文档空间</strong>
+            <strong>新建文档仓库</strong>
             <span>为新的项目、客户或知识域创建独立的工作环境。</span>
           </span>
           <span class="desktop-settings-panel__row-state">新建</span>

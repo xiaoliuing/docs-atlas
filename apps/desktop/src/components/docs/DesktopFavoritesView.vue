@@ -86,7 +86,7 @@ function formatSavedAt(value: string) {
           type="button"
           @click="filter = 'workspace'"
         >
-          当前文档空间
+          当前文档仓库
           <span>{{ filterOptions.workspace }}</span>
         </button>
       </div>

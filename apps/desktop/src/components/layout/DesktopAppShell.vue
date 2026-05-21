@@ -841,7 +841,7 @@ function isTauriRuntime() {
           :selected-index="selectedIndex"
           :source-filter="sourceFilter"
           :source-options="sourceOptions"
-          :workspace-name="currentWorkspace?.name ?? '当前文档空间'"
+          :workspace-name="currentWorkspace?.name ?? '当前文档仓库'"
           :workspace-filter="workspaceFilter"
           :workspace-options="workspaceOptions"
           @close="closeSearch"
@@ -915,7 +915,7 @@ function isTauriRuntime() {
           <DesktopRecentView
             v-else-if="isRecentView"
             :current-workspace-id="currentWorkspaceId"
-            :current-workspace-name="currentWorkspace?.name ?? '当前文档空间'"
+            :current-workspace-name="currentWorkspace?.name ?? '当前文档仓库'"
             :entries="recentEntries"
             @back-to-reader="closeRecentView"
             @open-entry="handleOpenRecentEntry"

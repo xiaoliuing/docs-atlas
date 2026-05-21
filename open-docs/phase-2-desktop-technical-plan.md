@@ -56,7 +56,7 @@ docs-cms/
 - Workspace 元数据
 - Source Tree 配置
 - 应用偏好设置
-- 最近打开工作区
+- 最近打开文档仓库
 
 后续逐步加入：
 

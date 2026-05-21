@@ -23,7 +23,7 @@ const items: Array<{
   },
   {
     id: 'workspace',
-    title: '文档空间',
+    title: '文档仓库',
   },
   {
     id: 'data',
