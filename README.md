@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-1f54d9.svg)](./LICENSE)
 
 <div align="center">
-  <img src="./open-docs/ref.png" alt="替代文字" width="400">
+  <img src="./open-docs/images/ref.png" alt="替代文字" width="400">
 </div>
 
 
@@ -30,12 +30,14 @@ Docs Atlas 不是在线协作平台，也不是后台 CMS。
 
 - Web Demo: https://xiaoliuing.github.io/docs-atlas/
 
+![](./open-docs/images/web.png)
+
 桌面端下载：
 
 - Latest Release: https://github.com/xiaoliuing/docs-atlas/releases/latest
 - Releases 页面: https://github.com/xiaoliuing/docs-atlas/releases
 
-我已核对 GitHub Release，当前最新桌面端版本是 `desktop-v0.31.10`，发布时间为 `2026-05-20`。
+![](./open-docs/images/desktop.png)
 
 当前可下载资产包括：
 
