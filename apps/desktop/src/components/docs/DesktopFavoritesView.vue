@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
 
 export type DesktopFavoriteViewEntry = {
@@ -14,7 +14,6 @@ export type DesktopFavoriteViewEntry = {
 }
 
 const props = defineProps<{
-  currentWorkspaceId: string
   entries: DesktopFavoriteViewEntry[]
 }>()
 
@@ -24,21 +23,66 @@ const emit = defineEmits<{
   removeEntry: [entryId: string]
 }>()
 
-const filter = shallowRef<'all' | 'workspace'>('all')
+const ALL_WORKSPACES = '__all__'
+const selectedWorkspaceId = shallowRef(ALL_WORKSPACES)
+
+const workspaceOptions = computed(() => {
+  const grouped = new Map<string, { id: string, label: string, count: number }>()
+
+  for (const entry of props.entries) {
+    const current = grouped.get(entry.workspaceId)
+    if (current) {
+      current.count += 1
+      continue
+    }
+
+    grouped.set(entry.workspaceId, {
+      id: entry.workspaceId,
+      label: entry.workspaceName,
+      count: 1,
+    })
+  }
+
+  return Array.from(grouped.values())
+})
 
 const filteredEntries = computed(() =>
-  filter.value === 'workspace'
-    ? props.entries.filter((entry) => entry.workspaceId === props.currentWorkspaceId)
-    : props.entries,
+  selectedWorkspaceId.value === ALL_WORKSPACES
+    ? props.entries
+    : props.entries.filter((entry) => entry.workspaceId === selectedWorkspaceId.value),
 )
 
-const filterOptions = computed(() => {
-  const workspaceCount = props.entries.filter((entry) => entry.workspaceId === props.currentWorkspaceId).length
-  return {
-    all: props.entries.length,
-    workspace: workspaceCount,
-  }
-})
+const selectedWorkspaceLabel = computed(() =>
+  selectedWorkspaceId.value === ALL_WORKSPACES
+    ? '全部文档仓库'
+    : workspaceOptions.value.find((option) => option.id === selectedWorkspaceId.value)?.label ?? '全部文档仓库',
+)
+
+watch(
+  workspaceOptions,
+  (options) => {
+    if (selectedWorkspaceId.value === ALL_WORKSPACES) {
+      return
+    }
+
+    if (!options.some((option) => option.id === selectedWorkspaceId.value)) {
+      selectedWorkspaceId.value = ALL_WORKSPACES
+    }
+  },
+  { immediate: true },
+)
+
+const resultSummary = computed(() =>
+  selectedWorkspaceId.value === ALL_WORKSPACES
+    ? `全部文档仓库 · ${filteredEntries.value.length} 条收藏`
+    : `${selectedWorkspaceLabel.value} · ${filteredEntries.value.length} 条收藏`,
+)
+
+const toolbarCountLabel = computed(() =>
+  selectedWorkspaceId.value === ALL_WORKSPACES
+    ? `${props.entries.length} 条`
+    : `${filteredEntries.value.length} 条`,
+)
 
 function formatSavedAt(value: string) {
   const date = new Date(value)
@@ -72,29 +116,27 @@ function formatSavedAt(value: string) {
     </header>
 
     <div class="desktop-favorites-view__toolbar">
-      <div class="desktop-favorites-view__filter-group" role="tablist" aria-label="收藏范围">
-        <button
-          :class="['desktop-favorites-view__filter', { 'desktop-favorites-view__filter--active': filter === 'all' }]"
-          type="button"
-          @click="filter = 'all'"
-        >
-          全部
-          <span>{{ filterOptions.all }}</span>
-        </button>
-        <button
-          :class="['desktop-favorites-view__filter', { 'desktop-favorites-view__filter--active': filter === 'workspace' }]"
-          type="button"
-          @click="filter = 'workspace'"
-        >
-          当前文档仓库
-          <span>{{ filterOptions.workspace }}</span>
-        </button>
-      </div>
+      <label class="desktop-favorites-view__workspace-filter">
+        <span>筛选文档仓库</span>
+        <select v-model="selectedWorkspaceId">
+          <option :value="ALL_WORKSPACES">全部文档仓库</option>
+          <option
+            v-for="option in workspaceOptions"
+            :key="option.id"
+            :value="option.id"
+          >
+            {{ `${option.label} (${option.count})` }}
+          </option>
+        </select>
+      </label>
+
+      <span class="desktop-favorites-view__toolbar-count">{{ toolbarCountLabel }}</span>
     </div>
 
     <div class="desktop-favorites-view__body desktop-scroll">
       <div v-if="filteredEntries.length === 0" class="desktop-favorites-view__empty">
         <strong>还没有收藏文档</strong>
+        <span>{{ resultSummary }}</span>
       </div>
 
       <div v-else class="desktop-favorites-view__list">
@@ -209,50 +251,46 @@ function formatSavedAt(value: string) {
 .desktop-favorites-view__toolbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
-.desktop-favorites-view__filter-group {
-  display: inline-grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.3rem;
-  padding: 0.24rem;
-  border-radius: 999px;
-  background: rgba(var(--desktop-accent-rgb), 0.08);
+.desktop-favorites-view__workspace-filter {
+  display: grid;
+  gap: 0.4rem;
 }
 
-.desktop-favorites-view__filter {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  min-height: 2.15rem;
-  padding: 0.36rem 0.82rem;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--desktop-muted);
-  font-size: 0.76rem;
-  font-weight: 600;
-  cursor: pointer;
+.desktop-favorites-view__workspace-filter span {
+  color: var(--desktop-soft);
+  font-size: 0.69rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.desktop-favorites-view__filter span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.25rem;
-  min-height: 1.25rem;
-  padding: 0 0.22rem;
-  border-radius: 999px;
-  background: rgba(var(--desktop-accent-rgb), 0.08);
-  font-size: 0.68rem;
-}
-
-.desktop-favorites-view__filter--active {
+.desktop-favorites-view__workspace-filter select {
+  min-width: 15rem;
+  min-height: 2.35rem;
+  padding: 0 0.82rem;
+  border: 1px solid var(--desktop-line);
+  border-radius: 12px;
   background: var(--desktop-surface-strong);
+  color: var(--desktop-ink);
+  font: inherit;
+  font-size: 0.76rem;
+  outline: 0;
+}
+
+.desktop-favorites-view__toolbar-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.35rem;
+  padding: 0 0.78rem;
+  border-radius: 999px;
+  background: rgba(var(--desktop-accent-rgb), 0.08);
   color: var(--desktop-accent);
-  box-shadow:
-    inset 0 0 0 1px rgba(var(--desktop-accent-rgb), 0.12),
-    0 6px 16px rgba(var(--desktop-shadow), 0.08);
+  font-size: 0.74rem;
+  font-weight: 700;
 }
 
 .desktop-favorites-view__body {
@@ -360,17 +398,22 @@ function formatSavedAt(value: string) {
   font-size: 0.9rem;
 }
 
-.desktop-favorites-view__empty p {
-  margin: 0;
+.desktop-favorites-view__empty span {
   color: var(--desktop-muted);
   font-size: 0.8rem;
   line-height: 1.55;
 }
 
 @media (max-width: 1100px) {
-  .desktop-favorites-view__header {
+  .desktop-favorites-view__header,
+  .desktop-favorites-view__toolbar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .desktop-favorites-view__workspace-filter,
+  .desktop-favorites-view__workspace-filter select {
+    width: 100%;
   }
 }
 </style>

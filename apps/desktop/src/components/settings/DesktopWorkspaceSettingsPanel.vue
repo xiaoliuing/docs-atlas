@@ -24,7 +24,7 @@ const emit = defineEmits<{
   <section class="desktop-settings-panel">
     <header class="desktop-settings-panel__hero">
       <div class="desktop-settings-panel__hero-copy">
-        <p class="desktop-settings-panel__kicker">Doc Space</p>
+        <p class="desktop-settings-panel__kicker">Doc Vault</p>
         <h3 class="desktop-settings-panel__title">文档仓库</h3>
         <p class="desktop-settings-panel__summary">
           文档仓库承载文档源、搜索范围和阅读上下文。这里集中管理当前文档仓库和导入导出动作。

@@ -22,7 +22,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   editWorkspace: []
-  editSources: []
   openFavorites: []
   openReader: []
   openRecent: []
@@ -46,16 +45,10 @@ const currentWorkspace = computed(
 const isReaderView = computed(() => props.activeView === 'reader')
 const isRecentView = computed(() => props.activeView === 'recent')
 const isFavoritesView = computed(() => props.activeView === 'favorites')
-const sectionTag = computed(() => {
-  if (isReaderView.value) {
-    return '文档仓库'
-  }
-
-  return isRecentView.value ? '最近阅读' : '收藏'
-})
+const sectionTag = computed(() => (isReaderView.value ? '文档仓库' : isRecentView.value ? '最近阅读' : '收藏'))
 const sectionTitle = computed(() => {
   if (isReaderView.value) {
-    return currentWorkspace.value?.name ?? '未选择文档仓库'
+    return '目录'
   }
 
   return isRecentView.value ? '最近阅读' : '收藏'
@@ -227,7 +220,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
             v-if="isReaderView"
             class="desktop-docs-sidebar__header-summary"
           >
-            {{ currentWorkspace?.description || '聚合当前文档仓库的目录与阅读上下文。' }}
+            {{ currentWorkspace?.name || '未选择文档仓库' }}
           </p>
 
           <div
@@ -252,32 +245,35 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
         >
           <button
             :aria-expanded="isWorkspaceMenuOpen"
-            class="desktop-docs-sidebar__action"
+            class="desktop-docs-sidebar__workspace-switcher"
             type="button"
             @click="isWorkspaceMenuOpen = !isWorkspaceMenuOpen"
           >
-            <span>切换文档仓库</span>
+            <span
+              class="desktop-docs-sidebar__workspace-switcher-dot"
+              :style="{ backgroundColor: currentWorkspace?.color || 'var(--desktop-accent)' }"
+            />
+            <span class="desktop-docs-sidebar__workspace-switcher-copy">
+              <strong>{{ currentWorkspace?.name || '选择文档仓库' }}</strong>
+              <span>{{ currentWorkspace?.description || '切换当前文档仓库' }}</span>
+            </span>
             <DesktopUiIcon
               name="chevron-down"
               :size="14"
-              :class="['desktop-docs-sidebar__action-chevron', { 'desktop-docs-sidebar__action-chevron--open': isWorkspaceMenuOpen }]"
+              :class="[
+                'desktop-docs-sidebar__workspace-switcher-chevron',
+                { 'desktop-docs-sidebar__workspace-switcher-chevron--open': isWorkspaceMenuOpen },
+              ]"
             />
           </button>
 
           <button
-            class="desktop-docs-sidebar__action"
+            class="desktop-docs-sidebar__settings-button"
             type="button"
             @click="emit('editWorkspace')"
           >
-            文档仓库设置
-          </button>
-
-          <button
-            class="desktop-docs-sidebar__action"
-            type="button"
-            @click="emit('editSources')"
-          >
-            文档源
+            <DesktopUiIcon name="settings" :size="15" />
+            <span>文档仓库设置</span>
           </button>
 
           <div
@@ -438,8 +434,8 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 
 .desktop-docs-sidebar__header {
   display: grid;
-  gap: 0.72rem;
-  padding: 0.94rem 1rem 0.88rem;
+  gap: 0.78rem;
+  padding: 0.94rem 1rem 0.9rem;
   border-bottom: 1px solid var(--desktop-line);
   background:
     linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.08), rgba(var(--desktop-accent-rgb), 0.02) 78%),
@@ -471,8 +467,8 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 .desktop-docs-sidebar__header-summary {
   margin: 0.04rem 0 0;
   color: var(--desktop-muted);
-  font-size: 0.74rem;
-  line-height: 1.5;
+  font-size: 0.8rem;
+  line-height: 1.45;
 }
 
 .desktop-docs-sidebar__header-title {
@@ -528,51 +524,104 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 
 .desktop-docs-sidebar__header-actions {
   position: relative;
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
   align-items: center;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-  padding-top: 0.04rem;
 }
 
-.desktop-docs-sidebar__action {
-  display: inline-flex;
+.desktop-docs-sidebar__workspace-switcher {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.68rem;
   align-items: center;
-  justify-content: center;
-  gap: 0.28rem;
-  min-height: 1.95rem;
-  padding: 0 0.74rem;
-  border: 1px solid rgba(var(--desktop-accent-rgb), 0.16);
-  border-radius: 11px;
-  background: rgba(var(--desktop-accent-rgb), 0.06);
-  color: var(--desktop-accent);
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 700;
-  white-space: nowrap;
+  min-height: 3rem;
+  padding: 0.58rem 0.72rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.14);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.14), rgba(var(--desktop-accent-rgb), 0.05)),
+    var(--desktop-surface-strong);
+  color: var(--desktop-ink);
+  text-align: left;
   cursor: pointer;
   transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
 }
 
-.desktop-docs-sidebar__action:hover {
-  border-color: rgba(var(--desktop-accent-rgb), 0.26);
-  background: rgba(var(--desktop-accent-rgb), 0.11);
+.desktop-docs-sidebar__workspace-switcher:hover {
+  border-color: rgba(var(--desktop-accent-rgb), 0.24);
+  background:
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.18), rgba(var(--desktop-accent-rgb), 0.07)),
+    var(--desktop-surface-strong);
   transform: translateY(-1px);
 }
 
-.desktop-docs-sidebar__action-chevron {
+.desktop-docs-sidebar__workspace-switcher-dot {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 999px;
+  box-shadow: 0 0 0 6px rgba(var(--desktop-accent-rgb), 0.12);
+}
+
+.desktop-docs-sidebar__workspace-switcher-copy {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.desktop-docs-sidebar__workspace-switcher-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.79rem;
+  font-weight: 680;
+}
+
+.desktop-docs-sidebar__workspace-switcher-copy span {
+  overflow: hidden;
+  color: var(--desktop-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.68rem;
+}
+
+.desktop-docs-sidebar__workspace-switcher-chevron {
   transition: transform 0.18s ease;
 }
 
-.desktop-docs-sidebar__action-chevron--open {
+.desktop-docs-sidebar__workspace-switcher-chevron--open {
   transform: rotate(180deg);
+}
+
+.desktop-docs-sidebar__settings-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  min-height: 3rem;
+  padding: 0.58rem 0.72rem;
+  border: 1px solid var(--desktop-line);
+  border-radius: 16px;
+  background: var(--desktop-surface-strong);
+  color: var(--desktop-ink);
+  font-size: 0.72rem;
+  font-weight: 620;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.desktop-docs-sidebar__settings-button:hover {
+  border-color: rgba(var(--desktop-accent-rgb), 0.16);
+  background: rgba(var(--desktop-accent-rgb), 0.08);
+  color: var(--desktop-accent);
+  transform: translateY(-1px);
 }
 
 .desktop-docs-sidebar__workspace-menu {
   position: absolute;
   top: calc(100% + 0.5rem);
+  left: 0;
   right: 0;
-  width: 260px;
   display: grid;
   gap: 0.42rem;
   padding: 0.42rem;
