@@ -144,7 +144,6 @@ const isReaderView = computed(() => primaryView.value === 'reader')
 const isRecentView = computed(() => primaryView.value === 'recent')
 const isFavoritesView = computed(() => primaryView.value === 'favorites')
 const isSettingsView = computed(() => primaryView.value === 'settings')
-const showReaderSidebar = computed(() => !isSettingsView.value && isReaderView.value)
 const floatingPanelVisible = computed(() => isOpen.value)
 const searchQuery = computed({
   get: () => query.value,
@@ -860,11 +859,10 @@ function isTauriRuntime() {
       class="desktop-workbench"
       :class="{
         'desktop-workbench--settings': isSettingsView,
-        'desktop-workbench--focus': !isSettingsView && !isReaderView,
       }"
     >
       <template v-if="!isSettingsView">
-        <aside v-if="showReaderSidebar" class="desktop-workbench__sidebar">
+        <aside class="desktop-workbench__sidebar">
           <DesktopDocsSidebar
             v-model:open-branch-ids="sidebarOpenBranchIds"
             v-model:open-section-id="sidebarOpenSectionId"
@@ -880,11 +878,12 @@ function isTauriRuntime() {
             :recent-count="recentEntries.length"
             :source-groups="visibleSourceGroups"
             :workspaces="workspaces"
+            @create-workspace="openCreateWorkspaceDialog"
             @edit-sources="openSourceTreeDialog"
-            @edit-workspace="openEditWorkspaceDialog"
             @open-favorites="openFavoritesView"
             @open-reader="openReaderView"
             @open-recent="openRecentView"
+            @open-workspace-settings="openSettingsView('workspace')"
             @select-doc="handleSelectDoc"
             @select-workspace="handleSelectWorkspace"
           />
@@ -1107,10 +1106,6 @@ function isTauriRuntime() {
 }
 
 .desktop-workbench--settings {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.desktop-workbench--focus {
   grid-template-columns: minmax(0, 1fr);
 }
 

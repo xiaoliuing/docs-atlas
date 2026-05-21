@@ -131,6 +131,7 @@ const emit = defineEmits<{
   gap: 0.88rem;
   min-height: 0;
   height: 100%;
+  width: 100%;
 }
 
 .desktop-settings-view__header {

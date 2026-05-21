@@ -21,8 +21,10 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  createWorkspace: []
   editWorkspace: []
   editSources: []
+  openWorkspaceSettings: []
   openFavorites: []
   openReader: []
   openRecent: []
@@ -46,12 +48,7 @@ const currentWorkspace = computed(
 const isReaderView = computed(() => props.activeView === 'reader')
 const isRecentView = computed(() => props.activeView === 'recent')
 const isFavoritesView = computed(() => props.activeView === 'favorites')
-const sectionTag = computed(() => (isReaderView.value ? '文档仓库' : isRecentView.value ? '最近阅读' : '收藏'))
 const sectionTitle = computed(() => {
-  if (isReaderView.value) {
-    return currentWorkspace.value?.name ?? '未选择文档仓库'
-  }
-
   return isRecentView.value ? '最近阅读' : '收藏'
 })
 const sectionBadge = computed(() => {
@@ -210,103 +207,111 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 
     <div class="desktop-docs-sidebar__panel">
       <div class="desktop-docs-sidebar__header">
-        <div class="desktop-docs-sidebar__header-copy">
-          <p class="desktop-docs-sidebar__header-tag">{{ sectionTag }}</p>
-          <div class="desktop-docs-sidebar__header-title-row">
-            <h2 class="desktop-docs-sidebar__header-title">{{ sectionTitle }}</h2>
-            <span class="desktop-docs-sidebar__header-badge">{{ sectionBadge }}</span>
+        <template v-if="isReaderView">
+          <div class="desktop-docs-sidebar__workspace-shell">
+            <div class="desktop-docs-sidebar__workspace-topline">
+              <p class="desktop-docs-sidebar__header-tag">Repository</p>
+              <button
+                class="desktop-docs-sidebar__workspace-create"
+                type="button"
+                @click="emit('createWorkspace')"
+              >
+                <DesktopUiIcon name="plus" :size="16" />
+              </button>
+            </div>
+
+            <div
+              ref="workspaceSwitcher"
+              class="desktop-docs-sidebar__header-actions"
+            >
+              <button
+                :aria-expanded="isWorkspaceMenuOpen"
+                class="desktop-docs-sidebar__workspace-card"
+                type="button"
+                @click="isWorkspaceMenuOpen = !isWorkspaceMenuOpen"
+              >
+                <span
+                  class="desktop-docs-sidebar__workspace-card-icon"
+                  :style="{ color: currentWorkspace?.color || 'var(--desktop-accent)' }"
+                >
+                  <DesktopUiIcon name="atlas" :size="18" />
+                </span>
+                <span class="desktop-docs-sidebar__workspace-card-copy">
+                  <strong>{{ currentWorkspace?.name || '选择文档仓库' }}</strong>
+                  <span>{{ currentWorkspace?.description || '当前阅读入口' }}</span>
+                </span>
+                <DesktopUiIcon
+                  name="chevron-down"
+                  :size="15"
+                  :class="[
+                    'desktop-docs-sidebar__workspace-card-chevron',
+                    { 'desktop-docs-sidebar__workspace-card-chevron--open': isWorkspaceMenuOpen },
+                  ]"
+                />
+              </button>
+
+              <div
+                v-if="isWorkspaceMenuOpen"
+                class="desktop-docs-sidebar__workspace-menu"
+              >
+                <button
+                  v-for="workspace in props.workspaces"
+                  :key="workspace.id"
+                  :class="[
+                    'desktop-docs-sidebar__workspace-option',
+                    { 'desktop-docs-sidebar__workspace-option--active': workspace.id === props.currentWorkspaceId },
+                  ]"
+                  type="button"
+                  @click="handleSelectWorkspace(workspace.id)"
+                >
+                  <span
+                    class="desktop-docs-sidebar__workspace-option-dot"
+                    :style="{ backgroundColor: workspace.color }"
+                  />
+                  <span class="desktop-docs-sidebar__workspace-option-copy">
+                    <strong>{{ workspace.name }}</strong>
+                    <span>{{ `${workspace.sources.length} 个文档源` }}</span>
+                  </span>
+                  <span class="desktop-docs-sidebar__workspace-option-meta">切换</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="desktop-docs-sidebar__workspace-footer">
+              <div class="desktop-docs-sidebar__header-stats">
+                <span class="desktop-docs-sidebar__header-stat">{{ `${props.currentWorkspaceSourceCount} 个文档源` }}</span>
+                <span class="desktop-docs-sidebar__header-stat">{{ `${props.currentWorkspaceDocCount} 篇文档` }}</span>
+                <span
+                  v-if="props.currentWorkspaceUnhealthySourceCount > 0"
+                  class="desktop-docs-sidebar__header-stat desktop-docs-sidebar__header-stat--warning"
+                >
+                  {{ `${props.currentWorkspaceUnhealthySourceCount} 个异常` }}
+                </span>
+              </div>
+
+              <button
+                class="desktop-docs-sidebar__workspace-settings"
+                type="button"
+                @click="emit('openWorkspaceSettings')"
+              >
+                设置
+              </button>
+            </div>
           </div>
+        </template>
 
-          <div
-            v-if="isReaderView"
-            class="desktop-docs-sidebar__header-stats"
-          >
-            <span class="desktop-docs-sidebar__header-stat">{{ `${props.currentWorkspaceSourceCount} 个文档源` }}</span>
-            <span class="desktop-docs-sidebar__header-stat">{{ `${props.currentWorkspaceDocCount} 篇文档` }}</span>
-            <span
-              v-if="props.currentWorkspaceUnhealthySourceCount > 0"
-              class="desktop-docs-sidebar__header-stat desktop-docs-sidebar__header-stat--warning"
-            >
-              {{ `${props.currentWorkspaceUnhealthySourceCount} 个异常` }}
-            </span>
+        <template v-else>
+          <div class="desktop-docs-sidebar__header-copy">
+            <p class="desktop-docs-sidebar__header-tag">Overview</p>
+            <div class="desktop-docs-sidebar__header-title-row">
+              <h2 class="desktop-docs-sidebar__header-title">{{ sectionTitle }}</h2>
+              <span class="desktop-docs-sidebar__header-badge">{{ sectionBadge }}</span>
+            </div>
+            <p class="desktop-docs-sidebar__header-subtext">
+              {{ currentWorkspace?.name || '当前文档仓库' }}
+            </p>
           </div>
-        </div>
-
-        <div
-          v-if="isReaderView"
-          ref="workspaceSwitcher"
-          class="desktop-docs-sidebar__header-actions"
-        >
-          <div class="desktop-docs-sidebar__toolbar">
-            <button
-              :aria-expanded="isWorkspaceMenuOpen"
-              class="desktop-docs-sidebar__workspace-switcher"
-              type="button"
-              @click="isWorkspaceMenuOpen = !isWorkspaceMenuOpen"
-            >
-              <span
-                class="desktop-docs-sidebar__workspace-switcher-dot"
-                :style="{ backgroundColor: currentWorkspace?.color || 'var(--desktop-accent)' }"
-              />
-              <span class="desktop-docs-sidebar__workspace-switcher-copy">
-                <strong>切换文档仓库</strong>
-                <span>{{ currentWorkspace?.name || '选择文档仓库' }}</span>
-              </span>
-              <DesktopUiIcon
-                name="chevron-down"
-                :size="14"
-                :class="[
-                  'desktop-docs-sidebar__workspace-switcher-chevron',
-                  { 'desktop-docs-sidebar__workspace-switcher-chevron--open': isWorkspaceMenuOpen },
-                ]"
-              />
-            </button>
-
-            <button
-              class="desktop-docs-sidebar__tool-button"
-              type="button"
-              @click="emit('editSources')"
-            >
-              <DesktopUiIcon name="atlas" :size="14" />
-              <span>文档源设置</span>
-            </button>
-
-            <button
-              class="desktop-docs-sidebar__tool-button"
-              type="button"
-              @click="emit('editWorkspace')"
-            >
-              <DesktopUiIcon name="settings" :size="14" />
-              <span>文档仓库设置</span>
-            </button>
-          </div>
-
-          <div
-            v-if="isWorkspaceMenuOpen"
-            class="desktop-docs-sidebar__workspace-menu"
-          >
-            <button
-              v-for="workspace in props.workspaces"
-              :key="workspace.id"
-              :class="[
-                'desktop-docs-sidebar__workspace-option',
-                { 'desktop-docs-sidebar__workspace-option--active': workspace.id === props.currentWorkspaceId },
-              ]"
-              type="button"
-              @click="handleSelectWorkspace(workspace.id)"
-            >
-              <span
-                class="desktop-docs-sidebar__workspace-option-dot"
-                :style="{ backgroundColor: workspace.color }"
-              />
-              <span class="desktop-docs-sidebar__workspace-option-copy">
-                <strong>{{ workspace.name }}</strong>
-                <span>{{ `${workspace.sources.length} 个文档源` }}</span>
-              </span>
-              <span class="desktop-docs-sidebar__workspace-option-meta">切换</span>
-            </button>
-          </div>
-        </div>
+        </template>
       </div>
 
       <div
@@ -454,6 +459,18 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   min-width: 0;
 }
 
+.desktop-docs-sidebar__workspace-shell {
+  display: grid;
+  gap: 0.76rem;
+}
+
+.desktop-docs-sidebar__workspace-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
 .desktop-docs-sidebar__header-tag {
   margin: 0;
   color: var(--desktop-soft);
@@ -468,6 +485,13 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   align-items: center;
   gap: 0.42rem;
   min-width: 0;
+}
+
+.desktop-docs-sidebar__header-subtext {
+  margin: 0;
+  color: var(--desktop-muted);
+  font-size: 0.74rem;
+  line-height: 1.45;
 }
 
 .desktop-docs-sidebar__header-title {
@@ -526,24 +550,38 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   display: block;
 }
 
-.desktop-docs-sidebar__toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 0.44rem;
+.desktop-docs-sidebar__workspace-create {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.16);
+  border-radius: 16px;
+  background: rgba(var(--desktop-accent-rgb), 0.05);
+  color: var(--desktop-accent);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
 }
 
-.desktop-docs-sidebar__workspace-switcher {
+.desktop-docs-sidebar__workspace-create:hover {
+  border-color: rgba(var(--desktop-accent-rgb), 0.26);
+  background: rgba(var(--desktop-accent-rgb), 0.09);
+  transform: translateY(-1px);
+}
+
+.desktop-docs-sidebar__workspace-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 0.54rem;
+  gap: 0.78rem;
   align-items: center;
-  min-height: 2.5rem;
-  padding: 0.48rem 0.62rem;
-  border: 1px solid rgba(var(--desktop-accent-rgb), 0.1);
-  border-radius: 14px;
+  width: 100%;
+  min-height: 5.8rem;
+  padding: 0.88rem 0.92rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.12);
+  border-radius: 22px;
   background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.1), rgba(var(--desktop-accent-rgb), 0.04)),
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.1), rgba(var(--desktop-accent-rgb), 0.035)),
     var(--desktop-surface-strong);
   color: var(--desktop-ink);
   text-align: left;
@@ -551,7 +589,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
 }
 
-.desktop-docs-sidebar__workspace-switcher:hover {
+.desktop-docs-sidebar__workspace-card:hover {
   border-color: rgba(var(--desktop-accent-rgb), 0.18);
   background:
     linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.12), rgba(var(--desktop-accent-rgb), 0.05)),
@@ -559,67 +597,75 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   transform: translateY(-1px);
 }
 
-.desktop-docs-sidebar__workspace-switcher-dot {
-  width: 0.8rem;
-  height: 0.8rem;
-  border-radius: 999px;
-  box-shadow: 0 0 0 6px rgba(var(--desktop-accent-rgb), 0.12);
-}
-
-.desktop-docs-sidebar__workspace-switcher-copy {
-  display: grid;
-  gap: 0.08rem;
-  min-width: 0;
-}
-
-.desktop-docs-sidebar__workspace-switcher-copy strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.72rem;
-  font-weight: 640;
-  color: var(--desktop-soft);
-}
-
-.desktop-docs-sidebar__workspace-switcher-copy span {
-  overflow: hidden;
-  color: var(--desktop-ink);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.74rem;
-  font-weight: 640;
-}
-
-.desktop-docs-sidebar__workspace-switcher-chevron {
-  transition: transform 0.18s ease;
-}
-
-.desktop-docs-sidebar__workspace-switcher-chevron--open {
-  transform: rotate(180deg);
-}
-
-.desktop-docs-sidebar__tool-button {
+.desktop-docs-sidebar__workspace-card-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.36rem;
-  min-height: 2.5rem;
-  padding: 0.46rem 0.62rem;
-  border: 1px solid var(--desktop-line);
-  border-radius: 14px;
-  background: var(--desktop-surface-strong);
-  color: var(--desktop-ink);
-  font-size: 0.7rem;
-  font-weight: 620;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 18px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 16%, transparent);
 }
 
-.desktop-docs-sidebar__tool-button:hover {
-  border-color: rgba(var(--desktop-accent-rgb), 0.16);
-  background: rgba(var(--desktop-accent-rgb), 0.08);
+.desktop-docs-sidebar__workspace-card-copy {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.desktop-docs-sidebar__workspace-card-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.92rem;
+  font-weight: 680;
+  color: var(--desktop-ink);
+}
+
+.desktop-docs-sidebar__workspace-card-copy span {
+  overflow: hidden;
+  color: var(--desktop-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.76rem;
+  font-weight: 520;
+}
+
+.desktop-docs-sidebar__workspace-card-chevron {
+  transition: transform 0.18s ease;
+}
+
+.desktop-docs-sidebar__workspace-card-chevron--open {
+  transform: rotate(180deg);
+}
+
+.desktop-docs-sidebar__workspace-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.56rem;
+}
+
+.desktop-docs-sidebar__workspace-settings {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.42rem;
+  padding: 0 1rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.16);
+  border-radius: 18px;
+  background: rgba(var(--desktop-accent-rgb), 0.05);
   color: var(--desktop-accent);
+  font-size: 0.76rem;
+  font-weight: 680;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+}
+
+.desktop-docs-sidebar__workspace-settings:hover {
+  border-color: rgba(var(--desktop-accent-rgb), 0.24);
+  background: rgba(var(--desktop-accent-rgb), 0.09);
   transform: translateY(-1px);
 }
 
@@ -726,8 +772,9 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
     width: 100%;
   }
 
-  .desktop-docs-sidebar__toolbar {
-    grid-template-columns: minmax(0, 1fr);
+  .desktop-docs-sidebar__workspace-footer {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>

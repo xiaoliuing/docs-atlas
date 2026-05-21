@@ -182,6 +182,7 @@ function formatSavedAt(value: string) {
   gap: 0.9rem;
   min-height: 0;
   height: 100%;
+  width: 100%;
 }
 
 .desktop-favorites-view__header {
