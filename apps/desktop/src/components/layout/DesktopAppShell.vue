@@ -367,26 +367,17 @@ async function handleExportLogsFile() {
   await runSystemSettingsAction('export', exportLogsFile, '日志文件已导出')
 }
 
-async function handleTitlebarDoubleClick() {
-  if (!isTauriRuntime()) {
-    return
-  }
-
-  await getCurrentWindow().toggleMaximize()
-}
-
 async function handleTitlebarMouseDown(event: MouseEvent) {
   if (!isTauriRuntime() || event.button !== 0) {
     return
   }
 
-  event.preventDefault()
-
   if (event.detail === 2) {
-    await handleTitlebarDoubleClick()
+    // Tauri already toggles maximize on double click for drag regions.
     return
   }
 
+  event.preventDefault()
   await getCurrentWindow().startDragging()
 }
 
