@@ -87,7 +87,7 @@ function formatOpenedAt(value: string) {
           type="button"
           @click="filter = 'workspace'"
         >
-          当前文档集
+          当前文档空间
           <span>{{ filterOptions.workspace }}</span>
         </button>
       </div>

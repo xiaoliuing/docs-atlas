@@ -645,7 +645,7 @@
         <div class="desktop-source-tree-dialog__header-copy">
           <p class="desktop-source-tree-dialog__eyebrow">Source Tree</p>
           <h2 class="desktop-source-tree-dialog__title">
-            {{ props.workspace?.name ?? "当前工作区" }} 的文档源
+            {{ props.workspace?.name ?? "当前文档空间" }} 的文档源
           </h2>
           <p class="desktop-source-tree-dialog__summary">
             {{ groupCount }} 个分组 · {{ sourceCount }} 个目录源{{

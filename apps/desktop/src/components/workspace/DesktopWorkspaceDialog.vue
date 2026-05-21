@@ -34,8 +34,8 @@ const emit = defineEmits<{
 }>()
 
 const scopeOptions: Array<{ id: WorkspaceSearchScope; label: string; description: string }> = [
-  { id: 'global', label: '全局', description: '默认跨全部工作区文档搜索' },
-  { id: 'workspace', label: '当前工作区', description: '默认只检索当前工作区内容' },
+  { id: 'global', label: '全局', description: '默认跨全部文档空间搜索' },
+  { id: 'workspace', label: '当前文档空间', description: '默认只检索当前文档空间内容' },
 ]
 
 const form = reactive<WorkspaceForm>({
@@ -47,13 +47,13 @@ const form = reactive<WorkspaceForm>({
 const deleteConfirmState = reactive({ value: false })
 
 const isValid = computed(() => form.name.trim().length > 0)
-const dialogTitle = computed(() => (props.mode === 'edit' ? '工作区设置' : '新建工作区'))
+const dialogTitle = computed(() => (props.mode === 'edit' ? '文档空间设置' : '新建文档空间'))
 const submitLabel = computed(() => {
   if (props.isSaving) {
     return props.mode === 'edit' ? '保存中...' : '创建中...'
   }
 
-  return props.mode === 'edit' ? '保存设置' : '创建工作区'
+  return props.mode === 'edit' ? '保存设置' : '创建文档空间'
 })
 const canDeleteWorkspace = computed(() => props.mode === 'edit' && Boolean(props.canDelete))
 const canExportWorkspace = computed(() => props.mode === 'edit' && Boolean(props.workspace))
@@ -62,9 +62,9 @@ const deleteLabel = computed(() => {
     return '删除中...'
   }
 
-  return deleteConfirmState.value ? '确认删除工作区' : '删除工作区'
+  return deleteConfirmState.value ? '确认删除文档空间' : '删除文档空间'
 })
-const importLabel = computed(() => (props.isImporting ? '导入中...' : '导入工作区'))
+const importLabel = computed(() => (props.isImporting ? '导入中...' : '导入文档空间'))
 const exportLabel = computed(() => (props.isExporting ? '导出中...' : '导出配置'))
 
 watch(
@@ -167,7 +167,7 @@ function handleExport() {
         </div>
 
         <button
-          :aria-label="props.mode === 'edit' ? '关闭工作区设置对话框' : '关闭新建工作区对话框'"
+          :aria-label="props.mode === 'edit' ? '关闭文档空间设置对话框' : '关闭新建文档空间对话框'"
           class="desktop-workspace-dialog__close"
           type="button"
           @click="handleClose"
@@ -214,13 +214,13 @@ function handleExport() {
             v-model="form.description"
             class="desktop-workspace-dialog__textarea"
             maxlength="160"
-            placeholder="一句话说明这个工作区的用途。"
+            placeholder="一句话说明这个文档空间的用途。"
             rows="4"
           />
         </label>
 
         <div class="desktop-workspace-dialog__field">
-          <span>工作区标识色</span>
+          <span>文档空间标识色</span>
           <div class="desktop-workspace-dialog__colors">
             <button
               v-for="accent in props.accentOptions"
@@ -236,7 +236,7 @@ function handleExport() {
             />
           </div>
           <p class="desktop-workspace-dialog__field-hint">
-            仅用于工作区圆点和识别标记，不会修改应用的全局主题配色。
+            仅用于文档空间圆点和识别标记，不会修改应用的全局主题配色。
           </p>
         </div>
 
@@ -264,12 +264,12 @@ function handleExport() {
           class="desktop-workspace-dialog__danger"
         >
           <div class="desktop-workspace-dialog__danger-copy">
-            <strong>删除当前工作区</strong>
+            <strong>删除当前文档空间</strong>
             <p v-if="props.workspaceCount && props.workspaceCount > 1">
-              删除后会移除该工作区及其文档源配置，不会删除原始文档目录。
+              删除后会移除该文档空间及其文档源配置，不会删除原始文档目录。
             </p>
             <p v-else>
-              至少保留一个工作区，当前工作区不可删除。
+              至少保留一个文档空间，当前文档空间不可删除。
             </p>
           </div>
 

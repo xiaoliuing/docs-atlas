@@ -7,7 +7,7 @@ export function createDefaultWorkspaces(defaultDocsPath: string): WorkspaceDetai
     {
       id: 'workspace:default',
       name: '项目文档',
-      description: '默认工作空间，指向当前项目的 docs 目录。',
+      description: '默认文档空间，指向当前项目的 docs 目录。',
       icon: 'folder',
       color: '#1f54d9',
       defaultSearchScope: 'workspace',

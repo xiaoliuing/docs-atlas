@@ -48,14 +48,14 @@ const isRecentView = computed(() => props.activeView === 'recent')
 const isFavoritesView = computed(() => props.activeView === 'favorites')
 const sectionTag = computed(() => {
   if (isReaderView.value) {
-    return '文档集'
+    return '文档空间'
   }
 
   return isRecentView.value ? '最近阅读' : '收藏'
 })
 const sectionTitle = computed(() => {
   if (isReaderView.value) {
-    return currentWorkspace.value?.name ?? '未选择文档集'
+    return currentWorkspace.value?.name ?? '未选择文档空间'
   }
 
   return isRecentView.value ? '最近阅读' : '收藏'
@@ -223,6 +223,13 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
             <span class="desktop-docs-sidebar__header-badge">{{ sectionBadge }}</span>
           </div>
 
+          <p
+            v-if="isReaderView"
+            class="desktop-docs-sidebar__header-summary"
+          >
+            {{ currentWorkspace?.description || '聚合当前文档空间的目录与阅读上下文。' }}
+          </p>
+
           <div
             v-if="isReaderView"
             class="desktop-docs-sidebar__header-stats"
@@ -249,7 +256,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
             type="button"
             @click="isWorkspaceMenuOpen = !isWorkspaceMenuOpen"
           >
-            <span>切换文档集</span>
+            <span>切换文档空间</span>
             <DesktopUiIcon
               name="chevron-down"
               :size="14"
@@ -262,7 +269,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
             type="button"
             @click="emit('editWorkspace')"
           >
-            文档集设置
+            文档空间设置
           </button>
 
           <button
@@ -325,7 +332,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
         </nav>
 
         <div v-else-if="isReaderView" class="desktop-docs-sidebar__empty">
-          当前文档集还没有可显示的文档。
+          当前文档空间还没有可显示的文档。
         </div>
 
         <div v-else class="desktop-docs-sidebar__empty">
@@ -430,11 +437,9 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 }
 
 .desktop-docs-sidebar__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.85rem;
-  padding: 0.88rem 0.94rem 0.8rem;
+  display: grid;
+  gap: 0.72rem;
+  padding: 0.94rem 1rem 0.88rem;
   border-bottom: 1px solid var(--desktop-line);
   background:
     linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.08), rgba(var(--desktop-accent-rgb), 0.02) 78%),
@@ -461,6 +466,13 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
+}
+
+.desktop-docs-sidebar__header-summary {
+  margin: 0.04rem 0 0;
+  color: var(--desktop-muted);
+  font-size: 0.74rem;
+  line-height: 1.5;
 }
 
 .desktop-docs-sidebar__header-title {
@@ -520,6 +532,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   align-items: center;
   gap: 0.4rem;
   flex-wrap: wrap;
+  padding-top: 0.04rem;
 }
 
 .desktop-docs-sidebar__action {
@@ -619,7 +632,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 .desktop-docs-sidebar__scroll {
   min-height: 0;
   overflow-y: auto;
-  padding: 0.78rem 0.82rem 0.9rem;
+  padding: 0.88rem 0.9rem 0.96rem;
 }
 
 .desktop-docs-sidebar__nav {
@@ -640,10 +653,6 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 @media (max-width: 1240px) {
   .desktop-docs-sidebar {
     grid-template-columns: 70px minmax(0, 1fr);
-  }
-
-  .desktop-docs-sidebar__header {
-    flex-direction: column;
   }
 
   .desktop-docs-sidebar__header-actions {

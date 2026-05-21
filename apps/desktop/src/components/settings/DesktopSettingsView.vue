@@ -58,7 +58,7 @@ const emit = defineEmits<{
         </span>
         <div class="desktop-settings-view__title-copy">
           <h2 class="desktop-settings-view__title">应用设置</h2>
-          <p class="desktop-settings-view__summary">系统级外观、工作空间入口和数据诊断。</p>
+          <p class="desktop-settings-view__summary">系统级外观、文档空间入口和数据诊断。</p>
         </div>
       </div>
 

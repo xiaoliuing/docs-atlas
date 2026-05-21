@@ -95,7 +95,7 @@ export function useDesktopDocsSearch(options: UseDesktopDocsSearchOptions = {}) 
     return Array.from(counts.entries())
       .map(([id, count]) => ({
         id,
-        label: workspaceById.value.get(id)?.name ?? '未命名工作区',
+        label: workspaceById.value.get(id)?.name ?? '未命名文档空间',
         count,
       }))
       .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, 'zh-Hans-CN'))
@@ -132,14 +132,14 @@ export function useDesktopDocsSearch(options: UseDesktopDocsSearchOptions = {}) 
   })
   const activeWorkspaceFilterLabel = computed(() => {
     if (isWorkspaceScope.value) {
-      return workspaceById.value.get(currentWorkspaceId.value)?.name ?? '当前工作区'
+      return workspaceById.value.get(currentWorkspaceId.value)?.name ?? '当前文档空间'
     }
 
     if (workspaceFilter.value === 'all') {
-      return '全部工作区'
+      return '全部文档空间'
     }
 
-    return workspaceOptions.value.find((option) => option.id === workspaceFilter.value)?.label ?? '全部工作区'
+    return workspaceOptions.value.find((option) => option.id === workspaceFilter.value)?.label ?? '全部文档空间'
   })
   const activeSourceFilterLabel = computed(() => {
     if (sourceFilter.value === 'all') {
