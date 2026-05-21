@@ -16,6 +16,7 @@ withDefaults(
       | 'rotate-left'
       | 'rotate-right'
       | 'reset-view'
+      | 'history'
     size?: number | string
     strokeWidth?: number
   }>(),
@@ -121,6 +122,12 @@ withDefaults(
       <path d="M8 18.5H5.5V16" :stroke-width="strokeWidth" stroke-linecap="round" stroke-linejoin="round" />
       <path d="M16 18.5H18.5V16" :stroke-width="strokeWidth" stroke-linecap="round" stroke-linejoin="round" />
       <circle cx="12" cy="12" r="1.5" :stroke-width="1.5" />
+    </template>
+
+    <template v-else-if="name === 'history'">
+      <path d="M5.5 7.5V4.75H8.25" :stroke-width="strokeWidth" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M5.8 6.2A7 7 0 1 1 4.95 12" :stroke-width="strokeWidth" stroke-linecap="round" />
+      <path d="M12 8.25V12.2L14.85 13.9" :stroke-width="strokeWidth" stroke-linecap="round" stroke-linejoin="round" />
     </template>
   </svg>
 </template>

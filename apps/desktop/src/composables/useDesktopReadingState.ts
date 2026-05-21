@@ -2,6 +2,13 @@ import { computed, shallowRef } from 'vue'
 import type { DesktopSearchScope } from '@/composables/useDesktopDocsSearch'
 
 const STORAGE_KEY = 'docs-atlas.desktop.reading-state.v1'
+const RECENT_ENTRY_LIMIT = 36
+
+export type DesktopRecentDocEntry = {
+  workspaceId: string
+  slug: string
+  openedAt: string
+}
 
 type DesktopSidebarState = {
   openBranchIds: string[]
@@ -10,6 +17,7 @@ type DesktopSidebarState = {
 
 type DesktopReadingState = {
   currentWorkspaceId: string
+  recentEntries: DesktopRecentDocEntry[]
   selectedDocByWorkspaceId: Record<string, string>
   searchScopeByWorkspaceId: Record<string, DesktopSearchScope>
   sidebarStateByWorkspaceId: Record<string, DesktopSidebarState>
@@ -18,6 +26,7 @@ type DesktopReadingState = {
 
 const defaultState: DesktopReadingState = {
   currentWorkspaceId: '',
+  recentEntries: [],
   scrollTopByDocKey: {},
   searchScopeByWorkspaceId: {},
   selectedDocByWorkspaceId: {},
@@ -34,9 +43,11 @@ export function useDesktopReadingState() {
   return {
     currentWorkspaceId: computed(() => readingState.value.currentWorkspaceId),
     getDocScrollTop,
+    recentEntries: computed(() => readingState.value.recentEntries),
     getSearchScopeForWorkspace,
     getSelectedDocForWorkspace,
     getSidebarStateForWorkspace,
+    recordRecentDoc,
     setCurrentWorkspaceId,
     setDocScrollTop,
     setSearchScopeForWorkspace,
@@ -71,6 +82,7 @@ function ensureLoaded() {
 function normalizeState(value: Partial<DesktopReadingState>): DesktopReadingState {
   return {
     currentWorkspaceId: typeof value.currentWorkspaceId === 'string' ? value.currentWorkspaceId : '',
+    recentEntries: normalizeRecentEntries(value.recentEntries),
     scrollTopByDocKey: normalizeStringNumberMap(value.scrollTopByDocKey),
     searchScopeByWorkspaceId: normalizeScopeMap(value.searchScopeByWorkspaceId),
     selectedDocByWorkspaceId: normalizeStringMap(value.selectedDocByWorkspaceId),
@@ -105,6 +117,28 @@ function setSelectedDocForWorkspace(workspaceId: string, slug: string) {
       ...readingState.value.selectedDocByWorkspaceId,
       [workspaceId]: slug,
     },
+  }
+  schedulePersist()
+}
+
+function recordRecentDoc(workspaceId: string, slug: string, openedAt = new Date().toISOString()) {
+  if (!workspaceId || !slug) {
+    return
+  }
+
+  const normalizedOpenedAt = normalizeRecentTimestamp(openedAt) ?? new Date().toISOString()
+  const nextEntries = [
+    { workspaceId, slug, openedAt: normalizedOpenedAt },
+    ...readingState.value.recentEntries.filter((entry) => !(entry.workspaceId === workspaceId && entry.slug === slug)),
+  ].slice(0, RECENT_ENTRY_LIMIT)
+
+  if (recentEntriesEqual(readingState.value.recentEntries, nextEntries)) {
+    return
+  }
+
+  readingState.value = {
+    ...readingState.value,
+    recentEntries: nextEntries,
   }
   schedulePersist()
 }
@@ -278,9 +312,68 @@ function normalizeStringNumberMap(value: unknown) {
   )
 }
 
+function normalizeRecentEntries(value: unknown) {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value
+    .flatMap((entry) => {
+      if (!entry || typeof entry !== 'object') {
+        return []
+      }
+
+      const workspaceId = typeof (entry as DesktopRecentDocEntry).workspaceId === 'string'
+        ? (entry as DesktopRecentDocEntry).workspaceId.trim()
+        : ''
+      const slug = typeof (entry as DesktopRecentDocEntry).slug === 'string'
+        ? (entry as DesktopRecentDocEntry).slug.trim()
+        : ''
+      const openedAt = normalizeRecentTimestamp((entry as DesktopRecentDocEntry).openedAt)
+
+      if (!workspaceId || !slug || !openedAt) {
+        return []
+      }
+
+      return [{ workspaceId, slug, openedAt } satisfies DesktopRecentDocEntry]
+    })
+    .filter((entry, index, array) => array.findIndex((candidate) => candidate.workspaceId === entry.workspaceId && candidate.slug === entry.slug) === index)
+    .slice(0, RECENT_ENTRY_LIMIT)
+}
+
+function normalizeRecentTimestamp(value: unknown) {
+  if (typeof value !== 'string' || !value.trim()) {
+    return null
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+
+  return date.toISOString()
+}
+
+function recentEntriesEqual(left: DesktopRecentDocEntry[], right: DesktopRecentDocEntry[]) {
+  if (left.length !== right.length) {
+    return false
+  }
+
+  return left.every((entry, index) => {
+    const candidate = right[index]
+    return Boolean(
+      candidate &&
+      candidate.workspaceId === entry.workspaceId &&
+      candidate.slug === entry.slug &&
+      candidate.openedAt === entry.openedAt,
+    )
+  })
+}
+
 function cloneDefaultState(): DesktopReadingState {
   return {
     currentWorkspaceId: defaultState.currentWorkspaceId,
+    recentEntries: [...defaultState.recentEntries],
     scrollTopByDocKey: { ...defaultState.scrollTopByDocKey },
     searchScopeByWorkspaceId: { ...defaultState.searchScopeByWorkspaceId },
     selectedDocByWorkspaceId: { ...defaultState.selectedDocByWorkspaceId },

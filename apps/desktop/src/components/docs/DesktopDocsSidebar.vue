@@ -13,6 +13,7 @@ const props = defineProps<{
   currentWorkspaceId: string
   currentWorkspaceSourceCount: number
   currentWorkspaceUnhealthySourceCount: number
+  isRecentView: boolean
   sourceGroups: DocsSourceGroup[]
   workspaces: WorkspaceDetail[]
 }>()
@@ -21,6 +22,7 @@ const emit = defineEmits<{
   createWorkspace: []
   editWorkspace: []
   editSources: []
+  openRecent: []
   selectDoc: [slug: string]
   selectWorkspace: [workspaceId: string]
 }>()
@@ -264,13 +266,27 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
       <div class="desktop-docs-sidebar__directory-header">
         <span class="desktop-docs-sidebar__directory-title">文档树</span>
 
-        <button
-          class="desktop-docs-sidebar__header-action"
-          type="button"
-          @click="emit('editSources')"
-        >
-          设置文档源
-        </button>
+        <div class="desktop-docs-sidebar__header-actions">
+          <button
+            :class="[
+              'desktop-docs-sidebar__header-action',
+              { 'desktop-docs-sidebar__header-action--active': props.isRecentView },
+            ]"
+            type="button"
+            @click="emit('openRecent')"
+          >
+            <DesktopUiIcon name="history" :size="14" />
+            <span>最近阅读</span>
+          </button>
+
+          <button
+            class="desktop-docs-sidebar__header-action"
+            type="button"
+            @click="emit('editSources')"
+          >
+            设置文档源
+          </button>
+        </div>
       </div>
 
       <div
@@ -597,10 +613,19 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   background: rgba(var(--desktop-accent-rgb), 0.025);
 }
 
+.desktop-docs-sidebar__header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .desktop-docs-sidebar__header-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
   flex: none;
   min-height: 1.82rem;
-  padding: 0 0.7rem;
+  padding: 0 0.66rem;
   border: 1px solid rgba(var(--desktop-accent-rgb), 0.16);
   border-radius: 9px;
   background: rgba(var(--desktop-accent-rgb), 0.06);
@@ -611,6 +636,11 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   white-space: nowrap;
   cursor: pointer;
   transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+}
+
+.desktop-docs-sidebar__header-action--active {
+  border-color: rgba(var(--desktop-accent-rgb), 0.28);
+  background: rgba(var(--desktop-accent-rgb), 0.14);
 }
 
 .desktop-docs-sidebar__scroll {

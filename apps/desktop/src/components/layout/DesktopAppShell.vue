@@ -11,6 +11,7 @@ import {
   type DesktopMenuAction,
 } from '@/api/system'
 import DesktopDocReader from '@/components/docs/DesktopDocReader.vue'
+import DesktopRecentView, { type DesktopRecentViewEntry } from '@/components/docs/DesktopRecentView.vue'
 import DesktopDocsSidebar from '@/components/docs/DesktopDocsSidebar.vue'
 import DesktopDocToc from '@/components/docs/DesktopDocToc.vue'
 import DesktopSearchPanel from '@/components/docs/DesktopSearchPanel.vue'
@@ -117,7 +118,8 @@ const {
   status: updateStatus,
 } = useDesktopReleaseUpdates()
 
-type DesktopPrimaryView = 'reader' | 'settings'
+type DesktopPrimaryView = 'reader' | 'recent' | 'settings'
+type DesktopRecentEntryKey = `${string}::${string}`
 
 const primaryView = shallowRef<DesktopPrimaryView>('reader')
 const settingsSection = shallowRef<DesktopSettingsSection>('appearance')
@@ -138,6 +140,7 @@ let desktopMenuActionUnlisten: UnlistenFn | null = null
 let settingsActionMessageTimer: number | null = null
 
 const isReaderView = computed(() => primaryView.value === 'reader')
+const isRecentView = computed(() => primaryView.value === 'recent')
 const isSettingsView = computed(() => primaryView.value === 'settings')
 const floatingPanelVisible = computed(() => isOpen.value)
 const searchQuery = computed({
@@ -150,6 +153,29 @@ const sourceCount = computed(() => countWorkspaceFolderSources(currentWorkspace.
 const visibleSourceGroups = computed(() => sourceGroups.value)
 const docCount = computed(() => docs.value.length)
 const workspaceDialogWorkspace = computed(() => (workspaceDialogMode.value === 'edit' ? currentWorkspace.value : null))
+const recentEntries = computed<DesktopRecentViewEntry[]>(() =>
+  readingState.recentEntries.value.flatMap((entry) => {
+    const entryId = createRecentEntryId(entry.workspaceId, entry.slug)
+    const workspace = workspaces.value.find((item) => item.id === entry.workspaceId)
+    const docMeta = searchCatalog.docsBySlug.value[entryId]
+
+    if (!workspace || !docMeta) {
+      return []
+    }
+
+    return [{
+      id: entryId,
+      openedAt: entry.openedAt,
+      scrollTop: readingState.getDocScrollTop(entry.workspaceId, entry.slug),
+      slug: entry.slug,
+      sourceLabel: docMeta.sectionTitle ? `${docMeta.sourceLabel} / ${docMeta.sectionTitle}` : docMeta.sourceLabel,
+      summary: docMeta.summary,
+      title: docMeta.title,
+      workspaceId: entry.workspaceId,
+      workspaceName: workspace.name,
+    }]
+  }),
+)
 
 async function handleSelectWorkspace(workspaceId: string) {
   const restoredSlug = readingState.getSelectedDocForWorkspace(workspaceId)
@@ -192,6 +218,17 @@ function toggleSettingsPanel() {
   openSettingsView('appearance')
 }
 
+function openRecentView() {
+  persistCurrentDocScrollTop()
+  primaryView.value = 'recent'
+  closeSearch()
+}
+
+function closeRecentView() {
+  restoreCurrentDocScrollTop()
+  primaryView.value = 'reader'
+}
+
 function openSettingsView(section: DesktopSettingsSection = 'appearance') {
   persistCurrentDocScrollTop()
   settingsSection.value = section
@@ -229,6 +266,29 @@ async function handleSubmitSearch(slug?: string) {
   }
 
   selectDoc(targetDocSlug)
+  primaryView.value = 'reader'
+  closeSearch()
+}
+
+async function handleOpenRecentEntry(entryId: string) {
+  const separatorIndex = entryId.indexOf('::')
+  if (separatorIndex === -1) {
+    return
+  }
+
+  const targetWorkspaceId = entryId.slice(0, separatorIndex)
+  const targetDocSlug = entryId.slice(separatorIndex + 2)
+  if (!targetWorkspaceId || !targetDocSlug) {
+    return
+  }
+
+  if (targetWorkspaceId !== currentWorkspaceId.value) {
+    await selectWorkspace(targetWorkspaceId)
+    await waitForDocAvailability(targetDocSlug)
+  }
+
+  selectDoc(targetDocSlug)
+  primaryView.value = 'reader'
   closeSearch()
 }
 
@@ -515,12 +575,13 @@ watch(
       return
     }
 
-    const currentDocMeta = workspaceDocs.docsBySlug.value[slug]
+      const currentDocMeta = workspaceDocs.docsBySlug.value[slug]
     if (!currentDocMeta || !currentWorkspaceSourceIds.value.includes(currentDocMeta.sourceId)) {
       return
     }
 
     readingState.setSelectedDocForWorkspace(workspaceId, slug)
+    readingState.recordRecentDoc(workspaceId, slug)
     restoredScrollTop.value = readingState.getDocScrollTop(workspaceId, slug)
     currentReaderScrollTop.value = restoredScrollTop.value
   },
@@ -642,6 +703,10 @@ function waitForDocAvailability(slug: string, timeoutMs = 5000) {
   })
 }
 
+function createRecentEntryId(workspaceId: string, slug: string): DesktopRecentEntryKey {
+  return `${workspaceId}::${slug}`
+}
+
 function isTauriRuntime() {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 }
@@ -718,7 +783,7 @@ function isTauriRuntime() {
     </div>
 
     <div class="desktop-workbench" :class="{ 'desktop-workbench--settings': isSettingsView }">
-      <template v-if="isReaderView">
+      <template v-if="!isSettingsView">
         <aside class="desktop-workbench__sidebar">
           <DesktopDocsSidebar
             v-model:open-branch-ids="sidebarOpenBranchIds"
@@ -730,11 +795,13 @@ function isTauriRuntime() {
             :current-workspace-id="currentWorkspaceId"
             :current-workspace-unhealthy-source-count="workspaceDocs.unhealthySourceCount"
             :current-workspace-source-count="sourceCount"
+            :is-recent-view="isRecentView"
             :source-groups="visibleSourceGroups"
             :workspaces="workspaces"
             @create-workspace="openCreateWorkspaceDialog"
             @edit-workspace="openEditWorkspaceDialog"
             @edit-sources="openSourceTreeDialog"
+            @open-recent="openRecentView"
             @select-doc="handleSelectDoc"
             @select-workspace="handleSelectWorkspace"
           />
@@ -742,28 +809,39 @@ function isTauriRuntime() {
 
         <main
           class="desktop-workbench__main"
-          :class="{ 'desktop-workbench__main--with-toc': headings.length > 0 }"
+          :class="{ 'desktop-workbench__main--with-toc': headings.length > 0 && isReaderView }"
         >
-          <DesktopDocReader
-            :doc="currentDoc"
-            :highlight-query="query"
-            :next-doc="nextDoc"
-            :prev-doc="prevDoc"
-            :restore-scroll-top="restoredScrollTop"
-            @select-doc="handleSelectDoc"
-            @scroll-top-change="handleDocScrollTopChange"
-          />
-
-          <aside
-            v-if="headings.length > 0"
-            class="desktop-workbench__toc"
-          >
-            <DesktopDocToc
-              :active-id="activeId"
-              :headings="headings"
-              @select="scrollToHeading"
+          <template v-if="isReaderView">
+            <DesktopDocReader
+              :doc="currentDoc"
+              :highlight-query="query"
+              :next-doc="nextDoc"
+              :prev-doc="prevDoc"
+              :restore-scroll-top="restoredScrollTop"
+              @select-doc="handleSelectDoc"
+              @scroll-top-change="handleDocScrollTopChange"
             />
-          </aside>
+
+            <aside
+              v-if="headings.length > 0"
+              class="desktop-workbench__toc"
+            >
+              <DesktopDocToc
+                :active-id="activeId"
+                :headings="headings"
+                @select="scrollToHeading"
+              />
+            </aside>
+          </template>
+
+          <DesktopRecentView
+            v-else
+            :current-workspace-id="currentWorkspaceId"
+            :current-workspace-name="currentWorkspace?.name ?? '当前工作区'"
+            :entries="recentEntries"
+            @back-to-reader="closeRecentView"
+            @open-entry="handleOpenRecentEntry"
+          />
         </main>
       </template>
 
