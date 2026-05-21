@@ -63,7 +63,6 @@ function formatOpenedAt(value: string) {
         </span>
         <div class="desktop-recent-view__title-copy">
           <h2 class="desktop-recent-view__title">最近阅读</h2>
-          <p class="desktop-recent-view__summary">继续阅读最近打开过的文档，自动恢复到上次所在的工作区和阅读位置。</p>
         </div>
       </div>
 
@@ -88,7 +87,7 @@ function formatOpenedAt(value: string) {
           type="button"
           @click="filter = 'workspace'"
         >
-          当前工作区
+          当前文档集
           <span>{{ filterOptions.workspace }}</span>
         </button>
       </div>
@@ -97,7 +96,6 @@ function formatOpenedAt(value: string) {
     <div class="desktop-recent-view__body desktop-scroll">
       <div v-if="filteredEntries.length === 0" class="desktop-recent-view__empty">
         <strong>还没有最近阅读记录</strong>
-        <p>打开几篇文档后，这里会自动记录你的阅读历史，并支持一键回到上次位置。</p>
       </div>
 
       <div v-else class="desktop-recent-view__list">
@@ -172,7 +170,6 @@ function formatOpenedAt(value: string) {
 
 .desktop-recent-view__title-copy {
   display: grid;
-  gap: 0.12rem;
   min-width: 0;
 }
 
@@ -181,13 +178,6 @@ function formatOpenedAt(value: string) {
   color: var(--desktop-ink);
   font-size: 1.24rem;
   font-weight: 680;
-}
-
-.desktop-recent-view__summary {
-  margin: 0;
-  color: var(--desktop-soft);
-  font-size: 0.78rem;
-  line-height: 1.52;
 }
 
 .desktop-recent-view__back {

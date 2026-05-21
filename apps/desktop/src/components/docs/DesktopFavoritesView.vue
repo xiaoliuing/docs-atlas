@@ -62,7 +62,6 @@ function formatSavedAt(value: string) {
         </span>
         <div class="desktop-favorites-view__title-copy">
           <h2 class="desktop-favorites-view__title">收藏</h2>
-          <p class="desktop-favorites-view__summary">把跨工作区的重要文档固定下来，后续可以直接回到关键设计文档和教程。</p>
         </div>
       </div>
 
@@ -87,7 +86,7 @@ function formatSavedAt(value: string) {
           type="button"
           @click="filter = 'workspace'"
         >
-          当前工作区
+          当前文档集
           <span>{{ filterOptions.workspace }}</span>
         </button>
       </div>
@@ -96,7 +95,6 @@ function formatSavedAt(value: string) {
     <div class="desktop-favorites-view__body desktop-scroll">
       <div v-if="filteredEntries.length === 0" class="desktop-favorites-view__empty">
         <strong>还没有收藏文档</strong>
-        <p>在文章头部点一下收藏按钮，就能把关键文档固定到这里。</p>
       </div>
 
       <div v-else class="desktop-favorites-view__list">
@@ -174,7 +172,6 @@ function formatSavedAt(value: string) {
 
 .desktop-favorites-view__title-copy {
   display: grid;
-  gap: 0.12rem;
   min-width: 0;
 }
 
@@ -183,13 +180,6 @@ function formatSavedAt(value: string) {
   color: var(--desktop-ink);
   font-size: 1.24rem;
   font-weight: 680;
-}
-
-.desktop-favorites-view__summary {
-  margin: 0;
-  color: var(--desktop-soft);
-  font-size: 0.78rem;
-  line-height: 1.52;
 }
 
 .desktop-favorites-view__back {
