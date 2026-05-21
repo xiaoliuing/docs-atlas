@@ -643,7 +643,7 @@
     <section class="desktop-source-tree-dialog__panel" @click.stop>
       <header class="desktop-source-tree-dialog__header">
         <div class="desktop-source-tree-dialog__header-copy">
-          <p class="desktop-source-tree-dialog__eyebrow">Source Tree</p>
+          <p class="desktop-source-tree-dialog__eyebrow">Source Manager</p>
           <h2 class="desktop-source-tree-dialog__title">
             {{ props.workspace?.name ?? "当前文档仓库" }} 的文档源
           </h2>
@@ -782,14 +782,14 @@
     max-height: min(82vh, 56rem);
     display: grid;
     grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
-    gap: 0.95rem;
-    padding: 1rem;
+    gap: 0.82rem;
+    padding: 0.96rem;
     border: 1px solid var(--desktop-line);
-    border-radius: 22px;
+    border-radius: 24px;
     background:
       linear-gradient(
         180deg,
-        rgba(var(--desktop-accent-rgb), 0.05),
+        rgba(var(--desktop-accent-rgb), 0.04),
         transparent 28%
       ),
       var(--desktop-surface-strong);
@@ -808,6 +808,7 @@
   .desktop-source-tree-dialog__toolbar {
     flex-wrap: wrap;
     justify-content: flex-start;
+    gap: 0.52rem;
   }
 
   .desktop-source-tree-dialog__toolbar-note {
@@ -833,9 +834,9 @@
   .desktop-source-tree-dialog__eyebrow {
     margin: 0;
     color: var(--desktop-soft);
-    font-size: 0.72rem;
+    font-size: 0.64rem;
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
   }
 
@@ -846,13 +847,13 @@
 
   .desktop-source-tree-dialog__title {
     color: var(--desktop-ink);
-    font-size: 1.08rem;
-    font-weight: 650;
+    font-size: 1rem;
+    font-weight: 660;
   }
 
   .desktop-source-tree-dialog__summary {
     color: var(--desktop-muted);
-    font-size: 0.8rem;
+    font-size: 0.76rem;
   }
 
   .desktop-source-tree-dialog__close {
@@ -882,6 +883,9 @@
   .desktop-source-tree-dialog__tool,
   .desktop-source-tree-dialog__ghost {
     border: 1px solid var(--desktop-line);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.34rem;
     background: rgba(var(--desktop-accent-rgb), 0.04);
     color: var(--desktop-ink);
     cursor: pointer;
@@ -904,8 +908,9 @@
     min-height: 0;
     overflow-y: auto;
     display: grid;
-    gap: 0.5rem;
+    gap: 0.42rem;
     padding-right: 0.2rem;
+    padding-top: 0.12rem;
   }
 
   .desktop-source-tree-dialog__empty,

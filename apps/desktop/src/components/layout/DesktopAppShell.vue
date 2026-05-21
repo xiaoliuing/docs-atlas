@@ -880,6 +880,7 @@ function isTauriRuntime() {
             :recent-count="recentEntries.length"
             :source-groups="visibleSourceGroups"
             :workspaces="workspaces"
+            @edit-sources="openSourceTreeDialog"
             @edit-workspace="openEditWorkspaceDialog"
             @open-favorites="openFavoritesView"
             @open-reader="openReaderView"
@@ -1095,11 +1096,14 @@ function isTauriRuntime() {
 
 .desktop-workbench {
   display: grid;
-  grid-template-columns: 396px minmax(0, 1fr);
-  gap: 0.88rem;
+  grid-template-columns: 384px minmax(0, 1fr);
+  gap: 0.96rem;
   min-height: 0;
-  padding: 0.88rem;
+  padding: 0.92rem;
   overflow: hidden;
+  background:
+    radial-gradient(circle at top left, rgba(var(--desktop-accent-rgb), 0.04), transparent 22%),
+    var(--desktop-app-bg, transparent);
 }
 
 .desktop-workbench--settings {
@@ -1118,6 +1122,13 @@ function isTauriRuntime() {
 .desktop-workbench__main {
   display: grid;
   min-width: 0;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.06);
+  border-radius: 26px;
+  background:
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.025), transparent 22%),
+    var(--desktop-surface);
+  box-shadow: var(--shadow-panel);
+  padding: 1rem 1.08rem 1.08rem;
 }
 
 .desktop-workbench__main--with-toc {
@@ -1136,13 +1147,13 @@ function isTauriRuntime() {
 
 @media (max-width: 1320px) {
   .desktop-workbench {
-    grid-template-columns: 378px minmax(0, 1fr);
+    grid-template-columns: 370px minmax(0, 1fr);
   }
 }
 
 @media (max-width: 1180px) {
   .desktop-workbench {
-    grid-template-columns: 356px minmax(0, 1fr);
+    grid-template-columns: 346px minmax(0, 1fr);
   }
 }
 </style>

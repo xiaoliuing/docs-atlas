@@ -54,11 +54,11 @@ const emit = defineEmits<{
     <header class="desktop-settings-view__header">
       <div class="desktop-settings-view__title-wrap">
         <span class="desktop-settings-view__title-mark" aria-hidden="true">
-          <DesktopUiIcon name="settings" :size="18" />
+          <DesktopUiIcon name="settings" :size="16" />
         </span>
         <div class="desktop-settings-view__title-copy">
           <h2 class="desktop-settings-view__title">应用设置</h2>
-          <p class="desktop-settings-view__summary">系统级外观、文档仓库入口和数据诊断。</p>
+          <p class="desktop-settings-view__summary">系统外观、仓库管理、更新与本地数据。</p>
         </div>
       </div>
 
@@ -128,7 +128,7 @@ const emit = defineEmits<{
 .desktop-settings-view {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 0.95rem;
+  gap: 0.88rem;
   min-height: 0;
   height: 100%;
 }
@@ -144,7 +144,7 @@ const emit = defineEmits<{
 .desktop-settings-view__title-wrap {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
+  gap: 0.72rem;
   min-width: 0;
 }
 
@@ -152,13 +152,11 @@ const emit = defineEmits<{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border: 1px solid rgba(var(--desktop-accent-rgb), 0.16);
-  border-radius: 14px;
-  background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.14), rgba(var(--desktop-accent-rgb), 0.05)),
-    var(--desktop-surface-strong);
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.1);
+  border-radius: 12px;
+  background: rgba(var(--desktop-accent-rgb), 0.06);
   color: var(--desktop-accent);
 }
 
@@ -171,14 +169,14 @@ const emit = defineEmits<{
 .desktop-settings-view__title {
   margin: 0;
   color: var(--desktop-ink);
-  font-size: 1.24rem;
-  font-weight: 680;
+  font-size: 1.08rem;
+  font-weight: 670;
 }
 
 .desktop-settings-view__summary {
   margin: 0;
   color: var(--desktop-soft);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   line-height: 1.52;
 }
 
@@ -186,9 +184,9 @@ const emit = defineEmits<{
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.72rem 0.88rem;
+  padding: 0.56rem 0.76rem;
   border: 1px solid var(--desktop-line);
-  border-radius: 14px;
+  border-radius: 12px;
   background: var(--desktop-surface-strong);
   color: var(--desktop-ink);
   cursor: pointer;
@@ -202,7 +200,7 @@ const emit = defineEmits<{
 }
 
 .desktop-settings-view__back span {
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 600;
 }
 
@@ -213,9 +211,9 @@ const emit = defineEmits<{
   min-height: 0;
   height: 100%;
   border: 1px solid var(--desktop-line);
-  border-radius: 24px;
+  border-radius: 22px;
   background:
-    radial-gradient(circle at top left, rgba(var(--desktop-accent-rgb), 0.08), transparent 28%),
+    radial-gradient(circle at top left, rgba(var(--desktop-accent-rgb), 0.06), transparent 28%),
     var(--desktop-surface-strong);
   box-shadow: var(--shadow-panel);
   overflow: hidden;
@@ -223,17 +221,17 @@ const emit = defineEmits<{
 
 .desktop-settings-view__nav {
   min-height: 0;
-  padding: 1rem 0.65rem;
+  padding: 0.92rem 0.62rem;
   border-right: 1px solid var(--desktop-line);
   background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.05), transparent 28%),
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.04), transparent 28%),
     color-mix(in srgb, var(--desktop-surface) 88%, rgba(var(--desktop-accent-rgb), 0.03));
 }
 
 .desktop-settings-view__content {
   min-height: 0;
   overflow: auto;
-  padding: 1rem 1.15rem 1.25rem;
+  padding: 0.94rem 1.05rem 1.12rem;
 }
 
 @media (max-width: 1180px) {

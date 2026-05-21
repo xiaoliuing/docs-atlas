@@ -24,10 +24,10 @@ const emit = defineEmits<{
   <section class="desktop-settings-panel">
     <header class="desktop-settings-panel__hero">
       <div class="desktop-settings-panel__hero-copy">
-        <p class="desktop-settings-panel__kicker">Doc Vault</p>
+        <p class="desktop-settings-panel__kicker">Repository Control</p>
         <h3 class="desktop-settings-panel__title">文档仓库</h3>
         <p class="desktop-settings-panel__summary">
-          文档仓库承载文档源、搜索范围和阅读上下文。这里集中管理当前文档仓库和导入导出动作。
+          集中管理当前文档仓库的元信息、文档源和迁移动作。
         </p>
       </div>
     </header>
@@ -35,7 +35,7 @@ const emit = defineEmits<{
     <section class="desktop-settings-panel__group">
       <div class="desktop-settings-panel__group-head">
         <h4>当前文档仓库</h4>
-        <p>保持当前阅读上下文不变的前提下，集中管理文档仓库元信息和文档源。</p>
+        <p>这里处理当前文档仓库，不影响其他文档仓库的阅读状态。</p>
       </div>
 
       <div v-if="props.currentWorkspace" class="desktop-settings-panel__workspace-card">
@@ -117,7 +117,7 @@ const emit = defineEmits<{
         <button class="desktop-settings-panel__row" type="button" @click="emit('createWorkspace')">
           <span class="desktop-settings-panel__row-copy">
             <strong>新建文档仓库</strong>
-            <span>为新的项目、客户或知识域创建独立的工作环境。</span>
+            <span>为新的项目、团队或知识域创建独立入口。</span>
           </span>
           <span class="desktop-settings-panel__row-state">新建</span>
         </button>
@@ -129,22 +129,22 @@ const emit = defineEmits<{
 <style scoped>
 .desktop-settings-panel {
   display: grid;
-  gap: 1.1rem;
+  gap: 0.9rem;
 }
 
 .desktop-settings-panel__hero,
 .desktop-settings-panel__group {
   display: grid;
-  gap: 0.75rem;
-  padding: 1rem 1.05rem;
+  gap: 0.7rem;
+  padding: 0.96rem 1rem;
   border: 1px solid var(--desktop-line);
-  border-radius: 18px;
+  border-radius: 20px;
   background: var(--desktop-surface);
 }
 
 .desktop-settings-panel__hero {
   background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.08), transparent 56%),
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.06), transparent 56%),
     var(--desktop-surface);
 }
 
@@ -156,25 +156,25 @@ const emit = defineEmits<{
 .desktop-settings-panel__kicker {
   margin: 0;
   color: var(--desktop-soft);
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .desktop-settings-panel__title {
   margin: 0.12rem 0 0;
   color: var(--desktop-ink);
-  font-size: 1.06rem;
-  font-weight: 680;
+  font-size: 1rem;
+  font-weight: 670;
 }
 
 .desktop-settings-panel__summary,
 .desktop-settings-panel__group-head p {
   margin: 0;
   color: var(--desktop-muted);
-  font-size: 0.78rem;
-  line-height: 1.6;
+  font-size: 0.76rem;
+  line-height: 1.55;
 }
 
 .desktop-settings-panel__group-head {
@@ -185,17 +185,17 @@ const emit = defineEmits<{
 .desktop-settings-panel__group-head h4 {
   margin: 0;
   color: var(--desktop-ink);
-  font-size: 0.86rem;
+  font-size: 0.82rem;
   font-weight: 650;
 }
 
 .desktop-settings-panel__workspace-card {
   display: grid;
-  gap: 0.9rem;
-  padding: 0.86rem 0.9rem;
+  gap: 0.72rem;
+  padding: 0.82rem 0.86rem;
   border: 1px solid rgba(var(--desktop-accent-rgb), 0.12);
-  border-radius: 16px;
-  background: rgba(var(--desktop-accent-rgb), 0.05);
+  border-radius: 18px;
+  background: rgba(var(--desktop-accent-rgb), 0.04);
 }
 
 .desktop-settings-panel__workspace-top {
@@ -221,64 +221,57 @@ const emit = defineEmits<{
 
 .desktop-settings-panel__workspace-copy strong {
   color: var(--desktop-ink);
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   font-weight: 650;
 }
 
 .desktop-settings-panel__workspace-copy span,
 .desktop-settings-panel__metrics dt {
   color: var(--desktop-muted);
-  font-size: 0.74rem;
-  line-height: 1.55;
+  font-size: 0.72rem;
+  line-height: 1.48;
 }
 
 .desktop-settings-panel__metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.55rem;
+  gap: 0.46rem;
   margin: 0;
 }
 
 .desktop-settings-panel__metrics div {
   display: grid;
   gap: 0.12rem;
-  padding: 0.7rem 0.75rem;
+  padding: 0.62rem 0.68rem;
   border: 1px solid var(--desktop-line);
-  border-radius: 14px;
+  border-radius: 12px;
   background: var(--desktop-surface-strong);
 }
 
 .desktop-settings-panel__metrics dd {
   margin: 0;
   color: var(--desktop-ink);
-  font-size: 1rem;
-  font-weight: 680;
+  font-size: 0.92rem;
+  font-weight: 670;
 }
 
 .desktop-settings-panel__list {
   display: grid;
-  gap: 0;
-  border: 1px solid var(--desktop-line);
-  border-radius: 16px;
-  overflow: hidden;
-  background: var(--desktop-surface-strong);
+  gap: 0.5rem;
 }
 
 .desktop-settings-panel__row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.88rem 0.95rem;
-  border: 0;
-  background: transparent;
+  gap: 0.9rem;
+  padding: 0.78rem 0.84rem;
+  border: 1px solid var(--desktop-line);
+  border-radius: 14px;
+  background: var(--desktop-surface-strong);
   text-align: left;
   cursor: pointer;
-  transition: background-color 0.18s ease;
-}
-
-.desktop-settings-panel__row + .desktop-settings-panel__row {
-  border-top: 1px solid var(--desktop-line);
+  transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
 }
 
 .desktop-settings-panel__row-copy {
@@ -301,11 +294,23 @@ const emit = defineEmits<{
 
 .desktop-settings-panel__row-state {
   flex: none;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.86rem;
+  min-height: 1.66rem;
+  padding: 0 0.62rem;
+  border-radius: 999px;
+  background: rgba(var(--desktop-accent-rgb), 0.08);
+  color: var(--desktop-accent);
+  font-size: 0.66rem;
+  font-weight: 700;
 }
 
 .desktop-settings-panel__row:hover {
-  background: rgba(var(--desktop-accent-rgb), 0.08);
+  border-color: rgba(var(--desktop-accent-rgb), 0.16);
+  background: rgba(var(--desktop-accent-rgb), 0.05);
+  transform: translateY(-1px);
 }
 
 .desktop-settings-panel__row:disabled {

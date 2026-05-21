@@ -102,10 +102,11 @@ function formatSavedAt(value: string) {
     <header class="desktop-favorites-view__header">
       <div class="desktop-favorites-view__title-wrap">
         <span class="desktop-favorites-view__title-mark" aria-hidden="true">
-          <DesktopUiIcon name="bookmark" :size="18" />
+          <DesktopUiIcon name="bookmark" :size="16" />
         </span>
         <div class="desktop-favorites-view__title-copy">
           <h2 class="desktop-favorites-view__title">收藏</h2>
+          <p class="desktop-favorites-view__title-summary">{{ resultSummary }}</p>
         </div>
       </div>
 
@@ -178,7 +179,7 @@ function formatSavedAt(value: string) {
 .desktop-favorites-view {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
-  gap: 0.95rem;
+  gap: 0.9rem;
   min-height: 0;
   height: 100%;
 }
@@ -194,7 +195,7 @@ function formatSavedAt(value: string) {
 .desktop-favorites-view__title-wrap {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
+  gap: 0.72rem;
   min-width: 0;
 }
 
@@ -202,35 +203,40 @@ function formatSavedAt(value: string) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border: 1px solid rgba(var(--desktop-accent-rgb), 0.16);
-  border-radius: 14px;
-  background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.14), rgba(var(--desktop-accent-rgb), 0.05)),
-    var(--desktop-surface-strong);
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.1);
+  border-radius: 12px;
+  background: rgba(var(--desktop-accent-rgb), 0.06);
   color: var(--desktop-accent);
 }
 
 .desktop-favorites-view__title-copy {
   display: grid;
+  gap: 0.12rem;
   min-width: 0;
 }
 
 .desktop-favorites-view__title {
   margin: 0;
   color: var(--desktop-ink);
-  font-size: 1.24rem;
-  font-weight: 680;
+  font-size: 1.08rem;
+  font-weight: 670;
+}
+
+.desktop-favorites-view__title-summary {
+  margin: 0;
+  color: var(--desktop-soft);
+  font-size: 0.75rem;
 }
 
 .desktop-favorites-view__back {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.72rem 0.88rem;
+  padding: 0.56rem 0.76rem;
   border: 1px solid var(--desktop-line);
-  border-radius: 14px;
+  border-radius: 12px;
   background: var(--desktop-surface-strong);
   color: var(--desktop-ink);
   cursor: pointer;
@@ -244,7 +250,7 @@ function formatSavedAt(value: string) {
 }
 
 .desktop-favorites-view__back span {
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 600;
 }
 
@@ -269,9 +275,9 @@ function formatSavedAt(value: string) {
 }
 
 .desktop-favorites-view__workspace-filter select {
-  min-width: 15rem;
-  min-height: 2.35rem;
-  padding: 0 0.82rem;
+  min-width: 14rem;
+  min-height: 2.15rem;
+  padding: 0 0.74rem;
   border: 1px solid var(--desktop-line);
   border-radius: 12px;
   background: var(--desktop-surface-strong);
@@ -284,8 +290,8 @@ function formatSavedAt(value: string) {
 .desktop-favorites-view__toolbar-count {
   display: inline-flex;
   align-items: center;
-  min-height: 2.35rem;
-  padding: 0 0.78rem;
+  min-height: 2.15rem;
+  padding: 0 0.72rem;
   border-radius: 999px;
   background: rgba(var(--desktop-accent-rgb), 0.08);
   color: var(--desktop-accent);
@@ -301,23 +307,23 @@ function formatSavedAt(value: string) {
 
 .desktop-favorites-view__list {
   display: grid;
-  gap: 0.72rem;
+  gap: 0.54rem;
 }
 
 .desktop-favorites-view__entry {
   display: grid;
-  gap: 0.6rem;
-  padding: 1rem 1rem 0.95rem;
+  gap: 0.48rem;
+  padding: 0.86rem 0.92rem 0.84rem;
   border: 1px solid var(--desktop-line);
-  border-radius: 20px;
+  border-radius: 16px;
   background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.05), transparent 36%),
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.035), transparent 30%),
     var(--desktop-surface-strong);
 }
 
 .desktop-favorites-view__entry-main {
   display: grid;
-  gap: 0.48rem;
+  gap: 0.38rem;
   width: 100%;
   padding: 0;
   border: 0;
@@ -337,12 +343,12 @@ function formatSavedAt(value: string) {
 .desktop-favorites-view__chip {
   display: inline-flex;
   align-items: center;
-  min-height: 1.52rem;
-  padding: 0.14rem 0.5rem;
+  min-height: 1.36rem;
+  padding: 0.12rem 0.44rem;
   border-radius: 999px;
   background: rgba(var(--desktop-accent-rgb), 0.08);
   color: var(--desktop-accent);
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   font-weight: 600;
 }
 
@@ -353,33 +359,33 @@ function formatSavedAt(value: string) {
 
 .desktop-favorites-view__entry-time {
   color: var(--desktop-soft);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
 }
 
 .desktop-favorites-view__entry-title {
   color: var(--desktop-ink);
-  font-size: 1rem;
-  font-weight: 660;
+  font-size: 0.94rem;
+  font-weight: 650;
 }
 
 .desktop-favorites-view__entry-summary {
   margin: 0;
   color: var(--desktop-muted);
-  font-size: 0.82rem;
-  line-height: 1.58;
+  font-size: 0.76rem;
+  line-height: 1.52;
 }
 
 .desktop-favorites-view__secondary {
   display: inline-flex;
   align-items: center;
-  min-height: 1.95rem;
-  padding: 0.32rem 0.76rem;
+  min-height: 1.82rem;
+  padding: 0.28rem 0.68rem;
   border: 1px solid rgba(var(--desktop-accent-rgb), 0.16);
   border-radius: 999px;
   background: rgba(var(--desktop-accent-rgb), 0.05);
   color: var(--desktop-accent);
   font: inherit;
-  font-size: 0.72rem;
+  font-size: 0.69rem;
   font-weight: 600;
   cursor: pointer;
 }

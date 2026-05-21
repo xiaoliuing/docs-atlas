@@ -22,6 +22,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   editWorkspace: []
+  editSources: []
   openFavorites: []
   openReader: []
   openRecent: []
@@ -48,7 +49,7 @@ const isFavoritesView = computed(() => props.activeView === 'favorites')
 const sectionTag = computed(() => (isReaderView.value ? '文档仓库' : isRecentView.value ? '最近阅读' : '收藏'))
 const sectionTitle = computed(() => {
   if (isReaderView.value) {
-    return '目录'
+    return currentWorkspace.value?.name ?? '未选择文档仓库'
   }
 
   return isRecentView.value ? '最近阅读' : '收藏'
@@ -216,18 +217,11 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
             <span class="desktop-docs-sidebar__header-badge">{{ sectionBadge }}</span>
           </div>
 
-          <p
-            v-if="isReaderView"
-            class="desktop-docs-sidebar__header-summary"
-          >
-            {{ currentWorkspace?.name || '未选择文档仓库' }}
-          </p>
-
           <div
             v-if="isReaderView"
             class="desktop-docs-sidebar__header-stats"
           >
-            <span class="desktop-docs-sidebar__header-stat">{{ `${props.currentWorkspaceSourceCount} 个目录源` }}</span>
+            <span class="desktop-docs-sidebar__header-stat">{{ `${props.currentWorkspaceSourceCount} 个文档源` }}</span>
             <span class="desktop-docs-sidebar__header-stat">{{ `${props.currentWorkspaceDocCount} 篇文档` }}</span>
             <span
               v-if="props.currentWorkspaceUnhealthySourceCount > 0"
@@ -243,38 +237,49 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
           ref="workspaceSwitcher"
           class="desktop-docs-sidebar__header-actions"
         >
-          <button
-            :aria-expanded="isWorkspaceMenuOpen"
-            class="desktop-docs-sidebar__workspace-switcher"
-            type="button"
-            @click="isWorkspaceMenuOpen = !isWorkspaceMenuOpen"
-          >
-            <span
-              class="desktop-docs-sidebar__workspace-switcher-dot"
-              :style="{ backgroundColor: currentWorkspace?.color || 'var(--desktop-accent)' }"
-            />
-            <span class="desktop-docs-sidebar__workspace-switcher-copy">
-              <strong>{{ currentWorkspace?.name || '选择文档仓库' }}</strong>
-              <span>{{ currentWorkspace?.description || '切换当前文档仓库' }}</span>
-            </span>
-            <DesktopUiIcon
-              name="chevron-down"
-              :size="14"
-              :class="[
-                'desktop-docs-sidebar__workspace-switcher-chevron',
-                { 'desktop-docs-sidebar__workspace-switcher-chevron--open': isWorkspaceMenuOpen },
-              ]"
-            />
-          </button>
+          <div class="desktop-docs-sidebar__toolbar">
+            <button
+              :aria-expanded="isWorkspaceMenuOpen"
+              class="desktop-docs-sidebar__workspace-switcher"
+              type="button"
+              @click="isWorkspaceMenuOpen = !isWorkspaceMenuOpen"
+            >
+              <span
+                class="desktop-docs-sidebar__workspace-switcher-dot"
+                :style="{ backgroundColor: currentWorkspace?.color || 'var(--desktop-accent)' }"
+              />
+              <span class="desktop-docs-sidebar__workspace-switcher-copy">
+                <strong>切换文档仓库</strong>
+                <span>{{ currentWorkspace?.name || '选择文档仓库' }}</span>
+              </span>
+              <DesktopUiIcon
+                name="chevron-down"
+                :size="14"
+                :class="[
+                  'desktop-docs-sidebar__workspace-switcher-chevron',
+                  { 'desktop-docs-sidebar__workspace-switcher-chevron--open': isWorkspaceMenuOpen },
+                ]"
+              />
+            </button>
 
-          <button
-            class="desktop-docs-sidebar__settings-button"
-            type="button"
-            @click="emit('editWorkspace')"
-          >
-            <DesktopUiIcon name="settings" :size="15" />
-            <span>文档仓库设置</span>
-          </button>
+            <button
+              class="desktop-docs-sidebar__tool-button"
+              type="button"
+              @click="emit('editSources')"
+            >
+              <DesktopUiIcon name="atlas" :size="14" />
+              <span>文档源设置</span>
+            </button>
+
+            <button
+              class="desktop-docs-sidebar__tool-button"
+              type="button"
+              @click="emit('editWorkspace')"
+            >
+              <DesktopUiIcon name="settings" :size="14" />
+              <span>文档仓库设置</span>
+            </button>
+          </div>
 
           <div
             v-if="isWorkspaceMenuOpen"
@@ -296,8 +301,9 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
               />
               <span class="desktop-docs-sidebar__workspace-option-copy">
                 <strong>{{ workspace.name }}</strong>
-                <span>{{ workspace.description || `${workspace.sources.length} 个文档源` }}</span>
+                <span>{{ `${workspace.sources.length} 个文档源` }}</span>
               </span>
+              <span class="desktop-docs-sidebar__workspace-option-meta">切换</span>
             </button>
           </div>
         </div>
@@ -434,49 +440,42 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 
 .desktop-docs-sidebar__header {
   display: grid;
-  gap: 0.78rem;
-  padding: 0.94rem 1rem 0.9rem;
+  gap: 0.64rem;
+  padding: 0.86rem 0.92rem 0.82rem;
   border-bottom: 1px solid var(--desktop-line);
   background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.08), rgba(var(--desktop-accent-rgb), 0.02) 78%),
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.06), rgba(var(--desktop-accent-rgb), 0.015) 78%),
     var(--desktop-surface);
 }
 
 .desktop-docs-sidebar__header-copy {
   display: grid;
-  gap: 0.22rem;
+  gap: 0.18rem;
   min-width: 0;
 }
 
 .desktop-docs-sidebar__header-tag {
   margin: 0;
   color: var(--desktop-soft);
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .desktop-docs-sidebar__header-title-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.42rem;
   min-width: 0;
-}
-
-.desktop-docs-sidebar__header-summary {
-  margin: 0.04rem 0 0;
-  color: var(--desktop-muted);
-  font-size: 0.8rem;
-  line-height: 1.45;
 }
 
 .desktop-docs-sidebar__header-title {
   margin: 0;
   min-width: 0;
   color: var(--desktop-ink);
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: 0.96rem;
+  font-weight: 680;
   line-height: 1.2;
   letter-spacing: -0.02em;
   overflow: hidden;
@@ -488,32 +487,32 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.6rem;
-  min-height: 1.45rem;
-  padding: 0 0.36rem;
+  min-width: 1.5rem;
+  min-height: 1.32rem;
+  padding: 0 0.32rem;
   border-radius: 999px;
-  background: rgba(var(--desktop-accent-rgb), 0.11);
+  background: rgba(var(--desktop-accent-rgb), 0.09);
   color: var(--desktop-accent);
-  font-size: 0.67rem;
+  font-size: 0.64rem;
   font-weight: 700;
 }
 
 .desktop-docs-sidebar__header-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.34rem;
-  margin-top: 0.1rem;
+  gap: 0.28rem;
 }
 
 .desktop-docs-sidebar__header-stat {
   display: inline-flex;
   align-items: center;
-  min-height: 1.55rem;
-  padding: 0.18rem 0.5rem;
+  min-height: 1.42rem;
+  padding: 0.14rem 0.46rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.1);
   border-radius: 999px;
-  background: rgba(var(--desktop-accent-rgb), 0.07);
-  color: var(--desktop-accent);
-  font-size: 0.66rem;
+  background: rgba(var(--desktop-accent-rgb), 0.045);
+  color: var(--desktop-muted);
+  font-size: 0.64rem;
   font-weight: 600;
 }
 
@@ -524,23 +523,27 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 
 .desktop-docs-sidebar__header-actions {
   position: relative;
+  display: block;
+}
+
+.desktop-docs-sidebar__toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.5rem;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.44rem;
   align-items: center;
 }
 
 .desktop-docs-sidebar__workspace-switcher {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 0.68rem;
+  gap: 0.54rem;
   align-items: center;
-  min-height: 3rem;
-  padding: 0.58rem 0.72rem;
-  border: 1px solid rgba(var(--desktop-accent-rgb), 0.14);
-  border-radius: 16px;
+  min-height: 2.5rem;
+  padding: 0.48rem 0.62rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.1);
+  border-radius: 14px;
   background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.14), rgba(var(--desktop-accent-rgb), 0.05)),
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.1), rgba(var(--desktop-accent-rgb), 0.04)),
     var(--desktop-surface-strong);
   color: var(--desktop-ink);
   text-align: left;
@@ -549,9 +552,9 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 }
 
 .desktop-docs-sidebar__workspace-switcher:hover {
-  border-color: rgba(var(--desktop-accent-rgb), 0.24);
+  border-color: rgba(var(--desktop-accent-rgb), 0.18);
   background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.18), rgba(var(--desktop-accent-rgb), 0.07)),
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.12), rgba(var(--desktop-accent-rgb), 0.05)),
     var(--desktop-surface-strong);
   transform: translateY(-1px);
 }
@@ -565,7 +568,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 
 .desktop-docs-sidebar__workspace-switcher-copy {
   display: grid;
-  gap: 0.12rem;
+  gap: 0.08rem;
   min-width: 0;
 }
 
@@ -573,16 +576,18 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.79rem;
-  font-weight: 680;
+  font-size: 0.72rem;
+  font-weight: 640;
+  color: var(--desktop-soft);
 }
 
 .desktop-docs-sidebar__workspace-switcher-copy span {
   overflow: hidden;
-  color: var(--desktop-muted);
+  color: var(--desktop-ink);
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.68rem;
+  font-size: 0.74rem;
+  font-weight: 640;
 }
 
 .desktop-docs-sidebar__workspace-switcher-chevron {
@@ -593,24 +598,25 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   transform: rotate(180deg);
 }
 
-.desktop-docs-sidebar__settings-button {
+.desktop-docs-sidebar__tool-button {
   display: inline-flex;
   align-items: center;
-  gap: 0.42rem;
-  min-height: 3rem;
-  padding: 0.58rem 0.72rem;
+  justify-content: center;
+  gap: 0.36rem;
+  min-height: 2.5rem;
+  padding: 0.46rem 0.62rem;
   border: 1px solid var(--desktop-line);
-  border-radius: 16px;
+  border-radius: 14px;
   background: var(--desktop-surface-strong);
   color: var(--desktop-ink);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 620;
   white-space: nowrap;
   cursor: pointer;
   transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
 
-.desktop-docs-sidebar__settings-button:hover {
+.desktop-docs-sidebar__tool-button:hover {
   border-color: rgba(var(--desktop-accent-rgb), 0.16);
   background: rgba(var(--desktop-accent-rgb), 0.08);
   color: var(--desktop-accent);
@@ -623,7 +629,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   left: 0;
   right: 0;
   display: grid;
-  gap: 0.42rem;
+  gap: 0.32rem;
   padding: 0.42rem;
   border: 1px solid var(--desktop-line);
   border-radius: 16px;
@@ -634,13 +640,13 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 
 .desktop-docs-sidebar__workspace-option {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.58rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.54rem;
   align-items: center;
   width: 100%;
-  padding: 0.56rem 0.58rem;
+  padding: 0.52rem 0.56rem;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
   text-align: left;
   cursor: pointer;
@@ -662,31 +668,43 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 
 .desktop-docs-sidebar__workspace-option-copy {
   display: grid;
-  gap: 0.15rem;
+  gap: 0.1rem;
   min-width: 0;
 }
 
 .desktop-docs-sidebar__workspace-option-copy strong {
   color: var(--desktop-ink);
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-size: 0.76rem;
+  font-weight: 620;
 }
 
 .desktop-docs-sidebar__workspace-option-copy span {
   color: var(--desktop-muted);
-  font-size: 0.69rem;
-  line-height: 1.35;
+  font-size: 0.66rem;
+  line-height: 1.3;
+}
+
+.desktop-docs-sidebar__workspace-option-meta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.28rem;
+  padding: 0 0.38rem;
+  border-radius: 999px;
+  background: rgba(var(--desktop-accent-rgb), 0.08);
+  color: var(--desktop-accent);
+  font-size: 0.62rem;
+  font-weight: 700;
 }
 
 .desktop-docs-sidebar__scroll {
   min-height: 0;
   overflow-y: auto;
-  padding: 0.88rem 0.9rem 0.96rem;
+  padding: 0.8rem 0.82rem 0.9rem;
 }
 
 .desktop-docs-sidebar__nav {
   display: grid;
-  gap: 0.46rem;
+  gap: 0.38rem;
 }
 
 .desktop-docs-sidebar__empty {
@@ -708,8 +726,8 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
     width: 100%;
   }
 
-  .desktop-docs-sidebar__action {
-    flex: 1 1 auto;
+  .desktop-docs-sidebar__toolbar {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>
