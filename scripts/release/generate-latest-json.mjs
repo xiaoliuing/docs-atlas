@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import * as fs from 'node:fs/promises'
+import path from 'node:path'
+
 const args = new Map()
 
 for (let index = 2; index < process.argv.length; index += 1) {
@@ -21,6 +24,7 @@ for (let index = 2; index < process.argv.length; index += 1) {
 }
 
 const dryRun = Boolean(args.get('dry-run'))
+const output = typeof args.get('output') === 'string' ? args.get('output') : ''
 const repoArg = args.get('repo') ?? process.env.GITHUB_REPOSITORY
 const token = args.get('token') ?? process.env.GITHUB_TOKEN
 const tag = args.get('tag') ?? process.env.GITHUB_REF_NAME
@@ -115,6 +119,12 @@ const manifest = {
 }
 
 const manifestContent = JSON.stringify(manifest, null, 2)
+
+if (output) {
+  const outputPath = path.resolve(process.cwd(), output)
+  await fs.mkdir(path.dirname(outputPath), { recursive: true })
+  await fs.writeFile(outputPath, `${manifestContent}\n`, 'utf8')
+}
 
 if (dryRun) {
   console.log(manifestContent)

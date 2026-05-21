@@ -5,7 +5,10 @@ import { check } from '@tauri-apps/plugin-updater'
 import { openExternalUrl } from '@/api/system'
 
 const RELEASES_URL = 'https://github.com/xiaoliuing/docs-atlas/releases'
-const RELEASES_API_URL = 'https://api.github.com/repos/xiaoliuing/docs-atlas/releases/latest'
+const UPDATER_MANIFEST_URLS = [
+  'https://raw.githubusercontent.com/xiaoliuing/docs-atlas/main/desktop-updater/latest.json',
+  'https://cdn.jsdelivr.net/gh/xiaoliuing/docs-atlas@main/desktop-updater/latest.json',
+]
 
 export type DesktopReleaseUpdateStatus =
   | 'idle'
@@ -79,7 +82,7 @@ export function useDesktopReleaseUpdates() {
     message.value = '正在检查更新…'
 
     try {
-      const update = await check()
+      const update = await checkForUpdatesWithRetry()
       lastCheckedAt.value = new Date().toISOString()
 
       if (update) {
@@ -131,7 +134,7 @@ export function useDesktopReleaseUpdates() {
     message.value = '正在准备更新包…'
 
     try {
-      const update = await check()
+      const update = await checkForUpdatesWithRetry()
 
       if (!update) {
         status.value = 'up-to-date'
@@ -153,34 +156,39 @@ export function useDesktopReleaseUpdates() {
       status.value = 'downloading'
       message.value = `正在下载更新 ${update.version}…`
 
-      await update.downloadAndInstall((event) => {
-        if (event.event === 'Started') {
-          contentLength = event.data.contentLength ?? null
-          status.value = 'downloading'
-          message.value = contentLength
-            ? `正在下载更新… 0%`
-            : `正在下载更新 ${update.version}…`
-          return
-        }
+      await retry(async () => {
+        downloadedBytes = 0
+        contentLength = null
 
-        if (event.event === 'Progress') {
-          downloadedBytes += event.data.chunkLength
-          status.value = 'downloading'
+        await update.downloadAndInstall((event) => {
+          if (event.event === 'Started') {
+            contentLength = event.data.contentLength ?? null
+            status.value = 'downloading'
+            message.value = contentLength
+              ? `正在下载更新… 0%`
+              : `正在下载更新 ${update.version}…`
+            return
+          }
 
-          const percent = contentLength
-            ? Math.min(100, Math.round((downloadedBytes / contentLength) * 100))
-            : null
+          if (event.event === 'Progress') {
+            downloadedBytes += event.data.chunkLength
+            status.value = 'downloading'
 
-          message.value =
-            percent === null
-              ? `正在下载更新… ${(downloadedBytes / 1024 / 1024).toFixed(1)} MB`
-              : `正在下载更新… ${percent}%`
-          return
-        }
+            const percent = contentLength
+              ? Math.min(100, Math.round((downloadedBytes / contentLength) * 100))
+              : null
 
-        status.value = 'installing'
-        message.value = '正在安装更新…'
-      })
+            message.value =
+              percent === null
+                ? `正在下载更新… ${(downloadedBytes / 1024 / 1024).toFixed(1)} MB`
+                : `正在下载更新… ${percent}%`
+            return
+          }
+
+          status.value = 'installing'
+          message.value = '正在安装更新…'
+        })
+      }, 2)
 
       status.value = 'relaunching'
       message.value = '更新已安装，正在重启应用…'
@@ -227,39 +235,67 @@ function buildReleaseUrl(version: string) {
 }
 
 async function fetchLatestReleaseSummary(): Promise<DesktopReleaseSummary | null> {
-  try {
-    const response = await fetch(RELEASES_API_URL, {
-      headers: {
-        accept: 'application/vnd.github+json',
-      },
-      cache: 'no-store',
-    })
+  for (const endpoint of UPDATER_MANIFEST_URLS) {
+    try {
+      const response = await fetch(endpoint, {
+        cache: 'no-store',
+      })
 
-    if (!response.ok) {
-      return null
-    }
+      if (!response.ok) {
+        continue
+      }
 
-    const payload = (await response.json()) as {
-      tag_name?: string
-      name?: string
-      html_url?: string
-      published_at?: string
-    }
-    const version = String(payload.tag_name ?? '').replace(/^desktop-v/, '').trim()
+      const payload = (await response.json()) as {
+        version?: string
+        notes?: string
+        pub_date?: string
+      }
+      const version = String(payload.version ?? '').trim()
 
-    if (!version) {
-      return null
-    }
+      if (!version) {
+        continue
+      }
 
-    return {
-      version,
-      name: payload.name?.trim() || `Docs Atlas ${version}`,
-      htmlUrl: payload.html_url?.trim() || buildReleaseUrl(version),
-      publishedAt: payload.published_at?.trim() || '',
+      return {
+        version,
+        name: `Docs Atlas ${version}`,
+        htmlUrl: buildReleaseUrl(version),
+        publishedAt: payload.pub_date?.trim() || '',
+      }
+    } catch {
+      continue
     }
-  } catch {
-    return null
   }
+
+  return null
+}
+
+async function checkForUpdatesWithRetry() {
+  return retry(() => check(), 2)
+}
+
+async function retry<T>(task: () => Promise<T>, attempts: number): Promise<T> {
+  let lastError: unknown
+
+  for (let index = 0; index < attempts; index += 1) {
+    try {
+      return await task()
+    } catch (error) {
+      lastError = error
+
+      if (index < attempts - 1) {
+        await wait(800 * (index + 1))
+      }
+    }
+  }
+
+  throw lastError
+}
+
+function wait(durationMs: number) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, durationMs)
+  })
 }
 
 function compareVersions(left: string, right: string) {
