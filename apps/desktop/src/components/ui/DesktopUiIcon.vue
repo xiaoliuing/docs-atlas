@@ -11,6 +11,7 @@ withDefaults(
       | 'chevron-down'
       | 'chevron-left'
       | 'chevron-right'
+      | 'bookmark'
       | 'zoom-in'
       | 'zoom-out'
       | 'rotate-left'
@@ -91,6 +92,10 @@ withDefaults(
 
     <template v-else-if="name === 'chevron-right'">
       <path d="M9.25 6.5L14.75 12L9.25 17.5" :stroke-width="strokeWidth" stroke-linecap="round" stroke-linejoin="round" />
+    </template>
+
+    <template v-else-if="name === 'bookmark'">
+      <path d="M7.25 5.5H16.75C17.44 5.5 18 6.06 18 6.75V19.25L12 15.55L6 19.25V6.75C6 6.06 6.56 5.5 7.25 5.5Z" :stroke-width="strokeWidth" stroke-linejoin="round" />
     </template>
 
     <template v-else-if="name === 'zoom-in'">

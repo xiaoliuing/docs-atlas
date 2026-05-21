@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>方案 B · 双层导航</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="window-page">
+      <a class="ghost-link back-link" href="./index.html">返回总览</a>
+
+      <section class="window-title">
+        <span class="eyebrow">Option B</span>
+        <h1>双层导航，把“全局”和“目录”彻底拆开</h1>
+        <p class="window-intro">
+          最左侧只保留全局切换和工作空间入口，目录单独占一整栏。这个方案的层级最稳定，适合桌面端继续演进成专业知识库产品。
+        </p>
+      </section>
+
+      <section class="window">
+        <div class="desktop-shell layout-b">
+          <header class="titlebar">
+            <div class="traffic"><span></span><span></span><span></span></div>
+            <div class="searchbar">全局搜索，可切换当前工作区 / 全部工作区</div>
+            <div class="title-actions">
+              <button class="icon-btn">⌘K</button>
+              <button class="icon-btn">⚙</button>
+            </div>
+          </header>
+
+          <div class="workbench">
+            <aside class="surface nav-rail">
+              <div class="rail-stack">
+                <div class="rail-btn active">读</div>
+                <div class="rail-btn">近</div>
+                <div class="rail-btn">藏</div>
+              </div>
+              <div></div>
+              <div class="rail-stack">
+                <div class="rail-btn">AI</div>
+                <div class="rail-btn">＋</div>
+              </div>
+            </aside>
+
+            <aside class="surface directory-pane">
+              <div class="surface-header">
+                <div class="surface-title">
+                  <strong>当前工作空间</strong>
+                  <span>AI Agent 工作空间 · 目录完全独立</span>
+                </div>
+                <button class="action-chip">文档源设置</button>
+              </div>
+
+              <div class="directory-scroll">
+                <div class="directory-block">
+                  <details class="tree-section" open>
+                    <summary>AI Agent</summary>
+                    <div class="tree-sublist">
+                      <div class="tree-item">README</div>
+                      <div class="tree-item active">01-项目架构</div>
+                      <div class="tree-item">02-FastAPI Routing</div>
+                      <div class="tree-item">03-Database Design</div>
+                    </div>
+                  </details>
+
+                  <details class="tree-section" open>
+                    <summary>Batis 教程</summary>
+                    <div class="tree-sublist">
+                      <div class="tree-item">01-Why Batis</div>
+                      <div class="tree-item">02-Static Module</div>
+                    </div>
+                  </details>
+
+                  <details class="tree-section">
+                    <summary>RAG Lite</summary>
+                  </details>
+                </div>
+              </div>
+            </aside>
+
+            <section class="reader-grid">
+              <article class="surface doc-card">
+                <div class="doc-head">
+                  <div class="doc-meta">
+                    <span class="mini-pill">阅读视图</span>
+                    <span class="mini-pill">当前工作区</span>
+                    <span class="mini-pill">1 / 42</span>
+                  </div>
+                  <h2>01. 项目架构</h2>
+                </div>
+                <div class="content-scroll">
+                  <div class="doc-body">
+                    <p>这里的核心是把结构关系讲清楚：功能轨道是全局，目录是工作空间，正文是文档本身。三者不再混在一列里。</p>
+                    <p>当你切换到最近阅读或收藏时，只需要把中间的“目录栏”切成对应列表或者筛选器，最左边的全局轨道不动。</p>
+                    <div class="doc-code">global rail  -> 阅读 / 最近 / 收藏
+directory pane -> 当前工作空间的目录树
+content pane   -> 文档 / 列表 / 设置详情</div>
+                    <p>这会让桌面端的扩展性明显更好，未来加入标签、任务、同步、智能问答时，也不容易把目录区再挤乱。</p>
+                  </div>
+                </div>
+              </article>
+
+              <aside class="surface toc-panel">
+                <div class="surface-header">
+                  <div class="surface-title">
+                    <strong>文档大纲</strong>
+                    <span>紧凑，不均分高度</span>
+                  </div>
+                </div>
+                <div class="toc-list">
+                  <div class="toc-item active">导航层级</div>
+                  <div class="toc-item">为什么要双层</div>
+                  <div class="toc-item">未来扩展位</div>
+                </div>
+              </aside>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section id="notes" class="note-grid">
+        <article class="note-card">
+          <h2>优点</h2>
+          <ul class="window-bullets">
+            <li>信息架构最清晰，目录被完整保护下来。</li>
+            <li>后续可扩展性最好，适合桌面端长期演进。</li>
+            <li>最近阅读 / 收藏天然就是全局层，不会再和工作空间打架。</li>
+          </ul>
+        </article>
+
+        <article class="note-card">
+          <h2>风险</h2>
+          <ul class="window-bullets">
+            <li>需要改动桌面端框架布局，工作量比方案 A 大。</li>
+            <li>最左边轨道是新交互，需要控制好图标和提示文案。</li>
+          </ul>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

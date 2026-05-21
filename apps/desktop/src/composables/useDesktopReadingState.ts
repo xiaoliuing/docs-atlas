@@ -2,12 +2,19 @@ import { computed, shallowRef } from 'vue'
 import type { DesktopSearchScope } from '@/composables/useDesktopDocsSearch'
 
 const STORAGE_KEY = 'docs-atlas.desktop.reading-state.v1'
+const FAVORITE_ENTRY_LIMIT = 120
 const RECENT_ENTRY_LIMIT = 36
 
 export type DesktopRecentDocEntry = {
   workspaceId: string
   slug: string
   openedAt: string
+}
+
+export type DesktopFavoriteDocEntry = {
+  workspaceId: string
+  slug: string
+  savedAt: string
 }
 
 type DesktopSidebarState = {
@@ -17,6 +24,7 @@ type DesktopSidebarState = {
 
 type DesktopReadingState = {
   currentWorkspaceId: string
+  favoriteEntries: DesktopFavoriteDocEntry[]
   recentEntries: DesktopRecentDocEntry[]
   selectedDocByWorkspaceId: Record<string, string>
   searchScopeByWorkspaceId: Record<string, DesktopSearchScope>
@@ -26,6 +34,7 @@ type DesktopReadingState = {
 
 const defaultState: DesktopReadingState = {
   currentWorkspaceId: '',
+  favoriteEntries: [],
   recentEntries: [],
   scrollTopByDocKey: {},
   searchScopeByWorkspaceId: {},
@@ -42,17 +51,21 @@ export function useDesktopReadingState() {
 
   return {
     currentWorkspaceId: computed(() => readingState.value.currentWorkspaceId),
+    favoriteEntries: computed(() => readingState.value.favoriteEntries),
     getDocScrollTop,
+    isDocFavorite,
     recentEntries: computed(() => readingState.value.recentEntries),
     getSearchScopeForWorkspace,
     getSelectedDocForWorkspace,
     getSidebarStateForWorkspace,
+    removeFavoriteDoc,
     recordRecentDoc,
     setCurrentWorkspaceId,
     setDocScrollTop,
     setSearchScopeForWorkspace,
     setSelectedDocForWorkspace,
     setSidebarStateForWorkspace,
+    toggleFavoriteDoc,
   }
 }
 
@@ -82,6 +95,7 @@ function ensureLoaded() {
 function normalizeState(value: Partial<DesktopReadingState>): DesktopReadingState {
   return {
     currentWorkspaceId: typeof value.currentWorkspaceId === 'string' ? value.currentWorkspaceId : '',
+    favoriteEntries: normalizeFavoriteEntries(value.favoriteEntries),
     recentEntries: normalizeRecentEntries(value.recentEntries),
     scrollTopByDocKey: normalizeStringNumberMap(value.scrollTopByDocKey),
     searchScopeByWorkspaceId: normalizeScopeMap(value.searchScopeByWorkspaceId),
@@ -139,6 +153,53 @@ function recordRecentDoc(workspaceId: string, slug: string, openedAt = new Date(
   readingState.value = {
     ...readingState.value,
     recentEntries: nextEntries,
+  }
+  schedulePersist()
+}
+
+function isDocFavorite(workspaceId: string, slug: string) {
+  return readingState.value.favoriteEntries.some((entry) => entry.workspaceId === workspaceId && entry.slug === slug)
+}
+
+function toggleFavoriteDoc(workspaceId: string, slug: string, savedAt = new Date().toISOString()) {
+  if (!workspaceId || !slug) {
+    return
+  }
+
+  if (isDocFavorite(workspaceId, slug)) {
+    removeFavoriteDoc(workspaceId, slug)
+    return
+  }
+
+  const normalizedSavedAt = normalizeRecentTimestamp(savedAt) ?? new Date().toISOString()
+  const nextEntries = [
+    { workspaceId, slug, savedAt: normalizedSavedAt },
+    ...readingState.value.favoriteEntries.filter((entry) => !(entry.workspaceId === workspaceId && entry.slug === slug)),
+  ].slice(0, FAVORITE_ENTRY_LIMIT)
+
+  readingState.value = {
+    ...readingState.value,
+    favoriteEntries: nextEntries,
+  }
+  schedulePersist()
+}
+
+function removeFavoriteDoc(workspaceId: string, slug: string) {
+  if (!workspaceId || !slug) {
+    return
+  }
+
+  const nextEntries = readingState.value.favoriteEntries.filter(
+    (entry) => !(entry.workspaceId === workspaceId && entry.slug === slug),
+  )
+
+  if (nextEntries.length === readingState.value.favoriteEntries.length) {
+    return
+  }
+
+  readingState.value = {
+    ...readingState.value,
+    favoriteEntries: nextEntries,
   }
   schedulePersist()
 }
@@ -341,6 +402,35 @@ function normalizeRecentEntries(value: unknown) {
     .slice(0, RECENT_ENTRY_LIMIT)
 }
 
+function normalizeFavoriteEntries(value: unknown) {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value
+    .flatMap((entry) => {
+      if (!entry || typeof entry !== 'object') {
+        return []
+      }
+
+      const workspaceId = typeof (entry as DesktopFavoriteDocEntry).workspaceId === 'string'
+        ? (entry as DesktopFavoriteDocEntry).workspaceId.trim()
+        : ''
+      const slug = typeof (entry as DesktopFavoriteDocEntry).slug === 'string'
+        ? (entry as DesktopFavoriteDocEntry).slug.trim()
+        : ''
+      const savedAt = normalizeRecentTimestamp((entry as DesktopFavoriteDocEntry).savedAt)
+
+      if (!workspaceId || !slug || !savedAt) {
+        return []
+      }
+
+      return [{ workspaceId, slug, savedAt } satisfies DesktopFavoriteDocEntry]
+    })
+    .filter((entry, index, array) => array.findIndex((candidate) => candidate.workspaceId === entry.workspaceId && candidate.slug === entry.slug) === index)
+    .slice(0, FAVORITE_ENTRY_LIMIT)
+}
+
 function normalizeRecentTimestamp(value: unknown) {
   if (typeof value !== 'string' || !value.trim()) {
     return null
@@ -373,6 +463,7 @@ function recentEntriesEqual(left: DesktopRecentDocEntry[], right: DesktopRecentD
 function cloneDefaultState(): DesktopReadingState {
   return {
     currentWorkspaceId: defaultState.currentWorkspaceId,
+    favoriteEntries: [...defaultState.favoriteEntries],
     recentEntries: [...defaultState.recentEntries],
     scrollTopByDocKey: { ...defaultState.scrollTopByDocKey },
     searchScopeByWorkspaceId: { ...defaultState.searchScopeByWorkspaceId },

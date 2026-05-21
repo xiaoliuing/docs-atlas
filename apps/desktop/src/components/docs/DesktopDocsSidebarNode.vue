@@ -170,7 +170,7 @@ function forwardToggleSection(sectionId: string) {
 <style scoped>
 .desktop-docs-sidebar-node {
   display: grid;
-  gap: 0.3rem;
+  gap: 0.18rem;
 }
 
 .desktop-docs-sidebar-node__toggle,
@@ -184,34 +184,34 @@ function forwardToggleSection(sectionId: string) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.65rem;
+  gap: 0.5rem;
   width: 100%;
-  min-height: 34px;
-  padding: 0.42rem 0.62rem;
-  border: 1px solid var(--desktop-line);
+  min-height: 32px;
+  padding: 0.32rem 0.5rem;
+  border: 1px solid transparent;
   border-radius: 10px;
-  background: var(--desktop-surface-strong);
+  background: transparent;
   color: var(--desktop-ink);
-  font-size: 0.84rem;
+  font-size: 0.78rem;
 }
 
 .desktop-docs-sidebar-node__toggle {
-  padding-inline-start: calc(0.62rem + var(--desktop-sidebar-depth, 0) * 0.42rem);
+  padding-inline-start: calc(0.52rem + var(--desktop-sidebar-depth, 0) * 0.36rem);
 }
 
 .desktop-docs-sidebar-node__toggle--group {
-  background: rgba(var(--desktop-accent-rgb), 0.025);
+  color: var(--desktop-ink);
 }
 
 .desktop-docs-sidebar-node__toggle--active,
 .desktop-docs-sidebar-node__section-row--active {
-  border-color: var(--desktop-line-strong);
-  background: rgba(var(--desktop-accent-rgb), 0.07);
+  border-color: rgba(var(--desktop-accent-rgb), 0.14);
+  background: rgba(var(--desktop-accent-rgb), 0.075);
 }
 
 .desktop-docs-sidebar-node__name {
   min-width: 0;
-  font-weight: 600;
+  font-weight: 650;
   text-align: left;
   overflow-wrap: anywhere;
 }
@@ -233,15 +233,15 @@ function forwardToggleSection(sectionId: string) {
 
 .desktop-docs-sidebar-node__body {
   display: grid;
-  gap: 0.26rem;
-  margin-left: 0.28rem;
-  padding-left: 0.55rem;
-  border-left: 1px solid rgba(var(--desktop-accent-rgb), 0.12);
+  gap: 0.14rem;
+  margin-left: 0.3rem;
+  padding-left: 0.52rem;
+  border-left: 1px solid rgba(var(--desktop-accent-rgb), 0.1);
 }
 
 .desktop-docs-sidebar-node__section {
   display: grid;
-  gap: 0.2rem;
+  gap: 0.12rem;
   padding-left: 0.1rem;
 }
 
@@ -251,8 +251,8 @@ function forwardToggleSection(sectionId: string) {
   min-width: 0;
   color: inherit;
   text-align: left;
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 0.76rem;
+  font-weight: 620;
   cursor: pointer;
 }
 
@@ -274,27 +274,27 @@ function forwardToggleSection(sectionId: string) {
 
 .desktop-docs-sidebar-node__docs {
   display: grid;
-  gap: 0.12rem;
+  gap: 0.06rem;
 }
 
 .desktop-docs-sidebar-node__doc-link {
   display: block;
   width: 100%;
-  padding: 0.42rem 0.6rem;
+  padding: 0.34rem 0.56rem;
   border: 1px solid transparent;
   border-radius: 9px;
   background: transparent;
   color: var(--desktop-muted);
   text-align: left;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   line-height: 1.35;
 }
 
 .desktop-docs-sidebar-node__doc-link:hover,
 .desktop-docs-sidebar-node__doc-link--active {
   color: var(--desktop-accent);
-  border-color: rgba(var(--desktop-accent-rgb), 0.16);
+  border-color: rgba(var(--desktop-accent-rgb), 0.12);
   background: rgba(var(--desktop-accent-rgb), 0.08);
 }
 </style>

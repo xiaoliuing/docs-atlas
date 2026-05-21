@@ -2,15 +2,18 @@
 import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
 import type { DocDetail } from '@/types/docs'
 import { highlightSearchMatches } from '@/utils/search'
+import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
 import DesktopDocImagePreview from './DesktopDocImagePreview.vue'
 
 const props = withDefaults(
   defineProps<{
     doc: DocDetail
+    isFavorite?: boolean
     highlightQuery?: string
     shouldAutoScrollToHighlight?: boolean
   }>(),
   {
+    isFavorite: false,
     highlightQuery: '',
     shouldAutoScrollToHighlight: true,
   },
@@ -18,6 +21,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   selectDoc: [slug: string]
+  toggleFavorite: []
 }>()
 
 type PreviewImage = {
@@ -145,10 +149,21 @@ function scrollToHighlight(element: HTMLElement) {
   <article class="doc-content">
     <header class="doc-content__header">
       <div class="doc-content__header-top">
-        <p class="doc-content__section">
-          {{ doc.sectionTitle ? `${doc.sourceLabel} / ${doc.sectionTitle}` : doc.sourceLabel }}
-        </p>
-        <code class="doc-content__source">{{ doc.sourcePath }}</code>
+        <div class="doc-content__meta">
+          <p class="doc-content__section">
+            {{ doc.sectionTitle ? `${doc.sourceLabel} / ${doc.sectionTitle}` : doc.sourceLabel }}
+          </p>
+          <code class="doc-content__source">{{ doc.sourcePath }}</code>
+        </div>
+
+        <button
+          :class="['doc-content__favorite', { 'doc-content__favorite--active': props.isFavorite }]"
+          type="button"
+          @click="emit('toggleFavorite')"
+        >
+          <DesktopUiIcon name="bookmark" :size="16" />
+          <span>{{ props.isFavorite ? '已收藏' : '收藏' }}</span>
+        </button>
       </div>
       <h1 class="doc-content__title">
         {{ doc.title }}
@@ -197,6 +212,14 @@ function scrollToHighlight(element: HTMLElement) {
   flex-wrap: wrap;
 }
 
+.doc-content__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
 .doc-content__section {
   margin: 0;
   min-height: 24px;
@@ -235,6 +258,31 @@ function scrollToHighlight(element: HTMLElement) {
 .doc-content__source {
   color: var(--desktop-soft);
   font-size: 0.72rem;
+}
+
+.doc-content__favorite {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  min-height: 2rem;
+  padding: 0.32rem 0.72rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.15);
+  border-radius: 999px;
+  background: rgba(var(--desktop-accent-rgb), 0.05);
+  color: var(--desktop-muted);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.doc-content__favorite:hover,
+.doc-content__favorite--active {
+  border-color: rgba(var(--desktop-accent-rgb), 0.28);
+  background: rgba(var(--desktop-accent-rgb), 0.12);
+  color: var(--desktop-accent);
+  transform: translateY(-1px);
 }
 
 .doc-content__body :deep(mark.doc-search-mark) {

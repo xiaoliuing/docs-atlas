@@ -10,6 +10,7 @@ import {
   openLogsDirectory,
   type DesktopMenuAction,
 } from '@/api/system'
+import DesktopFavoritesView, { type DesktopFavoriteViewEntry } from '@/components/docs/DesktopFavoritesView.vue'
 import DesktopDocReader from '@/components/docs/DesktopDocReader.vue'
 import DesktopRecentView, { type DesktopRecentViewEntry } from '@/components/docs/DesktopRecentView.vue'
 import DesktopDocsSidebar from '@/components/docs/DesktopDocsSidebar.vue'
@@ -118,8 +119,8 @@ const {
   status: updateStatus,
 } = useDesktopReleaseUpdates()
 
-type DesktopPrimaryView = 'reader' | 'recent' | 'settings'
-type DesktopRecentEntryKey = `${string}::${string}`
+type DesktopPrimaryView = 'reader' | 'recent' | 'favorites' | 'settings'
+type DesktopDocEntryKey = `${string}::${string}`
 
 const primaryView = shallowRef<DesktopPrimaryView>('reader')
 const settingsSection = shallowRef<DesktopSettingsSection>('appearance')
@@ -141,6 +142,7 @@ let settingsActionMessageTimer: number | null = null
 
 const isReaderView = computed(() => primaryView.value === 'reader')
 const isRecentView = computed(() => primaryView.value === 'recent')
+const isFavoritesView = computed(() => primaryView.value === 'favorites')
 const isSettingsView = computed(() => primaryView.value === 'settings')
 const floatingPanelVisible = computed(() => isOpen.value)
 const searchQuery = computed({
@@ -155,7 +157,7 @@ const docCount = computed(() => docs.value.length)
 const workspaceDialogWorkspace = computed(() => (workspaceDialogMode.value === 'edit' ? currentWorkspace.value : null))
 const recentEntries = computed<DesktopRecentViewEntry[]>(() =>
   readingState.recentEntries.value.flatMap((entry) => {
-    const entryId = createRecentEntryId(entry.workspaceId, entry.slug)
+    const entryId = createDocEntryId(entry.workspaceId, entry.slug)
     const workspace = workspaces.value.find((item) => item.id === entry.workspaceId)
     const docMeta = searchCatalog.docsBySlug.value[entryId]
 
@@ -176,6 +178,35 @@ const recentEntries = computed<DesktopRecentViewEntry[]>(() =>
     }]
   }),
 )
+const favoriteEntries = computed<DesktopFavoriteViewEntry[]>(() =>
+  readingState.favoriteEntries.value.flatMap((entry) => {
+    const entryId = createDocEntryId(entry.workspaceId, entry.slug)
+    const workspace = workspaces.value.find((item) => item.id === entry.workspaceId)
+    const docMeta = searchCatalog.docsBySlug.value[entryId]
+
+    if (!workspace || !docMeta) {
+      return []
+    }
+
+    return [{
+      id: entryId,
+      savedAt: entry.savedAt,
+      slug: entry.slug,
+      sourceLabel: docMeta.sectionTitle ? `${docMeta.sourceLabel} / ${docMeta.sectionTitle}` : docMeta.sourceLabel,
+      summary: docMeta.summary,
+      title: docMeta.title,
+      workspaceId: entry.workspaceId,
+      workspaceName: workspace.name,
+    }]
+  }),
+)
+const currentDocIsFavorite = computed(() => {
+  if (!currentWorkspaceId.value || !selectedDocSlug.value) {
+    return false
+  }
+
+  return readingState.isDocFavorite(currentWorkspaceId.value, selectedDocSlug.value)
+})
 
 async function handleSelectWorkspace(workspaceId: string) {
   const restoredSlug = readingState.getSelectedDocForWorkspace(workspaceId)
@@ -225,8 +256,17 @@ function openRecentView() {
 }
 
 function closeRecentView() {
-  restoreCurrentDocScrollTop()
-  primaryView.value = 'reader'
+  openReaderView()
+}
+
+function openFavoritesView() {
+  persistCurrentDocScrollTop()
+  primaryView.value = 'favorites'
+  closeSearch()
+}
+
+function closeFavoritesView() {
+  openReaderView()
 }
 
 function openSettingsView(section: DesktopSettingsSection = 'appearance') {
@@ -240,6 +280,12 @@ function closeSettingsView() {
   restoreCurrentDocScrollTop()
   primaryView.value = 'reader'
   clearSettingsActionMessage()
+}
+
+function openReaderView() {
+  restoreCurrentDocScrollTop()
+  primaryView.value = 'reader'
+  closeSearch()
 }
 
 function openSourceTreeDialog() {
@@ -290,6 +336,33 @@ async function handleOpenRecentEntry(entryId: string) {
   selectDoc(targetDocSlug)
   primaryView.value = 'reader'
   closeSearch()
+}
+
+async function handleOpenFavoriteEntry(entryId: string) {
+  await handleOpenRecentEntry(entryId)
+}
+
+function handleRemoveFavoriteEntry(entryId: string) {
+  const separatorIndex = entryId.indexOf('::')
+  if (separatorIndex === -1) {
+    return
+  }
+
+  const targetWorkspaceId = entryId.slice(0, separatorIndex)
+  const targetDocSlug = entryId.slice(separatorIndex + 2)
+  if (!targetWorkspaceId || !targetDocSlug) {
+    return
+  }
+
+  readingState.removeFavoriteDoc(targetWorkspaceId, targetDocSlug)
+}
+
+function handleToggleCurrentDocFavorite() {
+  if (!currentWorkspaceId.value || !selectedDocSlug.value) {
+    return
+  }
+
+  readingState.toggleFavoriteDoc(currentWorkspaceId.value, selectedDocSlug.value)
 }
 
 function closeFloatingPanels() {
@@ -703,7 +776,7 @@ function waitForDocAvailability(slug: string, timeoutMs = 5000) {
   })
 }
 
-function createRecentEntryId(workspaceId: string, slug: string): DesktopRecentEntryKey {
+function createDocEntryId(workspaceId: string, slug: string): DesktopDocEntryKey {
   return `${workspaceId}::${slug}`
 }
 
@@ -788,19 +861,22 @@ function isTauriRuntime() {
           <DesktopDocsSidebar
             v-model:open-branch-ids="sidebarOpenBranchIds"
             v-model:open-section-id="sidebarOpenSectionId"
+            :active-view="primaryView"
             :current-doc-slug="selectedDocSlug || null"
+            :favorite-count="favoriteEntries.length"
             :current-workspace-doc-count="docCount"
             :current-section-id="currentSectionId"
             :current-source-id="currentSourceId"
             :current-workspace-id="currentWorkspaceId"
             :current-workspace-unhealthy-source-count="workspaceDocs.unhealthySourceCount"
             :current-workspace-source-count="sourceCount"
-            :is-recent-view="isRecentView"
+            :recent-count="recentEntries.length"
             :source-groups="visibleSourceGroups"
             :workspaces="workspaces"
-            @create-workspace="openCreateWorkspaceDialog"
             @edit-workspace="openEditWorkspaceDialog"
             @edit-sources="openSourceTreeDialog"
+            @open-favorites="openFavoritesView"
+            @open-reader="openReaderView"
             @open-recent="openRecentView"
             @select-doc="handleSelectDoc"
             @select-workspace="handleSelectWorkspace"
@@ -814,12 +890,14 @@ function isTauriRuntime() {
           <template v-if="isReaderView">
             <DesktopDocReader
               :doc="currentDoc"
+              :is-favorite="currentDocIsFavorite"
               :highlight-query="query"
               :next-doc="nextDoc"
               :prev-doc="prevDoc"
               :restore-scroll-top="restoredScrollTop"
               @select-doc="handleSelectDoc"
               @scroll-top-change="handleDocScrollTopChange"
+              @toggle-favorite="handleToggleCurrentDocFavorite"
             />
 
             <aside
@@ -835,12 +913,21 @@ function isTauriRuntime() {
           </template>
 
           <DesktopRecentView
-            v-else
+            v-else-if="isRecentView"
             :current-workspace-id="currentWorkspaceId"
             :current-workspace-name="currentWorkspace?.name ?? '当前工作区'"
             :entries="recentEntries"
             @back-to-reader="closeRecentView"
             @open-entry="handleOpenRecentEntry"
+          />
+
+          <DesktopFavoritesView
+            v-else
+            :current-workspace-id="currentWorkspaceId"
+            :entries="favoriteEntries"
+            @back-to-reader="closeFavoritesView"
+            @open-entry="handleOpenFavoriteEntry"
+            @remove-entry="handleRemoveFavoriteEntry"
           />
         </main>
       </template>
@@ -1005,10 +1092,10 @@ function isTauriRuntime() {
 
 .desktop-workbench {
   display: grid;
-  grid-template-columns: 318px minmax(0, 1fr);
-  gap: 0.9rem;
+  grid-template-columns: 396px minmax(0, 1fr);
+  gap: 0.88rem;
   min-height: 0;
-  padding: 0.9rem;
+  padding: 0.88rem;
   overflow: hidden;
 }
 
@@ -1028,7 +1115,7 @@ function isTauriRuntime() {
 
 .desktop-workbench__main--with-toc {
   grid-template-columns: minmax(0, 1fr) 220px;
-  gap: 0.9rem;
+  gap: 0.88rem;
 }
 
 .desktop-workbench__toc {
@@ -1042,13 +1129,13 @@ function isTauriRuntime() {
 
 @media (max-width: 1320px) {
   .desktop-workbench {
-    grid-template-columns: 300px minmax(0, 1fr);
+    grid-template-columns: 378px minmax(0, 1fr);
   }
 }
 
 @media (max-width: 1180px) {
   .desktop-workbench {
-    grid-template-columns: 290px minmax(0, 1fr);
+    grid-template-columns: 356px minmax(0, 1fr);
   }
 }
 </style>

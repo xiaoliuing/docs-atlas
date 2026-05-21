@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>方案 C · 阅读优先</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="window-page">
+      <a class="ghost-link back-link" href="./index.html">返回总览</a>
+
+      <section class="window-title">
+        <span class="eyebrow">Option C</span>
+        <h1>把工作空间上移到顶部，左侧几乎只保留目录</h1>
+        <p class="window-intro">
+          这是最克制的方案。顶部承担工作空间切换和全局页切换，左侧就是目录本体，非常接近专用阅读器或知识库浏览器。
+        </p>
+      </section>
+
+      <section class="window">
+        <div class="desktop-shell layout-c">
+          <header class="titlebar">
+            <div class="traffic"><span></span><span></span><span></span></div>
+            <div class="titlebar-tabs">
+              <button class="tab-btn active">阅读</button>
+              <button class="tab-btn">最近阅读</button>
+              <button class="tab-btn">收藏</button>
+            </div>
+            <div class="searchbar">搜索当前工作区或全部工作区</div>
+            <div class="title-actions">
+              <button class="icon-btn">工作区</button>
+              <button class="icon-btn">⚙</button>
+            </div>
+          </header>
+
+          <div class="workbench">
+            <aside class="surface directory-pane">
+              <div class="surface-header">
+                <div class="surface-title">
+                  <strong>目录</strong>
+                  <span>整个左栏只干一件事</span>
+                </div>
+                <span class="count-pill">42</span>
+              </div>
+
+              <div class="directory-scroll">
+                <div class="directory-block">
+                  <details class="tree-section" open>
+                    <summary>AI Agent</summary>
+                    <div class="tree-sublist">
+                      <div class="tree-item">README</div>
+                      <div class="tree-item">01-架构</div>
+                      <div class="tree-item active">02-Router 与 Docs</div>
+                    </div>
+                  </details>
+
+                  <details class="tree-section" open>
+                    <summary>Batis 教程</summary>
+                    <div class="tree-sublist">
+                      <div class="tree-item">01-Why Batis</div>
+                      <div class="tree-item">02-Static Module</div>
+                    </div>
+                  </details>
+                </div>
+              </div>
+            </aside>
+
+            <section class="reader-grid">
+              <article class="surface doc-card">
+                <div class="doc-head">
+                  <div class="floating-workspace">
+                    <div class="floating-workspace__row">
+                      <div class="floating-workspace__meta">
+                        <strong>AI Agent 工作空间</strong>
+                        <span>3 个文档源 · 工作空间设置与文档源设置移动到顶部上下文区</span>
+                      </div>
+                      <div class="workspace-actions">
+                        <button class="action-chip">切换工作区</button>
+                        <button class="action-chip">工作区设置</button>
+                        <button class="action-chip">文档源设置</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="doc-meta">
+                    <span class="mini-pill">AI Agent / 教程</span>
+                    <span class="mini-pill">最近阅读定位</span>
+                    <span class="mini-pill">收藏</span>
+                  </div>
+                  <h2>02. Router 与 Docs</h2>
+                </div>
+                <div class="content-scroll">
+                  <div class="doc-body">
+                    <p>这套方案的优点是极其干净。用户最关心的目录树不再和任何工作空间说明争夺左栏高度。</p>
+                    <p>工作空间能力并没有消失，而是被上移到了正文区域顶部的上下文带里。这样在阅读时能看到当前工作区，但目录仍保持完整。</p>
+                    <div class="doc-code">header -> 全局页 + 搜索 + 系统设置
+left   -> 目录
+body   -> 当前工作空间上下文 + 正文
+right  -> 大纲</div>
+                    <p>如果要把桌面端继续做成“本地知识库浏览器”，这是视觉上最像成熟产品的一套。</p>
+                  </div>
+                </div>
+              </article>
+
+              <aside class="surface toc-panel">
+                <div class="surface-header">
+                  <div class="surface-title">
+                    <strong>大纲</strong>
+                    <span>阅读优先的右侧附属栏</span>
+                  </div>
+                </div>
+                <div class="toc-list">
+                  <div class="toc-item active">布局目标</div>
+                  <div class="toc-item">为什么目录独占</div>
+                  <div class="toc-item">工作区怎么上移</div>
+                </div>
+              </aside>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section id="notes" class="note-grid">
+        <article class="note-card">
+          <h2>优点</h2>
+          <ul class="window-bullets">
+            <li>视觉最轻，目录权重最高。</li>
+            <li>桌面端更像一个真正的阅读器 / 知识库应用。</li>
+            <li>正文区更自然承接“当前工作空间上下文”。</li>
+          </ul>
+        </article>
+
+        <article class="note-card">
+          <h2>风险</h2>
+          <ul class="window-bullets">
+            <li>工作空间操作上移后，需要重新定义顶部与正文头部的职责。</li>
+            <li>比方案 A 更抽象，第一次上手需要更强的交互引导。</li>
+          </ul>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

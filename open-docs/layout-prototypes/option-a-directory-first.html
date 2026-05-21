@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>方案 A · 目录优先</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="window-page">
+      <a class="ghost-link back-link" href="./index.html">返回总览</a>
+
+      <section class="window-title">
+        <span class="eyebrow">Option A</span>
+        <h1>目录优先，工作空间压缩成上方上下文条</h1>
+        <p class="window-intro">
+          适合当前 Docs Atlas Desktop。全局入口和当前工作空间都还在左边，但只占用最少高度，目录树成为左栏里的绝对主角。
+        </p>
+      </section>
+
+      <section class="window">
+        <div class="desktop-shell layout-a">
+          <header class="titlebar">
+            <div class="traffic"><span></span><span></span><span></span></div>
+            <div class="searchbar">搜索文档、标题、最近阅读、收藏</div>
+            <div class="title-actions">
+              <button class="icon-btn">⌘K</button>
+              <button class="icon-btn">⚙</button>
+            </div>
+          </header>
+
+          <div class="workbench">
+            <aside class="sidebar-stack">
+              <section class="surface">
+                <div class="surface-header">
+                  <div class="surface-title">
+                    <strong>全局切换</strong>
+                    <span>只保留阅读状态页入口</span>
+                  </div>
+                </div>
+                <div class="directory-block">
+                  <div class="tab-row">
+                    <button class="tab-btn active">阅读</button>
+                    <button class="tab-btn">最近阅读</button>
+                    <button class="tab-btn">收藏</button>
+                  </div>
+                </div>
+              </section>
+
+              <section class="surface">
+                <div class="workspace-row">
+                  <div class="workspace-main">
+                    <strong>AI Agent 工作空间</strong>
+                    <span>3 个文档源 · 42 篇文档</span>
+                  </div>
+                  <div class="workspace-actions">
+                    <button class="action-chip">切换</button>
+                    <button class="action-chip">工作区设置</button>
+                    <button class="action-chip">文档源设置</button>
+                  </div>
+                </div>
+              </section>
+
+              <section class="surface directory-pane">
+                <div class="surface-header">
+                  <div class="surface-title">
+                    <strong>目录</strong>
+                    <span>当前工作空间文档树</span>
+                  </div>
+                  <span class="count-pill">42</span>
+                </div>
+
+                <div class="directory-scroll">
+                  <div class="directory-block">
+                    <details class="tree-section" open>
+                      <summary>AI Agent</summary>
+                      <div class="tree-sublist">
+                        <div class="tree-item">README</div>
+                        <div class="tree-item">01-项目架构</div>
+                        <div class="tree-item">02-Router 与 Docs</div>
+                      </div>
+                    </details>
+
+                    <details class="tree-section" open>
+                      <summary>Batis 教程</summary>
+                      <div class="tree-sublist">
+                        <div class="tree-item">01-Why Batis</div>
+                        <div class="tree-item active">02-Build Your First Static Module</div>
+                        <div class="tree-item">03-Query Rules Convert</div>
+                        <div class="tree-item">04-Dynamic Module Model</div>
+                      </div>
+                    </details>
+
+                    <details class="tree-section">
+                      <summary>RAG Lite</summary>
+                    </details>
+                    <details class="tree-section">
+                      <summary>面试材料</summary>
+                    </details>
+                  </div>
+                </div>
+              </section>
+            </aside>
+
+            <section class="reader-grid">
+              <article class="surface doc-card">
+                <div class="doc-head">
+                  <div class="doc-meta">
+                    <span class="mini-pill">AI Agent / Batis 教程</span>
+                    <span class="mini-pill">docs/ai/ai-agent/batis-tutorial</span>
+                    <span class="mini-pill">已收藏</span>
+                  </div>
+                  <h2>02. Build Your First Static Module</h2>
+                </div>
+                <div class="content-scroll">
+                  <div class="doc-body">
+                    <p>这一页的目标是先把用户注意力重新拉回正文。左侧目录只服务于跳转，不再把最近阅读、收藏、工作空间说明堆成一大坨。</p>
+                    <p>顶部搜索和设置继续放在 title bar。最近阅读和收藏虽然是全局页，但只保留为一级切换，不抢目录高度。</p>
+                    <div class="doc-code">const layout = {
+  globalTabs: ['阅读', '最近阅读', '收藏'],
+  workspace: 'compact-context',
+  directory: 'primary',
+}</div>
+                    <p>如果切到“最近阅读”或“收藏”，左侧目录区域可以切成全局说明卡或相关筛选，不需要继续展示目录树。</p>
+                  </div>
+                </div>
+              </article>
+
+              <aside class="surface toc-panel">
+                <div class="surface-header">
+                  <div class="surface-title">
+                    <strong>大纲</strong>
+                    <span>当前文档</span>
+                  </div>
+                </div>
+                <div class="toc-list">
+                  <div class="toc-item active">设计目标</div>
+                  <div class="toc-item">为什么目录要优先</div>
+                  <div class="toc-item">工作空间怎么压缩</div>
+                  <div class="toc-item">全局页如何切换</div>
+                </div>
+              </aside>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section id="notes" class="note-grid">
+        <article class="note-card">
+          <h2>优点</h2>
+          <ul class="window-bullets">
+            <li>改动成本最小，可以直接在现有桌面端上收敛。</li>
+            <li>目录区回到主位，用户打开应用后第一眼就是文档树。</li>
+            <li>最近阅读 / 收藏仍然全局化，但入口不抢空间。</li>
+          </ul>
+        </article>
+
+        <article class="note-card">
+          <h2>风险</h2>
+          <ul class="window-bullets">
+            <li>左栏里依然承担 3 个层级，只是已经明显压缩。</li>
+            <li>未来如果再加标签、任务、AI，左栏仍可能再度膨胀。</li>
+          </ul>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

@@ -8,11 +8,13 @@ const props = withDefaults(
   defineProps<{
     doc: DocDetail | null
     highlightQuery: string
+    isFavorite?: boolean
     nextDoc: DocMeta | null
     prevDoc: DocMeta | null
     restoreScrollTop?: number
   }>(),
   {
+    isFavorite: false,
     restoreScrollTop: 0,
   },
 )
@@ -20,6 +22,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   selectDoc: [slug: string]
   scrollTopChange: [top: number]
+  toggleFavorite: []
 }>()
 
 const scrollRef = useTemplateRef<HTMLElement>('scroll')
@@ -67,8 +70,10 @@ function handleScroll(event: Event) {
     >
       <DesktopDocContent
         :doc="doc"
+        :is-favorite="props.isFavorite"
         :highlight-query="highlightQuery"
         @select-doc="emit('selectDoc', $event)"
+        @toggle-favorite="emit('toggleFavorite')"
       />
       <DesktopDocPager
         :next-doc="nextDoc"
