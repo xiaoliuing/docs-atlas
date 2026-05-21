@@ -76,6 +76,8 @@ const {
 })
 const readingState = useDesktopReadingState()
 const {
+  activeSourceFilterLabel,
+  activeWorkspaceFilterLabel,
   activeResult,
   close: closeSearch,
   isOpen,
@@ -85,11 +87,20 @@ const {
   results,
   scope,
   selectedIndex,
+  setSourceFilter,
   setQuery,
   setScope,
+  setWorkspaceFilter,
+  sourceFilter,
+  sourceOptions,
+  workspaceFilter,
+  workspaceOptions,
 } = useDesktopDocsSearch({
+  currentWorkspaceId,
   docsBySlug: searchCatalog.docsBySlug,
   searchIndex: searchCatalog.searchIndex,
+  workspaceIdBySearchSlug: searchCatalog.workspaceIdBySearchSlug,
+  workspaces,
   workspaceSourceIds: currentWorkspaceSourceIds,
 })
 const { accentOptions, preferences, setAccent, setThemeMode } = useDesktopPreferences()
@@ -685,13 +696,21 @@ function isTauriRuntime() {
         <DesktopSearchPanel
           ref="searchPanel"
           v-model="searchQuery"
+          :active-source-filter-label="activeSourceFilterLabel"
+          :active-workspace-filter-label="activeWorkspaceFilterLabel"
           :results="results"
           :scope="scope"
           :selected-index="selectedIndex"
+          :source-filter="sourceFilter"
+          :source-options="sourceOptions"
           :workspace-name="currentWorkspace?.name ?? '当前工作区'"
+          :workspace-filter="workspaceFilter"
+          :workspace-options="workspaceOptions"
           @close="closeSearch"
           @move-selection="moveSelection"
+          @set-source-filter="setSourceFilter"
           @set-scope="setScope"
+          @set-workspace-filter="setWorkspaceFilter"
           @submit="handleSubmitSearch"
         />
       </div>

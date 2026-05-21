@@ -67,4 +67,11 @@ export type SearchResult = SearchRecord & {
   snippet: string
   matchField: SearchMatchField
   score: number
+  workspaceId?: string
+  workspaceName?: string
+  sourceKey?: string
+  sourceId?: string
+  sourceName?: string
+  sourceLabel?: string
+  sectionTitle?: string | null
 }

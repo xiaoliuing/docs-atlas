@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, useTemplateRef } from 'vue'
-import type { DesktopSearchScope } from '@/composables/useDesktopDocsSearch'
+import type { DesktopSearchFilterOption, DesktopSearchScope } from '@/composables/useDesktopDocsSearch'
 import type { SearchResult } from '@/types/docs'
 import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
 import DesktopSearchHighlightedText from './DesktopSearchHighlightedText.vue'
@@ -8,23 +8,44 @@ import DesktopSearchHighlightedText from './DesktopSearchHighlightedText.vue'
 const query = defineModel<string>({ default: '' })
 
 const props = defineProps<{
+  activeSourceFilterLabel: string
+  activeWorkspaceFilterLabel: string
   results: SearchResult[]
   scope: DesktopSearchScope
   selectedIndex: number
+  sourceFilter: string
+  sourceOptions: DesktopSearchFilterOption[]
   workspaceName: string
+  workspaceFilter: string
+  workspaceOptions: DesktopSearchFilterOption[]
 }>()
 
 const emit = defineEmits<{
   close: []
   moveSelection: [direction: 1 | -1]
+  setSourceFilter: [sourceKey: string]
   setScope: [scope: DesktopSearchScope]
   submit: [slug?: string]
+  setWorkspaceFilter: [workspaceId: string]
 }>()
 
 const inputRef = useTemplateRef<HTMLInputElement>('input')
 const hasResults = computed(() => props.results.length > 0)
 const normalizedQuery = computed(() => query.value.trim())
 const scopeLabel = computed(() => (props.scope === 'workspace' ? `当前工作区 · ${props.workspaceName}` : '全局搜索'))
+const showWorkspaceFilter = computed(() => props.scope === 'global' && props.workspaceOptions.length > 1)
+const showSourceFilter = computed(() => props.sourceOptions.length > 1)
+const matchFieldLabelMap: Record<SearchResult['matchField'], string> = {
+  body: '正文命中',
+  heading: '目录命中',
+  section: '目录分类命中',
+  summary: '摘要命中',
+  title: '标题命中',
+}
+
+function getMatchFieldLabel(field: SearchResult['matchField']) {
+  return matchFieldLabelMap[field]
+}
 
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'ArrowDown') {
@@ -125,10 +146,81 @@ defineExpose({
     </div>
 
     <div class="desktop-search-panel__meta">
-      <span class="desktop-search-panel__scope-chip">{{ scopeLabel }}</span>
+      <div class="desktop-search-panel__meta-start">
+        <span class="desktop-search-panel__scope-chip">{{ scopeLabel }}</span>
+        <span
+          v-if="showWorkspaceFilter"
+          class="desktop-search-panel__scope-chip desktop-search-panel__scope-chip--muted"
+        >
+          {{ props.activeWorkspaceFilterLabel }}
+        </span>
+        <span
+          v-if="showSourceFilter"
+          class="desktop-search-panel__scope-chip desktop-search-panel__scope-chip--muted"
+        >
+          {{ props.activeSourceFilterLabel }}
+        </span>
+      </div>
       <span class="desktop-search-panel__count">
         {{ normalizedQuery ? `${props.results.length} 条结果` : '输入关键词开始搜索' }}
       </span>
+    </div>
+
+    <div
+      v-if="showWorkspaceFilter || showSourceFilter"
+      class="desktop-search-panel__filters"
+    >
+      <label
+        v-if="showWorkspaceFilter"
+        class="desktop-search-panel__filter"
+      >
+        <span class="desktop-search-panel__filter-label">工作区</span>
+        <span class="desktop-search-panel__select-wrap">
+          <select
+            class="desktop-search-panel__select"
+            :value="props.workspaceFilter"
+            @change="emit('setWorkspaceFilter', String(($event.target as HTMLSelectElement).value))"
+          >
+            <option value="all">全部工作区</option>
+            <option
+              v-for="option in props.workspaceOptions"
+              :key="option.id"
+              :value="option.id"
+            >
+              {{ option.label }} · {{ option.count }}
+            </option>
+          </select>
+          <span class="desktop-search-panel__select-icon" aria-hidden="true">
+            <DesktopUiIcon name="chevron-down" :size="14" />
+          </span>
+        </span>
+      </label>
+
+      <label
+        v-if="showSourceFilter"
+        class="desktop-search-panel__filter"
+      >
+        <span class="desktop-search-panel__filter-label">文档源</span>
+        <span class="desktop-search-panel__select-wrap">
+          <select
+            class="desktop-search-panel__select"
+            :value="props.sourceFilter"
+            @change="emit('setSourceFilter', String(($event.target as HTMLSelectElement).value))"
+          >
+            <option value="all">全部文档源</option>
+            <option
+              v-for="option in props.sourceOptions"
+              :key="option.id"
+              :value="option.id"
+            >
+              {{ option.label }}{{ option.helper ? ` · ${option.helper}` : '' }} · {{ option.count }}
+            </option>
+          </select>
+          <span class="desktop-search-panel__select-icon" aria-hidden="true">
+            <DesktopUiIcon name="chevron-down" :size="14" />
+          </span>
+        </span>
+      </label>
     </div>
 
     <div class="desktop-search-panel__results desktop-scroll">
@@ -136,7 +228,7 @@ defineExpose({
         v-if="!normalizedQuery"
         class="desktop-search-panel__empty"
       >
-        默认会检索标题、摘要、目录和正文内容。
+        默认会检索标题、摘要、目录和正文内容。你也可以先切换工作区或文档源范围。
       </div>
 
       <div
@@ -159,12 +251,26 @@ defineExpose({
           type="button"
           @click="emit('submit', result.slug)"
         >
-          <span class="desktop-search-panel__result-section">
-            <DesktopSearchHighlightedText
-              :query="normalizedQuery"
-              :text="result.section"
-            />
-          </span>
+          <div class="desktop-search-panel__result-meta">
+            <span
+              v-if="result.workspaceName"
+              class="desktop-search-panel__result-chip"
+            >
+              <DesktopSearchHighlightedText
+                :query="normalizedQuery"
+                :text="result.workspaceName"
+              />
+            </span>
+            <span
+              v-if="result.sourceLabel"
+              class="desktop-search-panel__result-chip desktop-search-panel__result-chip--muted"
+            >
+              <DesktopSearchHighlightedText
+                :query="normalizedQuery"
+                :text="result.sourceLabel"
+              />
+            </span>
+          </div>
           <DesktopSearchHighlightedText
             tag="strong"
             class="desktop-search-panel__result-title"
@@ -177,6 +283,17 @@ defineExpose({
               :text="result.snippet || result.summary"
             />
           </span>
+          <div class="desktop-search-panel__result-footer">
+            <span class="desktop-search-panel__result-section">
+              <DesktopSearchHighlightedText
+                :query="normalizedQuery"
+                :text="result.sectionTitle || result.section"
+              />
+            </span>
+            <span class="desktop-search-panel__result-match">
+              {{ getMatchFieldLabel(result.matchField) }}
+            </span>
+          </div>
         </button>
       </template>
     </div>
@@ -323,6 +440,13 @@ defineExpose({
   gap: 0.7rem;
 }
 
+.desktop-search-panel__meta-start {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
 .desktop-search-panel__scope-chip {
   display: inline-flex;
   align-items: center;
@@ -335,9 +459,70 @@ defineExpose({
   font-weight: 600;
 }
 
+.desktop-search-panel__scope-chip--muted {
+  background: rgba(var(--desktop-accent-rgb), 0.05);
+  color: var(--desktop-muted);
+}
+
 .desktop-search-panel__count {
   color: var(--desktop-soft);
   font-size: 0.76rem;
+}
+
+.desktop-search-panel__filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.desktop-search-panel__filter {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.desktop-search-panel__filter-label {
+  color: var(--desktop-soft);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.desktop-search-panel__select-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.desktop-search-panel__select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  min-height: 2.55rem;
+  padding: 0.48rem 2.1rem 0.48rem 0.82rem;
+  border: 1px solid var(--desktop-line);
+  border-radius: 12px;
+  background: var(--desktop-field-bg);
+  color: var(--desktop-ink);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.desktop-search-panel__select:focus {
+  border-color: rgba(var(--desktop-accent-rgb), 0.34);
+  box-shadow: 0 0 0 1px rgba(var(--desktop-accent-rgb), 0.14);
+  background: var(--desktop-field-bg-strong);
+}
+
+.desktop-search-panel__select-icon {
+  position: absolute;
+  right: 0.72rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--desktop-soft);
+  pointer-events: none;
 }
 
 .desktop-search-panel__results {
@@ -359,7 +544,7 @@ defineExpose({
 
 .desktop-search-panel__result {
   display: grid;
-  gap: 0.26rem;
+  gap: 0.36rem;
   padding: 0.8rem 0.84rem;
   border: 1px solid transparent;
   border-radius: 14px;
@@ -376,11 +561,36 @@ defineExpose({
   transform: translateY(-1px);
 }
 
+.desktop-search-panel__result-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+}
+
+.desktop-search-panel__result-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0.16rem 0.48rem;
+  border-radius: 999px;
+  background: rgba(var(--desktop-accent-rgb), 0.08);
+  color: var(--desktop-accent);
+  font-size: 0.67rem;
+  font-weight: 600;
+}
+
+.desktop-search-panel__result-chip--muted {
+  background: rgba(var(--desktop-accent-rgb), 0.05);
+  color: var(--desktop-muted);
+}
+
 .desktop-search-panel__result-section {
   color: var(--desktop-soft);
   font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .desktop-search-panel__result-title {
@@ -392,6 +602,33 @@ defineExpose({
   color: var(--desktop-muted);
   font-size: 0.79rem;
   line-height: 1.5;
+}
+
+.desktop-search-panel__result-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.desktop-search-panel__result-match {
+  flex: none;
+  color: var(--desktop-soft);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .desktop-search-panel__header,
+  .desktop-search-panel__filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .desktop-search-panel__meta,
+  .desktop-search-panel__result-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 </style>
