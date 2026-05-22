@@ -16,11 +16,14 @@ const isOpen = defineModel<boolean>('open', { default: false })
 const props = defineProps<{
   accentOptions: DesktopAccentOption[]
   canDelete?: boolean
+  docCount?: number
   isSaving: boolean
   isDeleting?: boolean
   isExporting?: boolean
   isImporting?: boolean
   mode: 'create' | 'edit'
+  sourceCount?: number
+  unhealthySourceCount?: number
   workspaceCount?: number
   workspace?: WorkspaceDetail | null
 }>()
@@ -28,6 +31,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   delete: []
+  editSources: []
   export: []
   import: []
   submit: [payload: WorkspaceForm]
@@ -57,6 +61,7 @@ const submitLabel = computed(() => {
 })
 const canDeleteWorkspace = computed(() => props.mode === 'edit' && Boolean(props.canDelete))
 const canExportWorkspace = computed(() => props.mode === 'edit' && Boolean(props.workspace))
+const canManageSources = computed(() => props.mode === 'edit' && Boolean(props.workspace))
 const deleteLabel = computed(() => {
   if (props.isDeleting) {
     return '删除中...'
@@ -148,6 +153,14 @@ function handleExport() {
 
   emit('export')
 }
+
+function handleEditSources() {
+  if (!canManageSources.value) {
+    return
+  }
+
+  emit('editSources')
+}
 </script>
 
 <template>
@@ -162,7 +175,7 @@ function handleExport() {
     >
       <header class="desktop-workspace-dialog__header">
         <div>
-          <p class="desktop-workspace-dialog__eyebrow">Workspace</p>
+          <p class="desktop-workspace-dialog__eyebrow">Repository</p>
           <h2 class="desktop-workspace-dialog__title">{{ dialogTitle }}</h2>
         </div>
 
@@ -177,6 +190,38 @@ function handleExport() {
       </header>
 
       <div class="desktop-workspace-dialog__body">
+        <section v-if="canManageSources" class="desktop-workspace-dialog__section">
+          <div class="desktop-workspace-dialog__section-head">
+            <div>
+              <p class="desktop-workspace-dialog__section-kicker">Current Repository</p>
+              <h3 class="desktop-workspace-dialog__section-title">当前文档仓库设置</h3>
+            </div>
+            <button
+              class="desktop-workspace-dialog__section-action"
+              type="button"
+              @click="handleEditSources"
+            >
+              文档源设置
+            </button>
+          </div>
+
+          <div class="desktop-workspace-dialog__repository-card">
+            <div class="desktop-workspace-dialog__repository-metrics">
+              <span class="desktop-workspace-dialog__repository-chip">{{ `${props.sourceCount ?? 0} 个文档源` }}</span>
+              <span class="desktop-workspace-dialog__repository-chip">{{ `${props.docCount ?? 0} 篇文档` }}</span>
+              <span
+                v-if="(props.unhealthySourceCount ?? 0) > 0"
+                class="desktop-workspace-dialog__repository-chip desktop-workspace-dialog__repository-chip--warning"
+              >
+                {{ `${props.unhealthySourceCount} 个异常` }}
+              </span>
+            </div>
+            <p class="desktop-workspace-dialog__repository-summary">
+              文档源树、目录校验和分组结构统一从这里进入管理。
+            </p>
+          </div>
+        </section>
+
         <div class="desktop-workspace-dialog__utility">
           <button
             :disabled="props.isImporting"
@@ -215,7 +260,7 @@ function handleExport() {
             class="desktop-workspace-dialog__textarea"
             maxlength="160"
             placeholder="一句话说明这个文档仓库的用途。"
-            rows="4"
+            rows="3"
           />
         </label>
 
@@ -311,6 +356,7 @@ function handleExport() {
 <style scoped>
 .desktop-workspace-dialog__utility {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.65rem;
   margin-bottom: 0.2rem;
 }
@@ -398,12 +444,96 @@ function handleExport() {
 
 .desktop-workspace-dialog__body {
   display: grid;
-  gap: 0.9rem;
+  gap: 0.82rem;
+}
+
+.desktop-workspace-dialog__section {
+  display: grid;
+  gap: 0.68rem;
+  padding: 0.8rem 0.84rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.12);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.06), transparent 78%),
+    var(--desktop-surface);
+}
+
+.desktop-workspace-dialog__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.desktop-workspace-dialog__section-kicker {
+  margin: 0 0 0.14rem;
+  color: var(--desktop-soft);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.desktop-workspace-dialog__section-title {
+  margin: 0;
+  color: var(--desktop-ink);
+  font-size: 0.94rem;
+  font-weight: 660;
+}
+
+.desktop-workspace-dialog__section-action {
+  min-height: 2.2rem;
+  padding: 0.45rem 0.82rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.16);
+  border-radius: 14px;
+  background: rgba(var(--desktop-accent-rgb), 0.05);
+  color: var(--desktop-accent);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.desktop-workspace-dialog__repository-card {
+  display: grid;
+  gap: 0.48rem;
+}
+
+.desktop-workspace-dialog__repository-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.36rem;
+}
+
+.desktop-workspace-dialog__repository-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.52rem;
+  padding: 0.14rem 0.52rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.1);
+  border-radius: 999px;
+  background: rgba(var(--desktop-accent-rgb), 0.05);
+  color: var(--desktop-muted);
+  font-size: 0.67rem;
+  font-weight: 620;
+}
+
+.desktop-workspace-dialog__repository-chip--warning {
+  border-color: rgba(186, 75, 56, 0.16);
+  background: rgba(186, 75, 56, 0.08);
+  color: #b14d34;
+}
+
+.desktop-workspace-dialog__repository-summary {
+  margin: 0;
+  color: var(--desktop-muted);
+  font-size: 0.72rem;
+  line-height: 1.48;
 }
 
 .desktop-workspace-dialog__field {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.42rem;
 }
 
 .desktop-workspace-dialog__field span {
@@ -427,12 +557,12 @@ function handleExport() {
   background: var(--desktop-field-bg);
   color: var(--desktop-ink);
   font: inherit;
-  padding: 0.8rem 0.9rem;
+  padding: 0.74rem 0.86rem;
 }
 
 .desktop-workspace-dialog__textarea {
   resize: vertical;
-  min-height: 6rem;
+  min-height: 5rem;
 }
 
 .desktop-workspace-dialog__colors {

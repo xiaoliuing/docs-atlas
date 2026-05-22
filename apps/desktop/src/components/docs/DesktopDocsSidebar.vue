@@ -23,8 +23,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   createWorkspace: []
   editWorkspace: []
-  editSources: []
-  openWorkspaceSettings: []
   openFavorites: []
   openReader: []
   openRecent: []
@@ -210,7 +208,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
         <template v-if="isReaderView">
           <div class="desktop-docs-sidebar__workspace-shell">
             <div class="desktop-docs-sidebar__workspace-topline">
-              <p class="desktop-docs-sidebar__header-tag">Repository</p>
+              <p class="desktop-docs-sidebar__header-tag">文档仓库</p>
               <button
                 class="desktop-docs-sidebar__workspace-create"
                 type="button"
@@ -292,9 +290,9 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
               <button
                 class="desktop-docs-sidebar__workspace-settings"
                 type="button"
-                @click="emit('openWorkspaceSettings')"
+                @click="emit('editWorkspace')"
               >
-                设置
+                仓库设置
               </button>
             </div>
           </div>
@@ -302,7 +300,6 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 
         <template v-else>
           <div class="desktop-docs-sidebar__header-copy">
-            <p class="desktop-docs-sidebar__header-tag">Overview</p>
             <div class="desktop-docs-sidebar__header-title-row">
               <h2 class="desktop-docs-sidebar__header-title">{{ sectionTitle }}</h2>
               <span class="desktop-docs-sidebar__header-badge">{{ sectionBadge }}</span>

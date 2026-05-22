@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { WorkspaceDetail } from '@docs-atlas/shared-types/workspace'
 import type { DesktopAccentId, DesktopAccentOption, DesktopThemeMode } from '@/composables/useDesktopPreferences'
 import type { DesktopLatestRelease, DesktopReleaseUpdateStatus } from '@/composables/useDesktopReleaseUpdates'
 import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
@@ -7,7 +6,6 @@ import DesktopAppearanceSettingsPanel from '@/components/settings/DesktopAppeara
 import DesktopDataSettingsPanel from '@/components/settings/DesktopDataSettingsPanel.vue'
 import DesktopSettingsNav, { type DesktopSettingsSection } from '@/components/settings/DesktopSettingsNav.vue'
 import DesktopUpdatesSettingsPanel from '@/components/settings/DesktopUpdatesSettingsPanel.vue'
-import DesktopWorkspaceSettingsPanel from '@/components/settings/DesktopWorkspaceSettingsPanel.vue'
 
 const props = defineProps<{
   accentId: DesktopAccentId
@@ -16,29 +14,17 @@ const props = defineProps<{
   activeSection: DesktopSettingsSection
   busyAction?: 'app-data' | 'logs' | 'export' | null
   currentVersion?: string
-  currentWorkspace: WorkspaceDetail | null
-  docCount: number
-  isExportingWorkspace: boolean
-  isImportingWorkspace: boolean
   lastCheckedAt?: string
   latestRelease: DesktopLatestRelease | null
-  sourceCount: number
   themeMode: DesktopThemeMode
   updateMessage?: string
   updateStatus: DesktopReleaseUpdateStatus
-  unhealthySourceCount: number
-  workspaceCount: number
 }>()
 
 const emit = defineEmits<{
   checkUpdates: []
   close: []
-  createWorkspace: []
-  editSources: []
-  editWorkspace: []
   exportLogs: []
-  exportWorkspace: []
-  importWorkspace: []
   installUpdate: []
   openLatestRelease: []
   openAppDataDirectory: []
@@ -58,7 +44,7 @@ const emit = defineEmits<{
         </span>
         <div class="desktop-settings-view__title-copy">
           <h2 class="desktop-settings-view__title">应用设置</h2>
-          <p class="desktop-settings-view__summary">系统外观、仓库管理、更新与本地数据。</p>
+          <p class="desktop-settings-view__summary">这里只保留系统级配置，不再承接文档仓库和文档源管理。</p>
         </div>
       </div>
 
@@ -81,22 +67,6 @@ const emit = defineEmits<{
           :theme-mode="props.themeMode"
           @update-accent="emit('updateAccent', $event)"
           @update-theme-mode="emit('updateThemeMode', $event)"
-        />
-
-        <DesktopWorkspaceSettingsPanel
-          v-else-if="props.activeSection === 'workspace'"
-          :current-workspace="props.currentWorkspace"
-          :doc-count="props.docCount"
-          :is-exporting-workspace="props.isExportingWorkspace"
-          :is-importing-workspace="props.isImportingWorkspace"
-          :source-count="props.sourceCount"
-          :unhealthy-source-count="props.unhealthySourceCount"
-          :workspace-count="props.workspaceCount"
-          @create-workspace="emit('createWorkspace')"
-          @edit-sources="emit('editSources')"
-          @edit-workspace="emit('editWorkspace')"
-          @export-workspace="emit('exportWorkspace')"
-          @import-workspace="emit('importWorkspace')"
         />
 
         <DesktopUpdatesSettingsPanel
@@ -128,7 +98,7 @@ const emit = defineEmits<{
 .desktop-settings-view {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 0.88rem;
+  gap: 0.82rem;
   min-height: 0;
   height: 100%;
   width: 100%;
@@ -138,14 +108,14 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1.2rem;
+  gap: 1rem;
   padding: 0.15rem 0.05rem 0;
 }
 
 .desktop-settings-view__title-wrap {
   display: flex;
   align-items: center;
-  gap: 0.72rem;
+  gap: 0.68rem;
   min-width: 0;
 }
 
@@ -153,11 +123,11 @@ const emit = defineEmits<{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border: 1px solid rgba(var(--desktop-accent-rgb), 0.1);
-  border-radius: 12px;
-  background: rgba(var(--desktop-accent-rgb), 0.06);
+  width: 1.92rem;
+  height: 1.92rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.12);
+  border-radius: 11px;
+  background: rgba(var(--desktop-accent-rgb), 0.055);
   color: var(--desktop-accent);
 }
 
@@ -170,22 +140,22 @@ const emit = defineEmits<{
 .desktop-settings-view__title {
   margin: 0;
   color: var(--desktop-ink);
-  font-size: 1.08rem;
+  font-size: 1.04rem;
   font-weight: 670;
 }
 
 .desktop-settings-view__summary {
   margin: 0;
   color: var(--desktop-soft);
-  font-size: 0.75rem;
-  line-height: 1.52;
+  font-size: 0.74rem;
+  line-height: 1.5;
 }
 
 .desktop-settings-view__back {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.56rem 0.76rem;
+  padding: 0.52rem 0.72rem;
   border: 1px solid var(--desktop-line);
   border-radius: 12px;
   background: var(--desktop-surface-strong);
@@ -207,14 +177,14 @@ const emit = defineEmits<{
 
 .desktop-settings-view__shell {
   display: grid;
-  grid-template-columns: 208px minmax(0, 1fr);
+  grid-template-columns: 196px minmax(0, 1fr);
   gap: 0;
   min-height: 0;
   height: 100%;
   border: 1px solid var(--desktop-line);
-  border-radius: 22px;
+  border-radius: 24px;
   background:
-    radial-gradient(circle at top left, rgba(var(--desktop-accent-rgb), 0.06), transparent 28%),
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.03), transparent 20%),
     var(--desktop-surface-strong);
   box-shadow: var(--shadow-panel);
   overflow: hidden;
@@ -222,17 +192,26 @@ const emit = defineEmits<{
 
 .desktop-settings-view__nav {
   min-height: 0;
-  padding: 0.92rem 0.62rem;
+  padding: 0.88rem 0.6rem;
   border-right: 1px solid var(--desktop-line);
   background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.04), transparent 28%),
-    color-mix(in srgb, var(--desktop-surface) 88%, rgba(var(--desktop-accent-rgb), 0.03));
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.03), transparent 24%),
+    color-mix(in srgb, var(--desktop-surface) 92%, rgba(var(--desktop-accent-rgb), 0.02));
 }
 
 .desktop-settings-view__content {
+  display: grid;
+  align-content: start;
+  justify-items: stretch;
   min-height: 0;
+  min-width: 0;
   overflow: auto;
-  padding: 0.94rem 1.05rem 1.12rem;
+  padding: 0.96rem 1rem 1.08rem;
+  background: color-mix(in srgb, var(--desktop-surface) 90%, white 10%);
+}
+
+.desktop-settings-view__content > * {
+  width: 100%;
 }
 
 @media (max-width: 1180px) {
