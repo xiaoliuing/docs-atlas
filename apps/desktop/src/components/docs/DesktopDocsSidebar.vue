@@ -305,7 +305,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
               <span class="desktop-docs-sidebar__header-badge">{{ sectionBadge }}</span>
             </div>
             <p class="desktop-docs-sidebar__header-subtext">
-              {{ currentWorkspace?.name || '当前文档仓库' }}
+              {{ isRecentView ? '跨全部文档仓库的阅读记录' : '跨全部文档仓库的收藏记录' }}
             </p>
           </div>
         </template>

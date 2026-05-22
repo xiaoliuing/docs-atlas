@@ -98,7 +98,7 @@ const emit = defineEmits<{
 .desktop-settings-view {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 0.82rem;
+  gap: 0.9rem;
   min-height: 0;
   height: 100%;
   width: 100%;
@@ -108,14 +108,14 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 0.15rem 0.05rem 0;
+  gap: 1.05rem;
+  padding: 0.1rem 0.08rem 0;
 }
 
 .desktop-settings-view__title-wrap {
   display: flex;
   align-items: center;
-  gap: 0.68rem;
+  gap: 0.76rem;
   min-width: 0;
 }
 
@@ -123,41 +123,43 @@ const emit = defineEmits<{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.92rem;
-  height: 1.92rem;
-  border: 1px solid rgba(var(--desktop-accent-rgb), 0.12);
-  border-radius: 11px;
-  background: rgba(var(--desktop-accent-rgb), 0.055);
+  width: 2.08rem;
+  height: 2.08rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.14);
+  border-radius: 13px;
+  background:
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.12), rgba(var(--desktop-accent-rgb), 0.05)),
+    var(--desktop-surface-strong);
   color: var(--desktop-accent);
 }
 
 .desktop-settings-view__title-copy {
   display: grid;
-  gap: 0.12rem;
+  gap: 0.18rem;
   min-width: 0;
 }
 
 .desktop-settings-view__title {
   margin: 0;
   color: var(--desktop-ink);
-  font-size: 1.04rem;
-  font-weight: 670;
+  font-size: 1.06rem;
+  font-weight: 680;
 }
 
 .desktop-settings-view__summary {
   margin: 0;
   color: var(--desktop-soft);
-  font-size: 0.74rem;
-  line-height: 1.5;
+  font-size: 0.76rem;
+  line-height: 1.56;
 }
 
 .desktop-settings-view__back {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.52rem 0.72rem;
+  gap: 0.42rem;
+  padding: 0.54rem 0.74rem;
   border: 1px solid var(--desktop-line);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--desktop-surface-strong);
   color: var(--desktop-ink);
   cursor: pointer;
@@ -177,14 +179,14 @@ const emit = defineEmits<{
 
 .desktop-settings-view__shell {
   display: grid;
-  grid-template-columns: 196px minmax(0, 1fr);
+  grid-template-columns: 212px minmax(0, 1fr);
   gap: 0;
   min-height: 0;
   height: 100%;
   border: 1px solid var(--desktop-line);
-  border-radius: 24px;
+  border-radius: 28px;
   background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.03), transparent 20%),
+    radial-gradient(circle at top left, rgba(var(--desktop-accent-rgb), 0.06), transparent 24%),
     var(--desktop-surface-strong);
   box-shadow: var(--shadow-panel);
   overflow: hidden;
@@ -192,11 +194,11 @@ const emit = defineEmits<{
 
 .desktop-settings-view__nav {
   min-height: 0;
-  padding: 0.88rem 0.6rem;
+  padding: 1rem 0.72rem;
   border-right: 1px solid var(--desktop-line);
   background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.03), transparent 24%),
-    color-mix(in srgb, var(--desktop-surface) 92%, rgba(var(--desktop-accent-rgb), 0.02));
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.045), transparent 28%),
+    color-mix(in srgb, var(--desktop-surface) 93%, rgba(var(--desktop-accent-rgb), 0.03));
 }
 
 .desktop-settings-view__content {
@@ -206,8 +208,10 @@ const emit = defineEmits<{
   min-height: 0;
   min-width: 0;
   overflow: auto;
-  padding: 0.96rem 1rem 1.08rem;
-  background: color-mix(in srgb, var(--desktop-surface) 90%, white 10%);
+  padding: 1.08rem 1.16rem 1.2rem;
+  background:
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.022), transparent 18%),
+    color-mix(in srgb, var(--desktop-surface) 94%, white 6%);
 }
 
 .desktop-settings-view__content > * {

@@ -101,11 +101,14 @@ function formatSavedAt(value: string) {
   <section class="desktop-favorites-view">
     <header class="desktop-favorites-view__header">
       <div class="desktop-favorites-view__title-wrap">
-        <span class="desktop-favorites-view__title-mark" aria-hidden="true">
-          <DesktopUiIcon name="bookmark" :size="16" />
-        </span>
         <div class="desktop-favorites-view__title-copy">
-          <h2 class="desktop-favorites-view__title">收藏</h2>
+          <div class="desktop-favorites-view__title-row">
+            <span class="desktop-favorites-view__title-mark" aria-hidden="true">
+              <DesktopUiIcon name="bookmark" :size="16" />
+            </span>
+            <h2 class="desktop-favorites-view__title">收藏</h2>
+            <span class="desktop-favorites-view__toolbar-count">{{ toolbarCountLabel }}</span>
+          </div>
           <p class="desktop-favorites-view__title-summary">{{ resultSummary }}</p>
         </div>
       </div>
@@ -118,7 +121,7 @@ function formatSavedAt(value: string) {
 
     <div class="desktop-favorites-view__toolbar">
       <label class="desktop-favorites-view__workspace-filter">
-        <span>筛选文档仓库</span>
+        <span>筛选范围</span>
         <select v-model="selectedWorkspaceId">
           <option :value="ALL_WORKSPACES">全部文档仓库</option>
           <option
@@ -131,7 +134,7 @@ function formatSavedAt(value: string) {
         </select>
       </label>
 
-      <span class="desktop-favorites-view__toolbar-count">{{ toolbarCountLabel }}</span>
+      <p class="desktop-favorites-view__toolbar-summary">收藏是全局列表，可跨全部文档仓库集中浏览与回到正文。</p>
     </div>
 
     <div class="desktop-favorites-view__body desktop-scroll">
@@ -194,9 +197,7 @@ function formatSavedAt(value: string) {
 }
 
 .desktop-favorites-view__title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.72rem;
+  display: grid;
   min-width: 0;
 }
 
@@ -204,9 +205,9 @@ function formatSavedAt(value: string) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border: 1px solid rgba(var(--desktop-accent-rgb), 0.1);
+  width: 1.92rem;
+  height: 1.92rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.12);
   border-radius: 12px;
   background: rgba(var(--desktop-accent-rgb), 0.06);
   color: var(--desktop-accent);
@@ -214,14 +215,21 @@ function formatSavedAt(value: string) {
 
 .desktop-favorites-view__title-copy {
   display: grid;
-  gap: 0.12rem;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.desktop-favorites-view__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.52rem;
   min-width: 0;
 }
 
 .desktop-favorites-view__title {
   margin: 0;
   color: var(--desktop-ink);
-  font-size: 1.08rem;
+  font-size: 1.02rem;
   font-weight: 670;
 }
 
@@ -260,6 +268,12 @@ function formatSavedAt(value: string) {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  padding: 0.82rem 0.92rem;
+  border: 1px solid var(--desktop-line);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.03), transparent 60%),
+    var(--desktop-surface-strong);
 }
 
 .desktop-favorites-view__workspace-filter {
@@ -291,13 +305,21 @@ function formatSavedAt(value: string) {
 .desktop-favorites-view__toolbar-count {
   display: inline-flex;
   align-items: center;
-  min-height: 2.15rem;
-  padding: 0 0.72rem;
+  min-height: 1.5rem;
+  padding: 0 0.52rem;
   border-radius: 999px;
   background: rgba(var(--desktop-accent-rgb), 0.08);
   color: var(--desktop-accent);
-  font-size: 0.74rem;
+  font-size: 0.68rem;
   font-weight: 700;
+}
+
+.desktop-favorites-view__toolbar-summary {
+  margin: 0;
+  color: var(--desktop-muted);
+  font-size: 0.74rem;
+  line-height: 1.5;
+  text-align: right;
 }
 
 .desktop-favorites-view__body {
@@ -308,18 +330,28 @@ function formatSavedAt(value: string) {
 
 .desktop-favorites-view__list {
   display: grid;
-  gap: 0.54rem;
+  gap: 0;
+  border: 1px solid var(--desktop-line);
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--desktop-surface-strong);
 }
 
 .desktop-favorites-view__entry {
   display: grid;
   gap: 0.48rem;
-  padding: 0.86rem 0.92rem 0.84rem;
-  border: 1px solid var(--desktop-line);
-  border-radius: 16px;
-  background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.035), transparent 30%),
-    var(--desktop-surface-strong);
+  padding: 0.88rem 0.96rem 0.84rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.desktop-favorites-view__entry + .desktop-favorites-view__entry {
+  border-top: 1px solid var(--desktop-line);
+}
+
+.desktop-favorites-view__entry:hover {
+  background: rgba(var(--desktop-accent-rgb), 0.05);
 }
 
 .desktop-favorites-view__entry-main {
@@ -416,6 +448,10 @@ function formatSavedAt(value: string) {
   .desktop-favorites-view__toolbar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .desktop-favorites-view__toolbar-summary {
+    text-align: left;
   }
 
   .desktop-favorites-view__workspace-filter,

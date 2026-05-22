@@ -30,7 +30,7 @@ const items: Array<{
 
 <template>
   <nav class="desktop-settings-nav" aria-label="设置分组">
-    <p class="desktop-settings-nav__title">设置</p>
+    <p class="desktop-settings-nav__title">System</p>
     <button
       v-for="item in items"
       :key="item.id"
@@ -51,16 +51,16 @@ const items: Array<{
 .desktop-settings-nav {
   display: grid;
   align-content: start;
-  gap: 0.3rem;
+  gap: 0.34rem;
 }
 
 .desktop-settings-nav__title {
-  margin: 0 0 0.55rem;
-  padding: 0 0.55rem;
+  margin: 0 0 0.68rem;
+  padding: 0 0.62rem;
   color: var(--desktop-soft);
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
@@ -71,20 +71,20 @@ const items: Array<{
   justify-content: space-between;
   gap: 0.75rem;
   width: 100%;
-  padding: 0.72rem 0.82rem;
+  padding: 0.76rem 0.84rem;
   border: 0;
-  border-radius: 14px;
+  border-radius: 15px;
   background: transparent;
   color: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background-color 0.18s ease, color 0.18s ease;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
 
 .desktop-settings-nav__item strong {
   color: var(--desktop-ink);
-  font-size: 0.84rem;
-  font-weight: 620;
+  font-size: 0.82rem;
+  font-weight: 630;
 }
 
 .desktop-settings-nav__indicator {
@@ -97,6 +97,7 @@ const items: Array<{
 
 .desktop-settings-nav__item:hover {
   background: rgba(var(--desktop-accent-rgb), 0.06);
+  transform: translateX(1px);
 }
 
 .desktop-settings-nav__item--active {
