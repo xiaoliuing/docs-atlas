@@ -1,5 +1,5 @@
 import { computed, shallowRef } from 'vue'
-import type { WorkspaceDetail, WorkspaceSearchScope, WorkspaceSourceNodeInput, WorkspaceUpsertInput } from '@docs-atlas/shared-types/workspace'
+import type { WorkspaceDetail, WorkspaceSourceNodeInput, WorkspaceUpsertInput } from '@docs-atlas/shared-types/workspace'
 import {
   buildDefaultSeedWorkspaces,
   deleteWorkspace as deleteWorkspaceRecord,
@@ -55,7 +55,9 @@ export function useWorkspaceSelection() {
     mergeWorkspace(updated)
   }
 
-  async function createWorkspace(input: Omit<WorkspaceUpsertInput, 'id'>) {
+  async function createWorkspace(input: Omit<WorkspaceUpsertInput, 'id'> & {
+    sources?: WorkspaceSourceNodeInput[]
+  }) {
     isSavingWorkspace.value = true
 
     try {
@@ -64,7 +66,7 @@ export function useWorkspaceSelection() {
         ...input,
         defaultSearchScope: input.defaultSearchScope ?? 'global',
         sortOrder: workspaces.value.length,
-        sources: [],
+        sources: input.sources ?? [],
       })
       mergeWorkspace(workspace)
       currentWorkspaceId.value = workspace.id
@@ -107,7 +109,7 @@ export function useWorkspaceSelection() {
       name: string
       description: string
       color: string
-      defaultSearchScope: WorkspaceSearchScope
+      sources: WorkspaceSourceNodeInput[]
     },
   ) {
     const workspace = workspaces.value.find((item) => item.id === workspaceId)
@@ -124,10 +126,10 @@ export function useWorkspaceSelection() {
         description: input.description,
         icon: workspace.icon,
         color: input.color,
-        defaultSearchScope: input.defaultSearchScope,
+        defaultSearchScope: workspace.defaultSearchScope ?? 'global',
         sortOrder: workspace.sortOrder,
         lastOpenedAt: workspace.lastOpenedAt,
-        sources: toSourceInputs(workspace.sources),
+        sources: input.sources,
       })
       mergeWorkspace(updated)
       return updated

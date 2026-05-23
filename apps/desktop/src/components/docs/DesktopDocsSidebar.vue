@@ -46,16 +46,6 @@ const currentWorkspace = computed(
 const isReaderView = computed(() => props.activeView === 'reader')
 const isRecentView = computed(() => props.activeView === 'recent')
 const isFavoritesView = computed(() => props.activeView === 'favorites')
-const sectionTitle = computed(() => {
-  return isRecentView.value ? '最近阅读' : '收藏'
-})
-const sectionBadge = computed(() => {
-  if (isReaderView.value) {
-    return `${props.currentWorkspaceDocCount}`
-  }
-
-  return isRecentView.value ? `${props.recentCount}` : `${props.favoriteCount}`
-})
 
 function toggleNode(id: string, depth: number) {
   const currentId = openBranchIds.value[depth] ?? null
@@ -165,7 +155,12 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 </script>
 
 <template>
-  <aside class="desktop-docs-sidebar">
+  <aside
+    :class="[
+      'desktop-docs-sidebar',
+      { 'desktop-docs-sidebar--compact': !isReaderView },
+    ]"
+  >
     <div class="desktop-docs-sidebar__rail">
       <button
         :class="['desktop-docs-sidebar__rail-button', { 'desktop-docs-sidebar__rail-button--active': isReaderView }]"
@@ -203,112 +198,98 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
       </button>
     </div>
 
-    <div class="desktop-docs-sidebar__panel">
+    <div v-if="isReaderView" class="desktop-docs-sidebar__panel">
       <div class="desktop-docs-sidebar__header">
-        <template v-if="isReaderView">
-          <div class="desktop-docs-sidebar__workspace-shell">
-            <div class="desktop-docs-sidebar__workspace-topline">
-              <p class="desktop-docs-sidebar__header-tag">文档仓库</p>
-              <button
-                class="desktop-docs-sidebar__workspace-create"
-                type="button"
-                @click="emit('createWorkspace')"
+        <div class="desktop-docs-sidebar__workspace-shell">
+          <div class="desktop-docs-sidebar__workspace-topline">
+            <p class="desktop-docs-sidebar__header-tag">文档仓库</p>
+            <button
+              class="desktop-docs-sidebar__workspace-create"
+              type="button"
+              @click="emit('createWorkspace')"
+            >
+              <DesktopUiIcon name="plus" :size="16" />
+            </button>
+          </div>
+
+          <div
+            ref="workspaceSwitcher"
+            class="desktop-docs-sidebar__header-actions"
+          >
+            <button
+              :aria-expanded="isWorkspaceMenuOpen"
+              class="desktop-docs-sidebar__workspace-card"
+              type="button"
+              @click="isWorkspaceMenuOpen = !isWorkspaceMenuOpen"
+            >
+              <span
+                class="desktop-docs-sidebar__workspace-card-icon"
+                :style="{ color: currentWorkspace?.color || 'var(--desktop-accent)' }"
               >
-                <DesktopUiIcon name="plus" :size="16" />
-              </button>
-            </div>
+                <DesktopUiIcon name="atlas" :size="18" />
+              </span>
+              <span class="desktop-docs-sidebar__workspace-card-copy">
+                <strong>{{ currentWorkspace?.name || '选择文档仓库' }}</strong>
+                <span>{{ currentWorkspace?.description || '当前阅读入口' }}</span>
+              </span>
+              <DesktopUiIcon
+                name="chevron-down"
+                :size="15"
+                :class="[
+                  'desktop-docs-sidebar__workspace-card-chevron',
+                  { 'desktop-docs-sidebar__workspace-card-chevron--open': isWorkspaceMenuOpen },
+                ]"
+              />
+            </button>
 
             <div
-              ref="workspaceSwitcher"
-              class="desktop-docs-sidebar__header-actions"
+              v-if="isWorkspaceMenuOpen"
+              class="desktop-docs-sidebar__workspace-menu"
             >
               <button
-                :aria-expanded="isWorkspaceMenuOpen"
-                class="desktop-docs-sidebar__workspace-card"
+                v-for="workspace in props.workspaces"
+                :key="workspace.id"
+                :class="[
+                  'desktop-docs-sidebar__workspace-option',
+                  { 'desktop-docs-sidebar__workspace-option--active': workspace.id === props.currentWorkspaceId },
+                ]"
                 type="button"
-                @click="isWorkspaceMenuOpen = !isWorkspaceMenuOpen"
+                @click="handleSelectWorkspace(workspace.id)"
               >
                 <span
-                  class="desktop-docs-sidebar__workspace-card-icon"
-                  :style="{ color: currentWorkspace?.color || 'var(--desktop-accent)' }"
-                >
-                  <DesktopUiIcon name="atlas" :size="18" />
-                </span>
-                <span class="desktop-docs-sidebar__workspace-card-copy">
-                  <strong>{{ currentWorkspace?.name || '选择文档仓库' }}</strong>
-                  <span>{{ currentWorkspace?.description || '当前阅读入口' }}</span>
-                </span>
-                <DesktopUiIcon
-                  name="chevron-down"
-                  :size="15"
-                  :class="[
-                    'desktop-docs-sidebar__workspace-card-chevron',
-                    { 'desktop-docs-sidebar__workspace-card-chevron--open': isWorkspaceMenuOpen },
-                  ]"
+                  class="desktop-docs-sidebar__workspace-option-dot"
+                  :style="{ backgroundColor: workspace.color }"
                 />
-              </button>
-
-              <div
-                v-if="isWorkspaceMenuOpen"
-                class="desktop-docs-sidebar__workspace-menu"
-              >
-                <button
-                  v-for="workspace in props.workspaces"
-                  :key="workspace.id"
-                  :class="[
-                    'desktop-docs-sidebar__workspace-option',
-                    { 'desktop-docs-sidebar__workspace-option--active': workspace.id === props.currentWorkspaceId },
-                  ]"
-                  type="button"
-                  @click="handleSelectWorkspace(workspace.id)"
-                >
-                  <span
-                    class="desktop-docs-sidebar__workspace-option-dot"
-                    :style="{ backgroundColor: workspace.color }"
-                  />
-                  <span class="desktop-docs-sidebar__workspace-option-copy">
-                    <strong>{{ workspace.name }}</strong>
-                    <span>{{ `${workspace.sources.length} 个文档源` }}</span>
-                  </span>
-                  <span class="desktop-docs-sidebar__workspace-option-meta">切换</span>
-                </button>
-              </div>
-            </div>
-
-            <div class="desktop-docs-sidebar__workspace-footer">
-              <div class="desktop-docs-sidebar__header-stats">
-                <span class="desktop-docs-sidebar__header-stat">{{ `${props.currentWorkspaceSourceCount} 个文档源` }}</span>
-                <span class="desktop-docs-sidebar__header-stat">{{ `${props.currentWorkspaceDocCount} 篇文档` }}</span>
-                <span
-                  v-if="props.currentWorkspaceUnhealthySourceCount > 0"
-                  class="desktop-docs-sidebar__header-stat desktop-docs-sidebar__header-stat--warning"
-                >
-                  {{ `${props.currentWorkspaceUnhealthySourceCount} 个异常` }}
+                <span class="desktop-docs-sidebar__workspace-option-copy">
+                  <strong>{{ workspace.name }}</strong>
+                  <span>{{ `${workspace.sources.length} 个文档源` }}</span>
                 </span>
-              </div>
-
-              <button
-                class="desktop-docs-sidebar__workspace-settings"
-                type="button"
-                @click="emit('editWorkspace')"
-              >
-                仓库设置
+                <span class="desktop-docs-sidebar__workspace-option-meta">切换</span>
               </button>
             </div>
           </div>
-        </template>
 
-        <template v-else>
-          <div class="desktop-docs-sidebar__header-copy">
-            <div class="desktop-docs-sidebar__header-title-row">
-              <h2 class="desktop-docs-sidebar__header-title">{{ sectionTitle }}</h2>
-              <span class="desktop-docs-sidebar__header-badge">{{ sectionBadge }}</span>
+          <div class="desktop-docs-sidebar__workspace-footer">
+            <div class="desktop-docs-sidebar__header-stats">
+              <span class="desktop-docs-sidebar__header-stat">{{ `${props.currentWorkspaceSourceCount} 个文档源` }}</span>
+              <span class="desktop-docs-sidebar__header-stat">{{ `${props.currentWorkspaceDocCount} 篇文档` }}</span>
+              <span
+                v-if="props.currentWorkspaceUnhealthySourceCount > 0"
+                class="desktop-docs-sidebar__header-stat desktop-docs-sidebar__header-stat--warning"
+              >
+                {{ `${props.currentWorkspaceUnhealthySourceCount} 个异常` }}
+              </span>
             </div>
-            <p class="desktop-docs-sidebar__header-subtext">
-              {{ isRecentView ? '跨全部文档仓库的阅读记录' : '跨全部文档仓库的收藏记录' }}
-            </p>
+
+            <button
+              class="desktop-docs-sidebar__workspace-settings"
+              type="button"
+              @click="emit('editWorkspace')"
+            >
+              仓库设置
+            </button>
           </div>
-        </template>
+        </div>
       </div>
 
       <div
@@ -316,7 +297,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
         class="desktop-docs-sidebar__scroll desktop-scroll"
       >
         <nav
-          v-if="isReaderView && props.sourceGroups.length > 0"
+          v-if="props.sourceGroups.length > 0"
           class="desktop-docs-sidebar__nav"
         >
           <DesktopDocsSidebarNode
@@ -335,15 +316,12 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
           />
         </nav>
 
-        <div v-else-if="isReaderView" class="desktop-docs-sidebar__empty">
-          当前文档仓库还没有可显示的文档。
-        </div>
-
         <div v-else class="desktop-docs-sidebar__empty">
-          从右侧列表打开文档。
+          当前文档仓库还没有可显示的文档。
         </div>
       </div>
     </div>
+
   </aside>
 </template>
 
@@ -354,6 +332,10 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   grid-template-columns: 76px minmax(0, 1fr);
   gap: 0.75rem;
   min-height: 0;
+}
+
+.desktop-docs-sidebar--compact {
+  grid-template-columns: 76px;
 }
 
 .desktop-docs-sidebar__rail,
@@ -442,8 +424,8 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 
 .desktop-docs-sidebar__header {
   display: grid;
-  gap: 0.64rem;
-  padding: 0.86rem 0.92rem 0.82rem;
+  gap: 0.42rem;
+  padding: 0.62rem 0.74rem 0.6rem;
   border-bottom: 1px solid var(--desktop-line);
   background:
     linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.06), rgba(var(--desktop-accent-rgb), 0.015) 78%),
@@ -458,7 +440,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 
 .desktop-docs-sidebar__workspace-shell {
   display: grid;
-  gap: 0.76rem;
+  gap: 0.46rem;
 }
 
 .desktop-docs-sidebar__workspace-topline {
@@ -551,10 +533,10 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 1.96rem;
+  height: 1.96rem;
   border: 1px solid rgba(var(--desktop-accent-rgb), 0.16);
-  border-radius: 16px;
+  border-radius: 14px;
   background: rgba(var(--desktop-accent-rgb), 0.05);
   color: var(--desktop-accent);
   cursor: pointer;
@@ -570,13 +552,13 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 .desktop-docs-sidebar__workspace-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 0.78rem;
+  gap: 0.56rem;
   align-items: center;
   width: 100%;
-  min-height: 5.8rem;
-  padding: 0.88rem 0.92rem;
+  min-height: 4.08rem;
+  padding: 0.58rem 0.68rem;
   border: 1px solid rgba(var(--desktop-accent-rgb), 0.12);
-  border-radius: 22px;
+  border-radius: 18px;
   background:
     linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.1), rgba(var(--desktop-accent-rgb), 0.035)),
     var(--desktop-surface-strong);
@@ -598,9 +580,9 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 3rem;
-  height: 3rem;
-  border-radius: 18px;
+  width: 2.12rem;
+  height: 2.12rem;
+  border-radius: 14px;
   background: color-mix(in srgb, currentColor 10%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 16%, transparent);
 }
@@ -615,7 +597,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.92rem;
+  font-size: 0.82rem;
   font-weight: 680;
   color: var(--desktop-ink);
 }
@@ -625,7 +607,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   color: var(--desktop-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.76rem;
+  font-size: 0.68rem;
   font-weight: 520;
 }
 
@@ -641,20 +623,20 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.56rem;
+  gap: 0.5rem;
 }
 
 .desktop-docs-sidebar__workspace-settings {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.42rem;
-  padding: 0 1rem;
+  min-height: 1.9rem;
+  padding: 0 0.72rem;
   border: 1px solid rgba(var(--desktop-accent-rgb), 0.16);
-  border-radius: 18px;
+  border-radius: 14px;
   background: rgba(var(--desktop-accent-rgb), 0.05);
   color: var(--desktop-accent);
-  font-size: 0.76rem;
+  font-size: 0.7rem;
   font-weight: 680;
   cursor: pointer;
   transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
@@ -742,7 +724,7 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 .desktop-docs-sidebar__scroll {
   min-height: 0;
   overflow-y: auto;
-  padding: 0.8rem 0.82rem 0.9rem;
+  padding: 0.54rem 0.72rem 0.78rem;
 }
 
 .desktop-docs-sidebar__nav {

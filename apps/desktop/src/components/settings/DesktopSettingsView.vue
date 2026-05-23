@@ -44,7 +44,7 @@ const emit = defineEmits<{
         </span>
         <div class="desktop-settings-view__title-copy">
           <h2 class="desktop-settings-view__title">应用设置</h2>
-          <p class="desktop-settings-view__summary">这里只保留系统级配置，不再承接文档仓库和文档源管理。</p>
+          <p class="desktop-settings-view__summary">这里只保留主题、更新、数据与日志等系统级配置。</p>
         </div>
       </div>
 
@@ -56,39 +56,47 @@ const emit = defineEmits<{
 
     <div class="desktop-settings-view__shell">
       <aside class="desktop-settings-view__nav">
+        <div class="desktop-settings-view__nav-copy">
+          <p class="desktop-settings-view__nav-kicker">System</p>
+          <h3>配置分组</h3>
+          <p>设置不会影响当前阅读位置，返回后会回到你上次停留的文档。</p>
+        </div>
+
         <DesktopSettingsNav :active-section="props.activeSection" @select="emit('selectSection', $event)" />
       </aside>
 
       <div class="desktop-settings-view__content desktop-scroll">
-        <DesktopAppearanceSettingsPanel
-          v-if="props.activeSection === 'appearance'"
-          :accent-id="props.accentId"
-          :accent-options="props.accentOptions"
-          :theme-mode="props.themeMode"
-          @update-accent="emit('updateAccent', $event)"
-          @update-theme-mode="emit('updateThemeMode', $event)"
-        />
+        <div class="desktop-settings-view__content-stage">
+          <DesktopAppearanceSettingsPanel
+            v-if="props.activeSection === 'appearance'"
+            :accent-id="props.accentId"
+            :accent-options="props.accentOptions"
+            :theme-mode="props.themeMode"
+            @update-accent="emit('updateAccent', $event)"
+            @update-theme-mode="emit('updateThemeMode', $event)"
+          />
 
-        <DesktopUpdatesSettingsPanel
-          v-else-if="props.activeSection === 'updates'"
-          :current-version="props.currentVersion"
-          :last-checked-at="props.lastCheckedAt"
-          :latest-release="props.latestRelease"
-          :update-message="props.updateMessage"
-          :update-status="props.updateStatus"
-          @check-updates="emit('checkUpdates')"
-          @install-update="emit('installUpdate')"
-          @open-latest-release="emit('openLatestRelease')"
-        />
+          <DesktopUpdatesSettingsPanel
+            v-else-if="props.activeSection === 'updates'"
+            :current-version="props.currentVersion"
+            :last-checked-at="props.lastCheckedAt"
+            :latest-release="props.latestRelease"
+            :update-message="props.updateMessage"
+            :update-status="props.updateStatus"
+            @check-updates="emit('checkUpdates')"
+            @install-update="emit('installUpdate')"
+            @open-latest-release="emit('openLatestRelease')"
+          />
 
-        <DesktopDataSettingsPanel
-          v-else
-          :action-message="props.actionMessage"
-          :busy-action="props.busyAction"
-          @export-logs="emit('exportLogs')"
-          @open-app-data-directory="emit('openAppDataDirectory')"
-          @open-logs-directory="emit('openLogsDirectory')"
-        />
+          <DesktopDataSettingsPanel
+            v-else
+            :action-message="props.actionMessage"
+            :busy-action="props.busyAction"
+            @export-logs="emit('exportLogs')"
+            @open-app-data-directory="emit('openAppDataDirectory')"
+            @open-logs-directory="emit('openLogsDirectory')"
+          />
+        </div>
       </div>
     </div>
   </section>
@@ -179,43 +187,74 @@ const emit = defineEmits<{
 
 .desktop-settings-view__shell {
   display: grid;
-  grid-template-columns: 212px minmax(0, 1fr);
-  gap: 0;
+  grid-template-columns: 224px minmax(0, 1fr);
+  gap: 0.9rem;
   min-height: 0;
   height: 100%;
-  border: 1px solid var(--desktop-line);
-  border-radius: 28px;
-  background:
-    radial-gradient(circle at top left, rgba(var(--desktop-accent-rgb), 0.06), transparent 24%),
-    var(--desktop-surface-strong);
-  box-shadow: var(--shadow-panel);
-  overflow: hidden;
 }
 
 .desktop-settings-view__nav {
+  display: grid;
+  align-content: start;
+  gap: 0.92rem;
   min-height: 0;
-  padding: 1rem 0.72rem;
-  border-right: 1px solid var(--desktop-line);
+  padding: 1rem 0.84rem;
+  border: 1px solid var(--desktop-line);
+  border-radius: 24px;
   background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.045), transparent 28%),
-    color-mix(in srgb, var(--desktop-surface) 93%, rgba(var(--desktop-accent-rgb), 0.03));
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.06), transparent 26%),
+    var(--desktop-surface);
+  box-shadow: var(--shadow-panel);
+}
+
+.desktop-settings-view__nav-copy {
+  display: grid;
+  gap: 0.22rem;
+  padding: 0.12rem 0.28rem 0;
+}
+
+.desktop-settings-view__nav-kicker {
+  margin: 0;
+  color: var(--desktop-soft);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.desktop-settings-view__nav-copy h3 {
+  margin: 0;
+  color: var(--desktop-ink);
+  font-size: 0.92rem;
+  font-weight: 680;
+}
+
+.desktop-settings-view__nav-copy p {
+  margin: 0;
+  color: var(--desktop-muted);
+  font-size: 0.73rem;
+  line-height: 1.55;
 }
 
 .desktop-settings-view__content {
-  display: grid;
-  align-content: start;
-  justify-items: stretch;
   min-height: 0;
   min-width: 0;
   overflow: auto;
-  padding: 1.08rem 1.16rem 1.2rem;
+  padding: 0;
+  border: 1px solid var(--desktop-line);
+  border-radius: 24px;
   background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.022), transparent 18%),
-    color-mix(in srgb, var(--desktop-surface) 94%, white 6%);
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.032), transparent 18%),
+    var(--desktop-surface);
+  box-shadow: var(--shadow-panel);
 }
 
-.desktop-settings-view__content > * {
+.desktop-settings-view__content-stage {
+  display: grid;
+  align-content: start;
   width: 100%;
+  min-height: 100%;
+  padding: 1.18rem 1.24rem 1.26rem;
 }
 
 @media (max-width: 1180px) {
@@ -224,9 +263,7 @@ const emit = defineEmits<{
   }
 
   .desktop-settings-view__nav {
-    padding: 0.8rem;
-    border-right: 0;
-    border-bottom: 1px solid var(--desktop-line);
+    padding: 0.84rem;
   }
 }
 </style>
