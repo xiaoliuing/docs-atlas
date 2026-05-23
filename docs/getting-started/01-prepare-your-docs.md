@@ -9,8 +9,6 @@
 - Latest Release: https://github.com/xiaoliuing/docs-atlas/releases/latest
 - Releases 页面: https://github.com/xiaoliuing/docs-atlas/releases
 
-当前最新版本是 `desktop-v0.31.10`，发布时间为 `2026-05-20`。
-
 当前可用安装包包括：
 
 - macOS Apple Silicon: `.dmg`
