@@ -349,9 +349,14 @@ function scrollToHighlight(element: HTMLElement) {
 }
 
 .doc-content__body :deep(table) {
+  display: table;
   width: 100%;
+  inline-size: 100%;
   min-width: 100%;
+  min-inline-size: 100%;
   max-width: 100%;
+  max-inline-size: 100%;
+  box-sizing: border-box;
   margin: 1rem 0;
   table-layout: fixed;
   border-collapse: separate;
@@ -364,8 +369,22 @@ function scrollToHighlight(element: HTMLElement) {
   line-height: 1.55;
 }
 
+.doc-content__body :deep(thead) {
+  display: table-header-group;
+}
+
+.doc-content__body :deep(tbody) {
+  display: table-row-group;
+}
+
+.doc-content__body :deep(tr) {
+  display: table-row;
+  width: 100%;
+}
+
 .doc-content__body :deep(th),
 .doc-content__body :deep(td) {
+  display: table-cell;
   padding: 0.62rem 0.78rem;
   border-right: 1px solid var(--desktop-line);
   border-bottom: 1px solid var(--desktop-line);
