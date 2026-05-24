@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
+import mermaid from 'mermaid'
 import type { DocDetail } from '@/types/docs'
 import { highlightSearchMatches } from '@/utils/search'
 import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
@@ -36,9 +37,10 @@ const previewIndex = shallowRef(0)
 const contentKey = computed(() => `${props.doc.slug}:${props.highlightQuery}`)
 
 watch(
-  () => [props.doc.slug, props.highlightQuery, props.shouldAutoScrollToHighlight] as const,
-  async ([, highlightQuery, shouldAutoScroll]) => {
+  () => [props.doc.slug, props.doc.html, props.highlightQuery, props.shouldAutoScrollToHighlight] as const,
+  async ([, , highlightQuery, shouldAutoScroll]) => {
     await nextTick()
+    await renderMermaidBlocks()
 
     const bodyElement = bodyRef.value
     if (!bodyElement || !highlightQuery.trim()) {
@@ -54,6 +56,54 @@ watch(
   },
   { immediate: true },
 )
+
+async function renderMermaidBlocks() {
+  const bodyElement = bodyRef.value
+  if (!bodyElement) {
+    return
+  }
+
+  const theme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'default'
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: 'strict',
+    theme,
+  })
+
+  const blocks = Array.from(bodyElement.querySelectorAll<HTMLPreElement>('pre.mermaid'))
+  await Promise.all(blocks.map((block, index) => renderMermaidBlock(block, index)))
+}
+
+async function renderMermaidBlock(block: HTMLPreElement, index: number) {
+  const source = block.textContent?.trim() ?? ''
+  if (!source) {
+    return
+  }
+
+  const id = `docs-atlas-mermaid-${sanitizeMermaidId(props.doc.slug)}-${index}`
+
+  try {
+    const { svg } = await mermaid.render(id, source)
+    const wrapper = document.createElement('div')
+    wrapper.className = 'doc-content__mermaid'
+    wrapper.innerHTML = svg
+    block.replaceWith(wrapper)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Mermaid 图表渲染失败'
+    const fallback = document.createElement('div')
+    fallback.className = 'doc-content__mermaid-error'
+    fallback.innerHTML = `<strong>Mermaid 图表渲染失败</strong><pre><code></code></pre>`
+    const code = fallback.querySelector('code')
+    if (code) {
+      code.textContent = `${message}\n\n${source}`
+    }
+    block.replaceWith(fallback)
+  }
+}
+
+function sanitizeMermaidId(value: string) {
+  return value.replace(/[^a-zA-Z0-9_-]/g, '-')
+}
 
 function closePreview() {
   previewImages.value = []
@@ -296,5 +346,85 @@ function scrollToHighlight(element: HTMLElement) {
 .doc-content__body :deep(mark.doc-search-mark--active) {
   background: rgba(var(--desktop-accent-rgb), 0.2);
   box-shadow: 0 0 0 1px rgba(var(--desktop-accent-rgb), 0.16);
+}
+
+.doc-content__body :deep(table) {
+  width: 100%;
+  min-width: 100%;
+  margin: 1rem 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid var(--desktop-line);
+  border-radius: 0.78rem;
+  background: var(--desktop-surface);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.doc-content__body :deep(th),
+.doc-content__body :deep(td) {
+  padding: 0.62rem 0.78rem;
+  border-right: 1px solid var(--desktop-line);
+  border-bottom: 1px solid var(--desktop-line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.doc-content__body :deep(th:last-child),
+.doc-content__body :deep(td:last-child) {
+  border-right: 0;
+}
+
+.doc-content__body :deep(tr:last-child td) {
+  border-bottom: 0;
+}
+
+.doc-content__body :deep(th) {
+  background: rgba(var(--desktop-accent-rgb), 0.07);
+  color: var(--desktop-ink);
+  font-weight: 650;
+}
+
+.doc-content__body :deep(tr:nth-child(even) td) {
+  background: rgba(var(--desktop-accent-rgb), 0.025);
+}
+
+.doc-content__body :deep(.doc-content__mermaid) {
+  width: 100%;
+  margin: 1rem 0;
+  padding: 1rem;
+  overflow-x: auto;
+  border: 1px solid var(--desktop-line);
+  border-radius: 0.85rem;
+  background: var(--desktop-surface);
+}
+
+.doc-content__body :deep(.doc-content__mermaid svg) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.doc-content__body :deep(.doc-content__mermaid-error) {
+  margin: 1rem 0;
+  padding: 0.9rem;
+  border: 1px solid rgba(220, 38, 38, 0.24);
+  border-radius: 0.85rem;
+  background: rgba(220, 38, 38, 0.06);
+  color: var(--desktop-ink);
+}
+
+.doc-content__body :deep(.doc-content__mermaid-error strong) {
+  display: block;
+  margin-bottom: 0.55rem;
+  color: #dc2626;
+  font-size: 0.84rem;
+}
+
+.doc-content__body :deep(.doc-content__mermaid-error pre) {
+  margin: 0;
+  white-space: pre-wrap;
 }
 </style>

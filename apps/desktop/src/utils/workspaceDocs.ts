@@ -324,6 +324,12 @@ function renderMarkdown(
   const markdown = new MarkdownIt({
     html: false,
     highlight(code, language) {
+      const languageName = language.trim().toLowerCase()
+
+      if (languageName === 'mermaid') {
+        return `<pre class="mermaid"><code class="language-mermaid">${escapeHtml(code)}</code></pre>`
+      }
+
       const normalizedLanguage = language && hljs.getLanguage(language) ? language : ''
       const highlighted = normalizedLanguage
         ? hljs.highlight(code, { language: normalizedLanguage, ignoreIllegals: true }).value
@@ -526,6 +532,14 @@ function rewriteImageSource(src: string, absolutePath: string, docsRoot: string)
   }
 
   return convertFileSrc(resolved)
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 }
 
 function splitUrlReference(value: string): {
