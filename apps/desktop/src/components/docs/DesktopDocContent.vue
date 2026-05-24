@@ -351,7 +351,9 @@ function scrollToHighlight(element: HTMLElement) {
 .doc-content__body :deep(table) {
   width: 100%;
   min-width: 100%;
+  max-width: 100%;
   margin: 1rem 0;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
   overflow: hidden;
@@ -369,6 +371,16 @@ function scrollToHighlight(element: HTMLElement) {
   border-bottom: 1px solid var(--desktop-line);
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.doc-content__body :deep(td code),
+.doc-content__body :deep(th code) {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .doc-content__body :deep(th:last-child),
