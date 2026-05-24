@@ -340,10 +340,12 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 
 .desktop-docs-sidebar__rail,
 .desktop-docs-sidebar__panel {
-  border: 1px solid var(--desktop-line);
+  border: 1px solid color-mix(in srgb, var(--desktop-line-strong) 58%, var(--desktop-line));
   border-radius: var(--desktop-radius-lg);
-  background: var(--desktop-surface);
-  box-shadow: var(--shadow-panel);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 22%),
+    var(--desktop-surface);
+  box-shadow: var(--desktop-card-shadow-soft);
 }
 
 .desktop-docs-sidebar__rail {
@@ -428,7 +430,8 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   padding: 0.62rem 0.74rem 0.6rem;
   border-bottom: 1px solid var(--desktop-line);
   background:
-    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.06), rgba(var(--desktop-accent-rgb), 0.015) 78%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 42%),
+    linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.075), rgba(var(--desktop-accent-rgb), 0.018) 78%),
     var(--desktop-surface);
 }
 
@@ -557,11 +560,13 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   width: 100%;
   min-height: 4.08rem;
   padding: 0.58rem 0.68rem;
-  border: 1px solid rgba(var(--desktop-accent-rgb), 0.12);
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.18);
   border-radius: 18px;
   background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 44%),
     linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.1), rgba(var(--desktop-accent-rgb), 0.035)),
     var(--desktop-surface-strong);
+  box-shadow: 0 8px 18px rgba(var(--desktop-shadow), 0.07);
   color: var(--desktop-ink);
   text-align: left;
   cursor: pointer;
@@ -569,8 +574,9 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 }
 
 .desktop-docs-sidebar__workspace-card:hover {
-  border-color: rgba(var(--desktop-accent-rgb), 0.18);
+  border-color: rgba(var(--desktop-accent-rgb), 0.28);
   background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.26), transparent 44%),
     linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.12), rgba(var(--desktop-accent-rgb), 0.05)),
     var(--desktop-surface-strong);
   transform: translateY(-1px);

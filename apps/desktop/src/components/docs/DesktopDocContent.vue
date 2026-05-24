@@ -252,9 +252,12 @@ function scrollToHighlight(element: HTMLElement) {
   display: grid;
   gap: 0.5rem;
   padding: 0.95rem 1rem;
-  border: 1px solid var(--desktop-line);
+  border: 1px solid color-mix(in srgb, var(--desktop-line-strong) 48%, var(--desktop-line));
   border-radius: var(--desktop-radius-lg);
-  background: var(--desktop-surface);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 42%),
+    var(--desktop-surface);
+  box-shadow: 0 8px 20px rgba(var(--desktop-shadow), 0.055);
 }
 
 .doc-content__header-top {
@@ -310,9 +313,12 @@ function scrollToHighlight(element: HTMLElement) {
 .doc-content__body-shell {
   min-width: 0;
   padding: 0.8rem 0.9rem;
-  border: 1px solid var(--desktop-line);
+  border: 1px solid color-mix(in srgb, var(--desktop-line-strong) 48%, var(--desktop-line));
   border-radius: var(--desktop-radius-lg);
-  background: var(--desktop-surface-strong);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 18%),
+    var(--desktop-surface-strong);
+  box-shadow: 0 12px 28px rgba(var(--desktop-shadow), 0.065);
 }
 
 .doc-content__body-shell[data-markdown-theme="github"] {
@@ -458,11 +464,24 @@ function scrollToHighlight(element: HTMLElement) {
 }
 
 .doc-content__body :deep(blockquote) {
-  padding: 0.76rem 0.9rem;
-  border-left: 4px solid rgba(var(--desktop-accent-rgb), 0.34);
-  border-radius: 0.7rem;
-  background: var(--markdown-quote-bg);
+  position: relative;
+  padding: 0.68rem 0.86rem 0.68rem 1rem;
+  border: 1px solid rgba(var(--desktop-accent-rgb), 0.12);
+  border-left: 3px solid rgba(var(--desktop-accent-rgb), 0.46);
+  border-radius: 0.82rem;
+  background:
+    linear-gradient(90deg, rgba(var(--desktop-accent-rgb), 0.07), transparent 72%),
+    var(--markdown-quote-bg);
   color: var(--desktop-muted);
+  line-height: 1.66;
+}
+
+.doc-content__body :deep(blockquote > :first-child) {
+  margin-top: 0;
+}
+
+.doc-content__body :deep(blockquote > :last-child) {
+  margin-bottom: 0;
 }
 
 .doc-content__body :deep(code) {

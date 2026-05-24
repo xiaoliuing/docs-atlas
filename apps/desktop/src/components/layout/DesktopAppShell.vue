@@ -1155,6 +1155,7 @@
   }
 
   .desktop-workbench {
+    position: relative;
     display: grid;
     grid-template-columns: 384px minmax(0, 1fr);
     gap: 0.96rem;
@@ -1162,12 +1163,35 @@
     padding: 0.92rem;
     overflow: hidden;
     background:
+      linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.22),
+        rgba(255, 255, 255, 0) 32%
+      ),
       radial-gradient(
         circle at top left,
-        rgba(var(--desktop-accent-rgb), 0.04),
-        transparent 22%
+        rgba(var(--desktop-accent-rgb), 0.06),
+        transparent 24%
       ),
       var(--desktop-app-bg, transparent);
+  }
+
+  .desktop-workbench::before {
+    content: "";
+    position: absolute;
+    inset: 0.64rem;
+    z-index: 0;
+    pointer-events: none;
+    border: 1px solid rgba(var(--desktop-accent-rgb), 0.06);
+    border-radius: 30px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 36%),
+      rgba(var(--desktop-accent-rgb), 0.018);
+  }
+
+  .desktop-workbench > * {
+    position: relative;
+    z-index: 1;
   }
 
   .desktop-workbench--settings {
@@ -1195,16 +1219,21 @@
   }
 
   .desktop-workbench__main--reader {
-    border: 1px solid rgba(var(--desktop-accent-rgb), 0.06);
+    border: 1px solid color-mix(in srgb, var(--desktop-line-strong) 70%, var(--desktop-line));
     border-radius: 26px;
     background:
       linear-gradient(
         180deg,
-        rgba(var(--desktop-accent-rgb), 0.025),
+        rgba(255, 255, 255, 0.22),
+        transparent 18%
+      ),
+      linear-gradient(
+        180deg,
+        rgba(var(--desktop-accent-rgb), 0.04),
         transparent 22%
       ),
       var(--desktop-surface);
-    box-shadow: var(--shadow-panel);
+    box-shadow: var(--desktop-card-shadow);
     padding: 1rem 1.08rem 1.08rem;
   }
 
@@ -1224,10 +1253,10 @@
 
   .desktop-workbench__toc {
     min-height: 0;
-    border: 1px solid var(--desktop-line);
+    border: 1px solid color-mix(in srgb, var(--desktop-line-strong) 54%, var(--desktop-line));
     border-radius: var(--desktop-radius-lg);
     background: var(--desktop-surface);
-    box-shadow: var(--shadow-panel);
+    box-shadow: var(--desktop-card-shadow-soft);
     overflow: hidden;
   }
 
