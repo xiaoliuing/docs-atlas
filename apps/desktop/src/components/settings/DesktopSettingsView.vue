@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import type { DesktopAccentId, DesktopAccentOption, DesktopThemeMode } from '@/composables/useDesktopPreferences'
+import type {
+  DesktopAccentId,
+  DesktopAccentOption,
+  DesktopMarkdownThemeId,
+  DesktopMarkdownThemeOption,
+  DesktopThemeMode,
+} from '@/composables/useDesktopPreferences'
 import type { DesktopLatestRelease, DesktopReleaseUpdateStatus } from '@/composables/useDesktopReleaseUpdates'
 import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
 import DesktopAppearanceSettingsPanel from '@/components/settings/DesktopAppearanceSettingsPanel.vue'
@@ -16,6 +22,8 @@ const props = defineProps<{
   currentVersion?: string
   lastCheckedAt?: string
   latestRelease: DesktopLatestRelease | null
+  markdownThemeId: DesktopMarkdownThemeId
+  markdownThemeOptions: DesktopMarkdownThemeOption[]
   themeMode: DesktopThemeMode
   updateMessage?: string
   updateStatus: DesktopReleaseUpdateStatus
@@ -31,6 +39,7 @@ const emit = defineEmits<{
   openLogsDirectory: []
   selectSection: [section: DesktopSettingsSection]
   updateAccent: [accentId: DesktopAccentId]
+  updateMarkdownTheme: [themeId: DesktopMarkdownThemeId]
   updateThemeMode: [themeMode: DesktopThemeMode]
 }>()
 </script>
@@ -71,8 +80,11 @@ const emit = defineEmits<{
             v-if="props.activeSection === 'appearance'"
             :accent-id="props.accentId"
             :accent-options="props.accentOptions"
+            :markdown-theme-id="props.markdownThemeId"
+            :markdown-theme-options="props.markdownThemeOptions"
             :theme-mode="props.themeMode"
             @update-accent="emit('updateAccent', $event)"
+            @update-markdown-theme="emit('updateMarkdownTheme', $event)"
             @update-theme-mode="emit('updateThemeMode', $event)"
           />
 

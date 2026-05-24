@@ -2,17 +2,22 @@
   import type {
     DesktopAccentId,
     DesktopAccentOption,
+    DesktopMarkdownThemeId,
+    DesktopMarkdownThemeOption,
     DesktopThemeMode,
   } from "@/composables/useDesktopPreferences";
 
   const props = defineProps<{
     accentId: DesktopAccentId;
     accentOptions: DesktopAccentOption[];
+    markdownThemeId: DesktopMarkdownThemeId;
+    markdownThemeOptions: DesktopMarkdownThemeOption[];
     themeMode: DesktopThemeMode;
   }>();
 
   const emit = defineEmits<{
     updateAccent: [accentId: DesktopAccentId];
+    updateMarkdownTheme: [themeId: DesktopMarkdownThemeId];
     updateThemeMode: [themeMode: DesktopThemeMode];
   }>();
 
@@ -74,6 +79,39 @@
             </span>
             <span class="desktop-settings-panel__row-state">
               {{ props.themeMode === option.value ? "已启用" : "切换" }}
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <section class="desktop-settings-panel__group desktop-settings-panel__group--wide">
+        <div class="desktop-settings-panel__group-head">
+          <h4>Markdown 阅读主题</h4>
+          <p>只影响正文里的标题、段落、表格、引用和代码块，不改变应用窗口主题。</p>
+        </div>
+
+        <div class="desktop-settings-panel__markdown-grid">
+          <button
+            v-for="option in props.markdownThemeOptions"
+            :key="option.id"
+            :class="[
+              'desktop-settings-panel__markdown-theme',
+              {
+                'desktop-settings-panel__markdown-theme--active':
+                  props.markdownThemeId === option.id,
+              },
+            ]"
+            type="button"
+            @click="emit('updateMarkdownTheme', option.id)"
+          >
+            <span class="desktop-settings-panel__markdown-preview" :data-preview-theme="option.id">
+              <span />
+              <span />
+              <span />
+            </span>
+            <span class="desktop-settings-panel__markdown-copy">
+              <strong>{{ option.label }}</strong>
+              <span>{{ option.description }}</span>
             </span>
           </button>
         </div>
@@ -205,6 +243,10 @@
     background: var(--desktop-surface);
   }
 
+  .desktop-settings-panel__group--wide {
+    grid-column: 1 / -1;
+  }
+
   .desktop-settings-panel__group-head {
     display: grid;
     gap: 0.2rem;
@@ -290,6 +332,97 @@
     gap: 0.55rem;
   }
 
+  .desktop-settings-panel__markdown-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.62rem;
+  }
+
+  .desktop-settings-panel__markdown-theme {
+    display: grid;
+    gap: 0.58rem;
+    padding: 0.72rem;
+    border: 1px solid var(--desktop-line);
+    border-radius: 15px;
+    background: var(--desktop-surface-strong);
+    text-align: left;
+    cursor: pointer;
+    transition:
+      border-color 0.18s ease,
+      background-color 0.18s ease,
+      transform 0.18s ease;
+  }
+
+  .desktop-settings-panel__markdown-theme:hover,
+  .desktop-settings-panel__markdown-theme--active {
+    border-color: rgba(var(--desktop-accent-rgb), 0.28);
+    background: rgba(var(--desktop-accent-rgb), 0.07);
+    transform: translateY(-1px);
+  }
+
+  .desktop-settings-panel__markdown-preview {
+    display: grid;
+    gap: 0.22rem;
+    min-height: 4.1rem;
+    padding: 0.56rem;
+    border: 1px solid var(--desktop-line);
+    border-radius: 12px;
+    background: var(--desktop-surface);
+  }
+
+  .desktop-settings-panel__markdown-preview span {
+    display: block;
+    border-radius: 999px;
+    background: var(--desktop-line-strong);
+  }
+
+  .desktop-settings-panel__markdown-preview span:first-child {
+    width: 54%;
+    height: 0.5rem;
+    background: var(--desktop-ink);
+  }
+
+  .desktop-settings-panel__markdown-preview span:nth-child(2) {
+    width: 88%;
+    height: 0.32rem;
+  }
+
+  .desktop-settings-panel__markdown-preview span:nth-child(3) {
+    width: 72%;
+    height: 0.32rem;
+  }
+
+  .desktop-settings-panel__markdown-preview[data-preview-theme="github"] {
+    border-radius: 8px;
+  }
+
+  .desktop-settings-panel__markdown-preview[data-preview-theme="compact"] {
+    gap: 0.14rem;
+    min-height: 3.45rem;
+  }
+
+  .desktop-settings-panel__markdown-preview[data-preview-theme="reading"] {
+    gap: 0.34rem;
+    padding: 0.72rem;
+  }
+
+  .desktop-settings-panel__markdown-copy {
+    display: grid;
+    gap: 0.16rem;
+  }
+
+  .desktop-settings-panel__markdown-copy strong {
+    color: var(--desktop-ink);
+    font-size: 0.8rem;
+    font-weight: 650;
+  }
+
+  .desktop-settings-panel__markdown-copy span {
+    color: var(--desktop-muted);
+    font-size: 0.72rem;
+    line-height: 1.45;
+  }
+
   .desktop-settings-panel__accent {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
@@ -337,6 +470,10 @@
 
     .desktop-settings-panel__accent-grid {
       grid-template-columns: 1fr;
+    }
+
+    .desktop-settings-panel__markdown-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 </style>

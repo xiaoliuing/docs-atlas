@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, useTemplateRef, watch } from 'vue'
+import type { DesktopMarkdownThemeId } from '@/composables/useDesktopPreferences'
 import type { DocDetail, DocMeta } from '@/types/docs'
 import DesktopDocContent from './DesktopDocContent.vue'
 import DesktopDocPager from './DesktopDocPager.vue'
@@ -9,12 +10,14 @@ const props = withDefaults(
     doc: DocDetail | null
     highlightQuery: string
     isFavorite?: boolean
+    markdownThemeId?: DesktopMarkdownThemeId
     nextDoc: DocMeta | null
     prevDoc: DocMeta | null
     restoreScrollTop?: number
   }>(),
   {
     isFavorite: false,
+    markdownThemeId: 'atlas',
     restoreScrollTop: 0,
   },
 )
@@ -72,6 +75,7 @@ function handleScroll(event: Event) {
         :doc="doc"
         :is-favorite="props.isFavorite"
         :highlight-query="highlightQuery"
+        :markdown-theme-id="props.markdownThemeId"
         @select-doc="emit('selectDoc', $event)"
         @toggle-favorite="emit('toggleFavorite')"
       />

@@ -4,6 +4,7 @@ import { syncWindowBackgroundColor } from '@/api/system'
 const STORAGE_KEY = 'docs-atlas.desktop.preferences.v1'
 
 export type DesktopThemeMode = 'system' | 'light' | 'dark'
+export type DesktopMarkdownThemeId = 'atlas' | 'github' | 'compact' | 'reading'
 export type DesktopAccentId =
   | 'pure-white'
   | 'slate-indigo'
@@ -23,9 +24,16 @@ export type DesktopAccentOption = {
   rgb: string
 }
 
+export type DesktopMarkdownThemeOption = {
+  id: DesktopMarkdownThemeId
+  label: string
+  description: string
+}
+
 type DesktopPreferences = {
   themeMode: DesktopThemeMode
   accentId: DesktopAccentId
+  markdownThemeId: DesktopMarkdownThemeId
 }
 
 const accentOptions: DesktopAccentOption[] = [
@@ -41,9 +49,17 @@ const accentOptions: DesktopAccentOption[] = [
   { id: 'dusty-rose', label: '雾玫瑰', hex: '#C05F7F', rgb: '192, 95, 127' },
 ]
 
+const markdownThemeOptions: DesktopMarkdownThemeOption[] = [
+  { id: 'atlas', label: 'Atlas 默认', description: '平衡型文档排版，适合教程和设计文档。' },
+  { id: 'github', label: 'GitHub', description: '接近 GitHub Markdown 的边界、表格和代码风格。' },
+  { id: 'compact', label: '紧凑', description: '更小字号和间距，适合高信息密度文档。' },
+  { id: 'reading', label: '长文阅读', description: '更宽松的行高和段落间距，适合长篇说明。' },
+]
+
 const defaultPreferences: DesktopPreferences = {
   themeMode: 'system',
   accentId: 'atlas-blue',
+  markdownThemeId: 'atlas',
 }
 
 const darkTitlebarColors: Record<DesktopAccentId, string> = {
@@ -89,11 +105,22 @@ export function useDesktopPreferences() {
     applyPreferences(preferences.value)
   }
 
+  function setMarkdownTheme(markdownThemeId: DesktopMarkdownThemeId) {
+    preferences.value = {
+      ...preferences.value,
+      markdownThemeId,
+    }
+    persistPreferences()
+    applyPreferences(preferences.value)
+  }
+
   return {
     accentOptions,
     currentAccent,
+    markdownThemeOptions,
     preferences,
     setAccent,
+    setMarkdownTheme,
     setThemeMode,
   }
 }
@@ -116,6 +143,9 @@ function ensurePreferencesLoaded() {
       preferences.value = {
         themeMode: isThemeMode(parsed.themeMode) ? parsed.themeMode : defaultPreferences.themeMode,
         accentId: isAccentId(parsed.accentId) ? parsed.accentId : defaultPreferences.accentId,
+        markdownThemeId: isMarkdownThemeId(parsed.markdownThemeId)
+          ? parsed.markdownThemeId
+          : defaultPreferences.markdownThemeId,
       }
     }
   } catch {
@@ -146,6 +176,7 @@ function applyPreferences(value: DesktopPreferences) {
   root.dataset.themeMode = value.themeMode
   root.dataset.theme = resolvedTheme
   root.dataset.themeAccent = accent.id
+  root.dataset.markdownTheme = value.markdownThemeId
   root.style.setProperty('color-scheme', resolvedTheme)
   root.style.setProperty('--desktop-titlebar-bg-runtime', resolveTitlebarColor(accent.id, resolvedTheme))
   root.style.setProperty('--desktop-scrollbar-thumb', resolveScrollbarThumb(accent.rgb, resolvedTheme))
@@ -161,6 +192,10 @@ function isThemeMode(value: unknown): value is DesktopThemeMode {
 
 function isAccentId(value: unknown): value is DesktopAccentId {
   return accentOptions.some((option) => option.id === value)
+}
+
+function isMarkdownThemeId(value: unknown): value is DesktopMarkdownThemeId {
+  return markdownThemeOptions.some((option) => option.id === value)
 }
 
 function bindSystemThemeListener() {

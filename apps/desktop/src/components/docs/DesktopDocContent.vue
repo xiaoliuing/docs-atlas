@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
 import mermaid from 'mermaid'
+import type { DesktopMarkdownThemeId } from '@/composables/useDesktopPreferences'
 import type { DocDetail } from '@/types/docs'
 import { highlightSearchMatches } from '@/utils/search'
 import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
@@ -11,11 +12,13 @@ const props = withDefaults(
     doc: DocDetail
     isFavorite?: boolean
     highlightQuery?: string
+    markdownThemeId?: DesktopMarkdownThemeId
     shouldAutoScrollToHighlight?: boolean
   }>(),
   {
     isFavorite: false,
     highlightQuery: '',
+    markdownThemeId: 'atlas',
     shouldAutoScrollToHighlight: true,
   },
 )
@@ -220,7 +223,7 @@ function scrollToHighlight(element: HTMLElement) {
       </h1>
     </header>
 
-    <div class="doc-content__body-shell">
+    <div class="doc-content__body-shell" :data-markdown-theme="props.markdownThemeId">
       <div
         :key="contentKey"
         ref="body"
@@ -291,10 +294,17 @@ function scrollToHighlight(element: HTMLElement) {
 }
 
 .doc-content__body {
+  --markdown-code-bg: rgba(var(--desktop-accent-rgb), 0.08);
+  --markdown-inline-code-bg: rgba(var(--desktop-accent-rgb), 0.09);
+  --markdown-quote-bg: rgba(var(--desktop-accent-rgb), 0.045);
+  --markdown-spacing: 1rem;
   min-width: 0;
   width: 100%;
   max-width: min(100%, 92ch);
   margin-inline: auto;
+  color: var(--desktop-ink);
+  font-size: 0.95rem;
+  line-height: 1.72;
 }
 
 .doc-content__body-shell {
@@ -303,6 +313,46 @@ function scrollToHighlight(element: HTMLElement) {
   border: 1px solid var(--desktop-line);
   border-radius: var(--desktop-radius-lg);
   background: var(--desktop-surface-strong);
+}
+
+.doc-content__body-shell[data-markdown-theme="github"] {
+  padding: 1rem;
+  background: var(--desktop-surface);
+}
+
+.doc-content__body-shell[data-markdown-theme="compact"] {
+  padding: 0.62rem 0.72rem;
+}
+
+.doc-content__body-shell[data-markdown-theme="reading"] {
+  padding: 1.1rem 1.2rem;
+}
+
+.doc-content__body-shell[data-markdown-theme="github"] .doc-content__body {
+  --markdown-code-bg: rgba(15, 23, 42, 0.055);
+  --markdown-inline-code-bg: rgba(15, 23, 42, 0.07);
+  --markdown-quote-bg: transparent;
+  --markdown-spacing: 0.92rem;
+  max-width: min(100%, 94ch);
+  font-size: 0.94rem;
+  line-height: 1.68;
+}
+
+.doc-content__body-shell[data-markdown-theme="compact"] .doc-content__body {
+  --markdown-spacing: 0.66rem;
+  max-width: min(100%, 108ch);
+  font-size: 0.86rem;
+  line-height: 1.56;
+}
+
+.doc-content__body-shell[data-markdown-theme="reading"] .doc-content__body {
+  --markdown-code-bg: rgba(var(--desktop-accent-rgb), 0.065);
+  --markdown-inline-code-bg: rgba(var(--desktop-accent-rgb), 0.08);
+  --markdown-quote-bg: rgba(var(--desktop-accent-rgb), 0.035);
+  --markdown-spacing: 1.22rem;
+  max-width: min(100%, 78ch);
+  font-size: 1rem;
+  line-height: 1.86;
 }
 
 .doc-content__source {
@@ -348,6 +398,116 @@ function scrollToHighlight(element: HTMLElement) {
   box-shadow: 0 0 0 1px rgba(var(--desktop-accent-rgb), 0.16);
 }
 
+.doc-content__body :deep(h1),
+.doc-content__body :deep(h2),
+.doc-content__body :deep(h3),
+.doc-content__body :deep(h4),
+.doc-content__body :deep(h5),
+.doc-content__body :deep(h6) {
+  margin: calc(var(--markdown-spacing) * 1.32) 0 calc(var(--markdown-spacing) * 0.54);
+  color: var(--desktop-ink);
+  line-height: 1.24;
+  letter-spacing: -0.018em;
+}
+
+.doc-content__body :deep(h1:first-child),
+.doc-content__body :deep(h2:first-child),
+.doc-content__body :deep(h3:first-child) {
+  margin-top: 0;
+}
+
+.doc-content__body :deep(h1) {
+  font-size: 1.64em;
+}
+
+.doc-content__body :deep(h2) {
+  padding-bottom: 0.34rem;
+  border-bottom: 1px solid var(--desktop-line);
+  font-size: 1.38em;
+}
+
+.doc-content__body :deep(h3) {
+  font-size: 1.16em;
+}
+
+.doc-content__body :deep(p),
+.doc-content__body :deep(ul),
+.doc-content__body :deep(ol),
+.doc-content__body :deep(blockquote),
+.doc-content__body :deep(pre) {
+  margin: var(--markdown-spacing) 0;
+}
+
+.doc-content__body :deep(ul),
+.doc-content__body :deep(ol) {
+  padding-left: 1.35rem;
+}
+
+.doc-content__body :deep(li + li) {
+  margin-top: 0.22rem;
+}
+
+.doc-content__body :deep(a) {
+  color: var(--desktop-accent);
+  text-decoration: none;
+  text-underline-offset: 0.18em;
+}
+
+.doc-content__body :deep(a:hover) {
+  text-decoration: underline;
+}
+
+.doc-content__body :deep(blockquote) {
+  padding: 0.76rem 0.9rem;
+  border-left: 4px solid rgba(var(--desktop-accent-rgb), 0.34);
+  border-radius: 0.7rem;
+  background: var(--markdown-quote-bg);
+  color: var(--desktop-muted);
+}
+
+.doc-content__body :deep(code) {
+  padding: 0.12em 0.34em;
+  border: 1px solid var(--desktop-line);
+  border-radius: 0.42rem;
+  background: var(--markdown-inline-code-bg);
+  color: var(--desktop-ink);
+  font-size: 0.9em;
+}
+
+.doc-content__body :deep(pre) {
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  border: 1px solid var(--desktop-line);
+  border-radius: 0.85rem;
+  background: var(--markdown-code-bg);
+  line-height: 1.58;
+}
+
+.doc-content__body :deep(pre code) {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 0.86rem;
+}
+
+.doc-content__body-shell[data-markdown-theme="github"] .doc-content__body :deep(h2) {
+  padding-bottom: 0.42rem;
+}
+
+.doc-content__body-shell[data-markdown-theme="compact"] .doc-content__body :deep(h2) {
+  padding-bottom: 0.24rem;
+}
+
+.doc-content__body-shell[data-markdown-theme="compact"] .doc-content__body :deep(pre) {
+  padding: 0.68rem 0.78rem;
+}
+
+.doc-content__body-shell[data-markdown-theme="reading"] .doc-content__body :deep(h2) {
+  margin-top: calc(var(--markdown-spacing) * 1.55);
+}
+
 .doc-content__body :deep(table) {
   display: table;
   width: 100%;
@@ -357,7 +517,7 @@ function scrollToHighlight(element: HTMLElement) {
   max-width: 100%;
   max-inline-size: 100%;
   box-sizing: border-box;
-  margin: 1rem 0;
+  margin: var(--markdown-spacing) 0;
   table-layout: auto;
   border-collapse: separate;
   border-spacing: 0;
@@ -365,7 +525,7 @@ function scrollToHighlight(element: HTMLElement) {
   border: 1px solid var(--desktop-line);
   border-radius: 0.78rem;
   background: var(--desktop-surface);
-  font-size: 0.9rem;
+  font-size: 0.94em;
   line-height: 1.55;
 }
 
@@ -400,6 +560,24 @@ function scrollToHighlight(element: HTMLElement) {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.doc-content__body-shell[data-markdown-theme="github"] .doc-content__body :deep(table) {
+  border-radius: 0.45rem;
+}
+
+.doc-content__body-shell[data-markdown-theme="github"] .doc-content__body :deep(th) {
+  background: rgba(15, 23, 42, 0.045);
+}
+
+.doc-content__body-shell[data-markdown-theme="compact"] .doc-content__body :deep(th),
+.doc-content__body-shell[data-markdown-theme="compact"] .doc-content__body :deep(td) {
+  padding: 0.44rem 0.58rem;
+}
+
+.doc-content__body-shell[data-markdown-theme="reading"] .doc-content__body :deep(th),
+.doc-content__body-shell[data-markdown-theme="reading"] .doc-content__body :deep(td) {
+  padding: 0.72rem 0.86rem;
 }
 
 .doc-content__body :deep(th:last-child),

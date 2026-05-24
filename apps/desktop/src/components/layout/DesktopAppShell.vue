@@ -114,7 +114,7 @@
     workspaces,
     workspaceSourceIds: currentWorkspaceSourceIds,
   });
-  const { accentOptions, preferences, setAccent, setThemeMode } =
+  const { accentOptions, markdownThemeOptions, preferences, setAccent, setMarkdownTheme, setThemeMode } =
     useDesktopPreferences();
   const { activeId, scrollToHeading } = useDesktopActiveHeadings(headings);
   const {
@@ -971,6 +971,7 @@
               :highlight-query="query"
               :next-doc="nextDoc"
               :prev-doc="prevDoc"
+              :markdown-theme-id="preferences.markdownThemeId"
               :restore-scroll-top="restoredScrollTop"
               @select-doc="handleSelectDoc"
               @scroll-top-change="handleDocScrollTopChange"
@@ -1013,6 +1014,8 @@
         :current-version="currentVersion"
         :last-checked-at="lastCheckedAt"
         :latest-release="latestRelease"
+        :markdown-theme-id="preferences.markdownThemeId"
+        :markdown-theme-options="markdownThemeOptions"
         :theme-mode="preferences.themeMode"
         :update-message="updateMessage"
         :update-status="updateStatus"
@@ -1025,6 +1028,7 @@
         @open-logs-directory="handleOpenLogsDirectory"
         @select-section="settingsSection = $event"
         @update-accent="setAccent"
+        @update-markdown-theme="setMarkdownTheme"
         @update-theme-mode="setThemeMode"
       />
     </div>
