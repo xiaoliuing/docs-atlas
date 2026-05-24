@@ -62,6 +62,7 @@ export type WorkspaceSourceDocumentSnapshot = {
   absolutePath: string
   relativePath: string
   markdown: string
+  updatedAt: string
 }
 
 export type WorkspaceSourceStatusState =

@@ -17,7 +17,9 @@ export type DocMeta = {
   routePath: string
   title: string
   sourcePath: string
+  absolutePath: string
   summary: string
+  updatedAt: string
   order: number
   prevSlug: string | null
   nextSlug: string | null

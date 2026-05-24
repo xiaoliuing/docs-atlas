@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import vue from '@vitejs/plugin-vue'
+import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import type { ResolvedDocsConfig } from '../web/scripts/docsConfig'
 import { createDocsDataPlugin } from '../web/scripts/docsData'
@@ -45,6 +46,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       vue(),
+      react(),
       createDocsDataPlugin({
         appBase: '/',
         docsConfig,

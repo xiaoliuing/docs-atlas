@@ -181,6 +181,7 @@ struct WorkspaceSourceDocumentPayload {
   absolute_path: String,
   relative_path: String,
   markdown: String,
+  updated_at: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -200,6 +201,14 @@ struct WorkspaceSourceStatusPayload {
 struct WorkspaceSourceScanPayload {
   documents: Vec<WorkspaceSourceDocumentPayload>,
   source_statuses: Vec<WorkspaceSourceStatusPayload>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MarkdownDocumentFilePayload {
+  absolute_path: String,
+  markdown: String,
+  updated_at: String,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -516,6 +525,37 @@ fn scan_workspace_sources(
   Ok(WorkspaceSourceScanPayload {
     documents,
     source_statuses,
+  })
+}
+
+#[tauri::command]
+fn read_markdown_document_file(absolute_path: String) -> Result<MarkdownDocumentFilePayload, String> {
+  let path = PathBuf::from(&absolute_path);
+  validate_markdown_document_path(&path)?;
+
+  let markdown = std::fs::read_to_string(&path).map_err(|error| error.to_string())?;
+  let updated_at = read_file_updated_at(&path)?;
+
+  Ok(MarkdownDocumentFilePayload {
+    absolute_path,
+    markdown,
+    updated_at,
+  })
+}
+
+#[tauri::command]
+fn write_markdown_document_file(absolute_path: String, markdown: String) -> Result<MarkdownDocumentFilePayload, String> {
+  let path = PathBuf::from(&absolute_path);
+  validate_markdown_document_path(&path)?;
+
+  std::fs::write(&path, markdown).map_err(|error| error.to_string())?;
+  let markdown = std::fs::read_to_string(&path).map_err(|error| error.to_string())?;
+  let updated_at = read_file_updated_at(&path)?;
+
+  Ok(MarkdownDocumentFilePayload {
+    absolute_path,
+    markdown,
+    updated_at,
   })
 }
 
@@ -1013,11 +1053,13 @@ fn main() {
       open_logs_directory,
       pick_folder_path,
       pick_folder_paths,
+      read_markdown_document_file,
       scan_workspace_sources,
       set_window_background_color,
       unwatch_workspace_sources,
       validate_source_path,
       watch_workspace_sources,
+      write_markdown_document_file,
       upsert_workspace
     ])
     .run(tauri::generate_context!())
@@ -1481,6 +1523,34 @@ fn normalize_existing_path(path: PathBuf) -> String {
     Ok(resolved) => resolved.to_string_lossy().to_string(),
     Err(_) => path.to_string_lossy().to_string(),
   }
+}
+
+fn validate_markdown_document_path(path: &Path) -> Result<(), String> {
+  if !path.exists() {
+    return Err("Markdown 文件不存在".to_string());
+  }
+
+  if !path.is_file() {
+    return Err("路径不是 Markdown 文件".to_string());
+  }
+
+  if !is_markdown_file(path) {
+    return Err("只支持编辑 .md 文件".to_string());
+  }
+
+  Ok(())
+}
+
+fn read_file_updated_at(path: &Path) -> Result<String, String> {
+  let modified_at = std::fs::metadata(path)
+    .map_err(|error| error.to_string())?
+    .modified()
+    .map_err(|error| error.to_string())?
+    .duration_since(std::time::UNIX_EPOCH)
+    .map_err(|error| error.to_string())?
+    .as_secs();
+
+  Ok(modified_at.to_string())
 }
 
 fn normalize_path(value: &str) -> String {
@@ -2003,6 +2073,7 @@ fn scan_single_source(
         absolute_path: document.absolute_path,
         relative_path: document.relative_path,
         markdown: document.markdown,
+        updated_at: document.updated_at,
       })
       .collect::<Vec<_>>();
 
@@ -2030,6 +2101,7 @@ fn scan_single_source(
         absolute_path: snapshot.absolute_path.to_string_lossy().to_string(),
         relative_path: snapshot.relative_path.clone(),
         markdown,
+        updated_at: snapshot.modified_at.to_string(),
       })
     })
     .collect::<Result<Vec<_>, String>>()?;

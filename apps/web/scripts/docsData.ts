@@ -25,7 +25,9 @@ type DocMeta = {
   routePath: string
   title: string
   sourcePath: string
+  absolutePath: string
   summary: string
+  updatedAt: string
   order: number
   prevSlug: string | null
   nextSlug: string | null
@@ -475,7 +477,9 @@ function buildRawDoc(absolutePath: string, docsSource: DocsSource, appBase: stri
     routePath,
     title,
     sourcePath: normalizePath(`${docsSource.sourceLabel}/${relativePath}`),
+    absolutePath,
     summary,
+    updatedAt: String(Math.floor(fs.statSync(absolutePath).mtimeMs / 1000)),
     html: parsed.html,
     headings: parsed.headings
       .filter((heading): heading is DocHeading => heading.level === 2 || heading.level === 3),
@@ -867,7 +871,9 @@ function toDocMeta(detail: DocDetail): DocMeta {
     routePath: detail.routePath,
     title: detail.title,
     sourcePath: detail.sourcePath,
+    absolutePath: detail.absolutePath,
     summary: detail.summary,
+    updatedAt: detail.updatedAt,
     order: detail.order,
     prevSlug: detail.prevSlug,
     nextSlug: detail.nextSlug,

@@ -780,6 +780,11 @@
     );
   }
 
+  function handleCurrentDocSaved() {
+    restoreCurrentDocScrollTop();
+    workspaceDocs.refresh();
+  }
+
   function persistCurrentDocScrollTop() {
     const workspaceId = currentWorkspaceId.value;
     const slug = selectedDocSlug.value;
@@ -974,6 +979,7 @@
               :markdown-theme-id="preferences.markdownThemeId"
               :restore-scroll-top="restoredScrollTop"
               @select-doc="handleSelectDoc"
+              @doc-saved="handleCurrentDocSaved"
               @scroll-top-change="handleDocScrollTopChange"
               @toggle-favorite="handleToggleCurrentDocFavorite"
             />
