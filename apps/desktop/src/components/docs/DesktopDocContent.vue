@@ -468,7 +468,7 @@ function scrollToHighlight(element: HTMLElement) {
   padding: 0.68rem 0.86rem 0.68rem 1rem;
   border: 1px solid rgba(var(--desktop-accent-rgb), 0.12);
   border-left: 3px solid rgba(var(--desktop-accent-rgb), 0.46);
-  border-radius: 0.82rem;
+  border-radius: 0 0.82rem 0.82rem 0;
   background:
     linear-gradient(90deg, rgba(var(--desktop-accent-rgb), 0.07), transparent 72%),
     var(--markdown-quote-bg);
