@@ -84,39 +84,6 @@
         </div>
       </section>
 
-      <section class="desktop-settings-panel__group desktop-settings-panel__group--wide">
-        <div class="desktop-settings-panel__group-head">
-          <h4>Markdown 阅读主题</h4>
-          <p>只影响正文里的标题、段落、表格、引用和代码块，不改变应用窗口主题。</p>
-        </div>
-
-        <div class="desktop-settings-panel__markdown-grid">
-          <button
-            v-for="option in props.markdownThemeOptions"
-            :key="option.id"
-            :class="[
-              'desktop-settings-panel__markdown-theme',
-              {
-                'desktop-settings-panel__markdown-theme--active':
-                  props.markdownThemeId === option.id,
-              },
-            ]"
-            type="button"
-            @click="emit('updateMarkdownTheme', option.id)"
-          >
-            <span class="desktop-settings-panel__markdown-preview" :data-preview-theme="option.id">
-              <span />
-              <span />
-              <span />
-            </span>
-            <span class="desktop-settings-panel__markdown-copy">
-              <strong>{{ option.label }}</strong>
-              <span>{{ option.description }}</span>
-            </span>
-          </button>
-        </div>
-      </section>
-
       <section class="desktop-settings-panel__group">
         <div class="desktop-settings-panel__group-head">
           <h4>主题色</h4>
@@ -143,6 +110,45 @@
             <span class="desktop-settings-panel__accent-copy">
               <strong>{{ option.label }}</strong>
               <span>{{ option.hex }}</span>
+            </span>
+          </button>
+        </div>
+      </section>
+      <section
+        class="desktop-settings-panel__group desktop-settings-panel__group--wide"
+      >
+        <div class="desktop-settings-panel__group-head">
+          <h4>Markdown 阅读主题</h4>
+          <p>
+            只影响正文里的标题、段落、表格、引用和代码块，不改变应用窗口主题。
+          </p>
+        </div>
+
+        <div class="desktop-settings-panel__markdown-grid">
+          <button
+            v-for="option in props.markdownThemeOptions"
+            :key="option.id"
+            :class="[
+              'desktop-settings-panel__markdown-theme',
+              {
+                'desktop-settings-panel__markdown-theme--active':
+                  props.markdownThemeId === option.id,
+              },
+            ]"
+            type="button"
+            @click="emit('updateMarkdownTheme', option.id)"
+          >
+            <span
+              class="desktop-settings-panel__markdown-preview"
+              :data-preview-theme="option.id"
+            >
+              <span />
+              <span />
+              <span />
+            </span>
+            <span class="desktop-settings-panel__markdown-copy">
+              <strong>{{ option.label }}</strong>
+              <span>{{ option.description }}</span>
             </span>
           </button>
         </div>
