@@ -358,7 +358,7 @@ function scrollToHighlight(element: HTMLElement) {
   max-inline-size: 100%;
   box-sizing: border-box;
   margin: 1rem 0;
-  table-layout: fixed;
+  table-layout: auto;
   border-collapse: separate;
   border-spacing: 0;
   overflow: hidden;
