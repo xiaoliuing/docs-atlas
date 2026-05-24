@@ -181,6 +181,7 @@ struct WorkspaceSourceDocumentPayload {
   absolute_path: String,
   relative_path: String,
   markdown: String,
+  #[serde(default)]
   updated_at: String,
 }
 
@@ -2068,12 +2069,16 @@ fn scan_single_source(
       .documents
       .into_iter()
       .map(|document| WorkspaceSourceDocumentPayload {
+        updated_at: if document.updated_at.is_empty() {
+          read_file_updated_at(&PathBuf::from(&document.absolute_path)).unwrap_or_else(|_| "0".to_string())
+        } else {
+          document.updated_at
+        },
         source_node_id: source.id.clone(),
         source_root: source.path.clone(),
         absolute_path: document.absolute_path,
         relative_path: document.relative_path,
         markdown: document.markdown,
-        updated_at: document.updated_at,
       })
       .collect::<Vec<_>>();
 
