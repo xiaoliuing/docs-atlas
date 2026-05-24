@@ -7,14 +7,12 @@
         "./src/*"
       ]
     },
-    "jsx": "react-jsx",
     "types": [
       "vite/client"
     ]
   },
   "include": [
     "src/**/*.ts",
-    "src/**/*.tsx",
     "src/**/*.vue"
   ]
 }

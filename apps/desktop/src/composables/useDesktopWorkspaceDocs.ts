@@ -122,9 +122,6 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
     searchIndex: computed(() => searchIndexRef.value),
     sourceGroups: computed(() => sourceGroupsRef.value),
     unhealthySourceCount: computed(() => sourceStatusesRef.value.filter((item) => item.state !== 'ready').length),
-    refresh: () => {
-      refreshVersion.value += 1
-    },
   }
 }
 
