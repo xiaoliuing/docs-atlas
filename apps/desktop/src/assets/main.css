@@ -409,10 +409,17 @@ body {
     radial-gradient(circle at 88% 8%, rgba(var(--desktop-accent-rgb), 0.1), transparent 20rem),
     linear-gradient(rgba(var(--desktop-accent-rgb), 0.035) 1px, transparent 1px),
     linear-gradient(90deg, rgba(var(--desktop-accent-rgb), 0.035) 1px, transparent 1px),
+    repeating-linear-gradient(
+      135deg,
+      rgba(var(--desktop-accent-rgb), 0.026) 0,
+      rgba(var(--desktop-accent-rgb), 0.026) 1px,
+      transparent 1px,
+      transparent 14px
+    ),
     linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 42%),
     radial-gradient(circle at bottom left, rgba(var(--desktop-accent-rgb), 0.07), transparent 24rem),
     var(--desktop-bg);
-  background-size: auto, auto, 28px 28px, 28px 28px, auto, auto, auto;
+  background-size: auto, auto, 28px 28px, 28px 28px, auto, auto, auto, auto;
   color: var(--desktop-ink);
   font-family: var(--desktop-font-sans);
   line-height: 1.5;
@@ -451,10 +458,17 @@ textarea::placeholder {
     radial-gradient(circle at 88% 8%, rgba(var(--desktop-accent-rgb), 0.13), transparent 20rem),
     linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    repeating-linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.018) 0,
+      rgba(255, 255, 255, 0.018) 1px,
+      transparent 1px,
+      transparent 14px
+    ),
     linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 46%),
     radial-gradient(circle at bottom left, rgba(var(--desktop-accent-rgb), 0.09), transparent 24rem),
     var(--desktop-bg);
-  background-size: auto, auto, 30px 30px, 30px 30px, auto, auto, auto;
+  background-size: auto, auto, 30px 30px, 30px 30px, auto, auto, auto, auto;
 }
 
 button {

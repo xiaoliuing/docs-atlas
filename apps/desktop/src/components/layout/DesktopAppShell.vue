@@ -1163,6 +1163,11 @@
     padding: 0.92rem;
     overflow: hidden;
     background:
+      radial-gradient(
+        ellipse at 50% -10%,
+        rgba(255, 255, 255, 0.3),
+        transparent 44%
+      ),
       linear-gradient(
         135deg,
         rgba(255, 255, 255, 0.22),
@@ -1182,11 +1187,70 @@
     inset: 0.64rem;
     z-index: 0;
     pointer-events: none;
-    border: 1px solid rgba(var(--desktop-accent-rgb), 0.06);
+    border: 1px solid rgba(var(--desktop-accent-rgb), 0.09);
     border-radius: 30px;
     background:
+      repeating-linear-gradient(
+        135deg,
+        rgba(var(--desktop-accent-rgb), 0.02) 0,
+        rgba(var(--desktop-accent-rgb), 0.02) 1px,
+        transparent 1px,
+        transparent 12px
+      ),
       linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 36%),
       rgba(var(--desktop-accent-rgb), 0.018);
+  }
+
+  .desktop-workbench::after {
+    content: "";
+    position: absolute;
+    inset: 0.9rem;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: 26px;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.42),
+      inset 0 0 0 1px rgba(var(--desktop-accent-rgb), 0.035);
+  }
+
+  :global(:root[data-theme='dark']) .desktop-workbench {
+    background:
+      radial-gradient(
+        ellipse at 50% -10%,
+        rgba(255, 255, 255, 0.055),
+        transparent 44%
+      ),
+      linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.055),
+        rgba(255, 255, 255, 0) 32%
+      ),
+      radial-gradient(
+        circle at top left,
+        rgba(var(--desktop-accent-rgb), 0.075),
+        transparent 24%
+      ),
+      var(--desktop-app-bg, transparent);
+  }
+
+  :global(:root[data-theme='dark']) .desktop-workbench::before {
+    border-color: rgba(var(--desktop-accent-rgb), 0.13);
+    background:
+      repeating-linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.018) 0,
+        rgba(255, 255, 255, 0.018) 1px,
+        transparent 1px,
+        transparent 12px
+      ),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent 36%),
+      rgba(var(--desktop-accent-rgb), 0.025);
+  }
+
+  :global(:root[data-theme='dark']) .desktop-workbench::after {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 0 0 1px rgba(var(--desktop-accent-rgb), 0.065);
   }
 
   .desktop-workbench > * {
