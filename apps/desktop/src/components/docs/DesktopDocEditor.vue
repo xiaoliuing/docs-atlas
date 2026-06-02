@@ -265,31 +265,31 @@
     position: relative;
     min-width: 0;
     padding: 0.52rem 0.6rem 0.68rem;
-  }
-
-  .desktop-doc-editor__editor :deep(.vditor) {
-    border: none !important;
+    border: 0 !important;
     border-radius: 0;
-    overflow: visible;
     background: transparent !important;
     box-shadow: none !important;
   }
 
-  .desktop-doc-editor__editor :deep(.vditor > div),
+  .desktop-doc-editor__editor.vditor {
+    overflow: visible;
+  }
+
+  .desktop-doc-editor__editor.vditor > :deep(div),
   .desktop-doc-editor__editor :deep(.vditor-content > div) {
     border: 0 !important;
     box-shadow: none !important;
   }
 
-  .desktop-doc-editor__editor--dirty :deep(.vditor) {
+  .desktop-doc-editor__editor--dirty {
     box-shadow: none !important;
   }
 
-  .desktop-doc-editor__editor--error :deep(.vditor) {
+  .desktop-doc-editor__editor--error {
     box-shadow: none !important;
   }
 
-  .desktop-doc-editor__editor--readonly :deep(.vditor) {
+  .desktop-doc-editor__editor--readonly {
     opacity: 0.76;
   }
 
