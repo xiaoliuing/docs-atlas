@@ -264,11 +264,41 @@
   .desktop-doc-editor__editor {
     position: relative;
     min-width: 0;
-    padding: 0.52rem 0.6rem 0.68rem;
+    padding: 0;
     border: 0 !important;
     border-radius: 0;
     background: transparent !important;
     box-shadow: none !important;
+    --border-color: color-mix(
+      in srgb,
+      var(--desktop-line-strong) 34%,
+      var(--desktop-line)
+    );
+    --second-color: rgba(var(--desktop-accent-rgb), 0.16);
+    --panel-background-color: var(--desktop-surface-strong);
+    --panel-shadow: none;
+    --toolbar-background-color: transparent;
+    --toolbar-icon-color: var(--desktop-muted);
+    --toolbar-icon-hover-color: var(--desktop-accent);
+    --textarea-background-color: transparent;
+    --textarea-text-color: var(--desktop-ink);
+    --resize-icon-color: var(--desktop-muted);
+    --resize-background-color: transparent;
+    --resize-hover-icon-color: var(--desktop-accent);
+    --resize-hover-background-color: rgba(var(--desktop-accent-rgb), 0.1);
+    --count-background-color: rgba(var(--desktop-accent-rgb), 0.08);
+    --heading-border-color: color-mix(
+      in srgb,
+      var(--desktop-line-strong) 30%,
+      var(--desktop-line)
+    );
+    --blockquote-color: var(--desktop-muted);
+    --ir-heading-color: var(--desktop-accent);
+    --ir-title-color: var(--desktop-soft);
+    --ir-bi-color: var(--desktop-accent);
+    --ir-link-color: var(--desktop-accent);
+    --ir-bracket-color: var(--desktop-accent);
+    --ir-paren-color: var(--desktop-muted);
   }
 
   .desktop-doc-editor__editor.vditor {
@@ -302,6 +332,10 @@
     font-family: var(--desktop-font-sans);
   }
 
+  .desktop-doc-editor__editor :deep(a) {
+    color: var(--desktop-accent);
+  }
+
   .desktop-doc-editor__editor :deep(.vditor-ir),
   .desktop-doc-editor__editor :deep(.vditor-sv),
   .desktop-doc-editor__editor :deep(.vditor-content) {
@@ -318,8 +352,16 @@
     color: var(--desktop-ink);
   }
 
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg) {
+    padding: 0 !important;
+  }
+
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg:focus) {
     outline: none;
+  }
+
+  .desktop-doc-editor__editor :deep(::selection) {
+    background: rgba(var(--desktop-accent-rgb), 0.18);
   }
 
   .desktop-doc-editor__editor[data-markdown-theme="github"]
