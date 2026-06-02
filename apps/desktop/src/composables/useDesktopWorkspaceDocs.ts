@@ -30,6 +30,7 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
   const error = shallowRef('')
   const refreshVersion = shallowRef(0)
   const suppressedWatchRefreshUntil = shallowRef(0)
+  const watchRefreshPaused = shallowRef(false)
   let activeTaskId = 0
 
   function refresh() {
@@ -38,6 +39,15 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
 
   function suppressWatchRefresh(durationMs = 1_800) {
     suppressedWatchRefreshUntil.value = Date.now() + durationMs
+  }
+
+  function pauseWatchRefresh() {
+    watchRefreshPaused.value = true
+  }
+
+  function resumeWatchRefresh() {
+    watchRefreshPaused.value = false
+    suppressedWatchRefreshUntil.value = 0
   }
 
   watch(
@@ -77,6 +87,10 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
       try {
         unlistenWatch = await listenWorkspaceSourceWatch((payload) => {
           if (payload.workspaceId !== workspace.id) {
+            return
+          }
+
+          if (watchRefreshPaused.value) {
             return
           }
 
@@ -135,7 +149,9 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
     searchIndex: computed(() => searchIndexRef.value),
     sourceGroups: computed(() => sourceGroupsRef.value),
     unhealthySourceCount: computed(() => sourceStatusesRef.value.filter((item) => item.state !== 'ready').length),
+    pauseWatchRefresh,
     refresh,
+    resumeWatchRefresh,
     suppressWatchRefresh,
   }
 }

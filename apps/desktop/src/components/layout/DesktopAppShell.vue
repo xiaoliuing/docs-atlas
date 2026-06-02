@@ -246,6 +246,7 @@
   });
 
   async function handleSelectWorkspace(workspaceId: string) {
+    workspaceDocs.resumeWatchRefresh();
     const restoredSlug = readingState.getSelectedDocForWorkspace(workspaceId);
 
     await selectWorkspace(workspaceId);
@@ -259,6 +260,7 @@
   }
 
   function handleSelectDoc(slug: string) {
+    workspaceDocs.resumeWatchRefresh();
     selectDoc(slug);
   }
 
@@ -403,7 +405,7 @@
     absolutePath: string,
     markdown: string,
   ) {
-    workspaceDocs.suppressWatchRefresh(15_000);
+    workspaceDocs.pauseWatchRefresh();
     await saveMarkdownDocument(absolutePath, markdown);
   }
 
