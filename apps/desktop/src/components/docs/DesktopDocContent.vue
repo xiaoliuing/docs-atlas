@@ -67,7 +67,7 @@ const emit = defineEmits<{
     linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 18%),
     var(--desktop-surface-strong);
   box-shadow: 0 12px 28px rgba(var(--desktop-shadow), 0.065);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .doc-content__panel[data-markdown-theme='github'] {
