@@ -710,35 +710,33 @@
 </script>
 
 <template>
-  <>
-    <div
-      ref="host"
-      class="desktop-doc-editor__editor"
-      :class="{
-        'desktop-doc-editor__editor--dirty': isDirty && !isSaving && !saveError,
-        'desktop-doc-editor__editor--error': !!saveError,
-        'desktop-doc-editor__editor--readonly': !hasEditableSource,
-      }"
-      :data-markdown-theme="props.markdownThemeId"
-      :title="
-        saveError ||
-        (!hasEditableSource
-          ? '当前文档不可编辑'
-          : isDirty
-            ? '已修改，按 Ctrl/Cmd + S 保存'
-            : '所见即所得编辑')
-      "
-      @click="handleEditorClick"
-    />
+  <div
+    ref="host"
+    class="desktop-doc-editor__editor"
+    :class="{
+      'desktop-doc-editor__editor--dirty': isDirty && !isSaving && !saveError,
+      'desktop-doc-editor__editor--error': !!saveError,
+      'desktop-doc-editor__editor--readonly': !hasEditableSource,
+    }"
+    :data-markdown-theme="props.markdownThemeId"
+    :title="
+      saveError ||
+      (!hasEditableSource
+        ? '当前文档不可编辑'
+        : isDirty
+          ? '已修改，按 Ctrl/Cmd + S 保存'
+          : '所见即所得编辑')
+    "
+    @click="handleEditorClick"
+  />
 
-    <DesktopDocImagePreview
-      v-if="activePreviewImageIndex >= 0"
-      :active-index="activePreviewImageIndex"
-      :images="previewImages"
-      @close="closePreviewImage"
-      @update:active-index="activePreviewImageIndex = $event"
-    />
-  </>
+  <DesktopDocImagePreview
+    v-if="activePreviewImageIndex >= 0"
+    :active-index="activePreviewImageIndex"
+    :images="previewImages"
+    @close="closePreviewImage"
+    @update:active-index="activePreviewImageIndex = $event"
+  />
 </template>
 
 <style scoped>
