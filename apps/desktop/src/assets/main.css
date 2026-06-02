@@ -383,6 +383,12 @@
   --desktop-line: rgba(140, 147, 160, 0.2);
   --desktop-line-strong: rgba(83, 129, 240, 0.3);
   --desktop-titlebar-bg: #2d3138;
+  --desktop-titlebar-line: rgba(255, 255, 255, 0.08);
+  --desktop-titlebar-control-bg: rgba(255, 255, 255, 0.12);
+  --desktop-titlebar-control-bg-hover: rgba(255, 255, 255, 0.2);
+  --desktop-titlebar-control-ink: rgba(255, 255, 255, 0.94);
+  --desktop-titlebar-control-ink-hover: #ffffff;
+  --desktop-titlebar-control-border: rgba(255, 255, 255, 0.08);
   --desktop-shadow: 4, 6, 10;
 }
 
