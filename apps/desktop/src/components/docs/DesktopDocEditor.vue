@@ -152,23 +152,48 @@
       return;
     }
 
-    themeObserver = new MutationObserver(() => {
-      syncTheme();
+    themeObserver = new MutationObserver((mutations) => {
+      let shouldSyncTheme = false;
+      let shouldApplyTheme = false;
+
+      for (const mutation of mutations) {
+        const attributeName = mutation.attributeName;
+        if (
+          attributeName === "data-theme" ||
+          attributeName === "data-theme-mode"
+        ) {
+          shouldSyncTheme = true;
+          shouldApplyTheme = true;
+          break;
+        }
+
+        if (attributeName === "data-theme-accent") {
+          shouldApplyTheme = true;
+        }
+      }
+
+      if (shouldSyncTheme) {
+        syncTheme();
+        return;
+      }
+
+      if (shouldApplyTheme) {
+        applyEditorTheme();
+      }
     });
 
     themeObserver.observe(document.documentElement, {
-      attributeFilter: ["data-theme", "data-theme-mode"],
+      attributeFilter: ["data-theme", "data-theme-mode", "data-theme-accent"],
       attributes: true,
     });
   }
 
   function syncTheme() {
     const nextTheme = resolveThemeName();
-    if (nextTheme === themeName.value) {
-      return;
+    if (nextTheme !== themeName.value) {
+      themeName.value = nextTheme;
     }
 
-    themeName.value = nextTheme;
     applyEditorTheme();
   }
 
