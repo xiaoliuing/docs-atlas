@@ -48,6 +48,7 @@ export default defineConfig(({ mode }) => {
       createDocsDataPlugin({
         appBase: '/',
         docsConfig,
+        enableHotReload: false,
       }),
     ],
     resolve: {

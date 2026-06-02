@@ -82,6 +82,7 @@ type DocsData = {
 type BuildContext = {
   appBase: string
   docsConfig: ResolvedDocsConfig
+  enableHotReload?: boolean
 }
 
 type HeadingMeta = {
@@ -121,7 +122,7 @@ const CONTENT_PREFIX = '/__docs/content/'
 const SEARCH_INDEX_PATH = '/__docs/search-index.json'
 const markdownExtensionPattern = /\.md$/i
 
-export function createDocsDataPlugin({ appBase, docsConfig }: BuildContext): Plugin {
+export function createDocsDataPlugin({ appBase, docsConfig, enableHotReload = true }: BuildContext): Plugin {
   let cachedData: DocsData | null = null
 
   const readData = () => {
@@ -173,6 +174,10 @@ export function createDocsDataPlugin({ appBase, docsConfig }: BuildContext): Plu
       server.middlewares.use(createDocsMiddleware(readData, appBase))
     },
     handleHotUpdate(context) {
+      if (!enableHotReload) {
+        return
+      }
+
       const isDocsFile = docsConfig.sources.some((source) => context.file.startsWith(source.root))
       if (!isDocsFile || !context.file.endsWith('.md')) {
         return
