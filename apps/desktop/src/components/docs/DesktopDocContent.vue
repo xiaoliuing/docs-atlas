@@ -67,8 +67,6 @@
 <style scoped>
   .doc-content {
     min-width: 0;
-    border-radius: var(--desktop-radius-lg);
-    overflow: hidden;
   }
 
   .doc-content__panel {
