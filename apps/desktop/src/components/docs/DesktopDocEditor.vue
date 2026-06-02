@@ -1045,6 +1045,7 @@
   }
 
   .desktop-doc-editor__editor :deep(table) {
+    display: table !important;
     width: 100%;
     table-layout: auto;
     border-collapse: separate;
@@ -1064,11 +1065,19 @@
 
   .desktop-doc-editor__editor :deep(th),
   .desktop-doc-editor__editor :deep(td) {
+    width: 1%;
     padding: 0.68rem 0.8rem;
     border: 1px solid var(--editor-code-border);
     vertical-align: top;
     background: transparent;
     background-color: transparent;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .desktop-doc-editor__editor :deep(thead),
+  .desktop-doc-editor__editor :deep(tbody) {
+    width: 100%;
   }
 
   .desktop-doc-editor__editor :deep(tbody tr) {
@@ -1079,6 +1088,11 @@
   .desktop-doc-editor__editor :deep(tbody tr:nth-child(even)) {
     background: var(--editor-table-zebra-bg);
     background-color: var(--editor-table-zebra-bg);
+  }
+
+  .desktop-doc-editor__editor :deep(tbody tr:nth-child(odd)) {
+    background: transparent;
+    background-color: transparent;
   }
 
   .desktop-doc-editor__editor :deep(.desktop-doc-editor__diagram-preview) {
@@ -1099,6 +1113,8 @@
       var(--panel-background-color) 82%,
       var(--editor-code-bg)
     ) !important;
+    text-align: -webkit-center;
+    text-align: center;
   }
 
   .desktop-doc-editor__editor :deep(.desktop-doc-editor__diagram-preview svg) {
