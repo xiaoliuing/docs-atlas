@@ -11,8 +11,15 @@
   import { convertFileSrc } from "@tauri-apps/api/core";
   import mermaid from "mermaid";
   import Vditor from "vditor";
+  import DesktopDocImagePreview from "./DesktopDocImagePreview.vue";
   import type { DesktopMarkdownThemeId } from "@/composables/useDesktopPreferences";
   import type { DocDetail } from "@/types/docs";
+
+  type PreviewImage = {
+    alt: string;
+    src: string;
+    title: string;
+  };
 
   const props = withDefaults(
     defineProps<{
@@ -34,6 +41,8 @@
   const draftMarkdown = shallowRef(props.doc.markdown ?? "");
   const savedMarkdown = shallowRef(props.doc.markdown ?? "");
   const themeName = shallowRef<"dark" | "classic">("classic");
+  const previewImages = shallowRef<PreviewImage[]>([]);
+  const activePreviewImageIndex = shallowRef(-1);
   let themeObserver: MutationObserver | null = null;
   let previewEnhancementTimer: number | null = null;
   let mermaidSequence = 0;
@@ -315,6 +324,7 @@
       rewritePreviewImages(host, absolutePath);
     }
 
+    collectPreviewImages(host);
     await renderMermaidPreviews(host);
   }
 
@@ -347,6 +357,24 @@
       if (nextSrc && nextSrc !== currentSrc) {
         image.setAttribute("src", nextSrc);
       }
+    }
+  }
+
+  function collectPreviewImages(root: HTMLElement) {
+    const nextImages = Array.from(root.querySelectorAll<HTMLImageElement>("img[src]")).map(
+      (image, index) => {
+        image.dataset.previewIndex = String(index);
+        return {
+          alt: image.getAttribute("alt")?.trim() ?? "",
+          src: image.getAttribute("src")?.trim() ?? "",
+          title: image.getAttribute("title")?.trim() ?? "",
+        };
+      },
+    );
+
+    previewImages.value = nextImages;
+    if (activePreviewImageIndex.value >= nextImages.length) {
+      activePreviewImageIndex.value = -1;
     }
   }
 
@@ -407,11 +435,35 @@
         const { svg, bindFunctions } = await mermaid.render(renderId, source);
         panel.innerHTML = svg;
         panel.dataset.render = "1";
+        panel.classList.add("desktop-doc-editor__diagram-preview");
         bindFunctions?.(panel);
       } catch {
         panel.dataset.render = "0";
       }
     }
+  }
+
+  function handleEditorClick(event: MouseEvent) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+
+    const image = target.closest("img[data-preview-index]") as HTMLImageElement | null;
+    if (!image) {
+      return;
+    }
+
+    const index = Number.parseInt(image.dataset.previewIndex ?? "-1", 10);
+    if (Number.isNaN(index) || index < 0) {
+      return;
+    }
+
+    activePreviewImageIndex.value = index;
+  }
+
+  function closePreviewImage() {
+    activePreviewImageIndex.value = -1;
   }
 
   function splitUrlReference(value: string) {
@@ -658,24 +710,35 @@
 </script>
 
 <template>
-  <div
-    ref="host"
-    class="desktop-doc-editor__editor"
-    :class="{
-      'desktop-doc-editor__editor--dirty': isDirty && !isSaving && !saveError,
-      'desktop-doc-editor__editor--error': !!saveError,
-      'desktop-doc-editor__editor--readonly': !hasEditableSource,
-    }"
-    :data-markdown-theme="props.markdownThemeId"
-    :title="
-      saveError ||
-      (!hasEditableSource
-        ? '当前文档不可编辑'
-        : isDirty
-          ? '已修改，按 Ctrl/Cmd + S 保存'
-          : '所见即所得编辑')
-    "
-  />
+  <>
+    <div
+      ref="host"
+      class="desktop-doc-editor__editor"
+      :class="{
+        'desktop-doc-editor__editor--dirty': isDirty && !isSaving && !saveError,
+        'desktop-doc-editor__editor--error': !!saveError,
+        'desktop-doc-editor__editor--readonly': !hasEditableSource,
+      }"
+      :data-markdown-theme="props.markdownThemeId"
+      :title="
+        saveError ||
+        (!hasEditableSource
+          ? '当前文档不可编辑'
+          : isDirty
+            ? '已修改，按 Ctrl/Cmd + S 保存'
+            : '所见即所得编辑')
+      "
+      @click="handleEditorClick"
+    />
+
+    <DesktopDocImagePreview
+      v-if="activePreviewImageIndex >= 0"
+      :active-index="activePreviewImageIndex"
+      :images="previewImages"
+      @close="closePreviewImage"
+      @update:active-index="activePreviewImageIndex = $event"
+    />
+  </>
 </template>
 
 <style scoped>
@@ -931,6 +994,9 @@
     max-width: 100%;
     height: auto;
     border-radius: 12px;
+    border: 1px solid color-mix(in srgb, var(--editor-code-border) 90%, transparent);
+    box-shadow: 0 12px 26px rgba(var(--desktop-shadow), 0.12);
+    cursor: zoom-in;
   }
 
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview svg) {
@@ -982,16 +1048,20 @@
 
   .desktop-doc-editor__editor :deep(table) {
     width: 100%;
-    border-collapse: collapse;
+    table-layout: auto;
+    border-collapse: separate;
+    border-spacing: 0;
     margin: 1rem 0;
     border: 1px solid var(--editor-code-border);
     border-radius: 12px;
     overflow: hidden;
     background: var(--panel-background-color);
+    background-color: var(--panel-background-color);
   }
 
   .desktop-doc-editor__editor :deep(thead tr) {
     background: var(--editor-table-head-bg);
+    background-color: var(--editor-table-head-bg);
   }
 
   .desktop-doc-editor__editor :deep(th),
@@ -999,10 +1069,42 @@
     padding: 0.68rem 0.8rem;
     border: 1px solid var(--editor-code-border);
     vertical-align: top;
+    background: transparent;
+    background-color: transparent;
+  }
+
+  .desktop-doc-editor__editor :deep(tbody tr) {
+    background: transparent;
+    background-color: transparent;
   }
 
   .desktop-doc-editor__editor :deep(tbody tr:nth-child(even)) {
     background: var(--editor-table-zebra-bg);
+    background-color: var(--editor-table-zebra-bg);
+  }
+
+  .desktop-doc-editor__editor :deep(.desktop-doc-editor__diagram-preview) {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 1rem 0;
+    padding: 1rem;
+    border: 1px solid var(--editor-code-border);
+    border-radius: 16px;
+    background: color-mix(
+      in srgb,
+      var(--panel-background-color) 82%,
+      var(--editor-code-bg)
+    ) !important;
+    background-color: color-mix(
+      in srgb,
+      var(--panel-background-color) 82%,
+      var(--editor-code-bg)
+    ) !important;
+  }
+
+  .desktop-doc-editor__editor :deep(.desktop-doc-editor__diagram-preview svg) {
+    margin-inline: auto;
   }
 
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg:focus) {
