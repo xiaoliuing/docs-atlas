@@ -342,7 +342,14 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
 .desktop-docs-sidebar__panel {
   border: 1px solid color-mix(in srgb, var(--desktop-line-strong) 68%, var(--desktop-line));
   border-radius: var(--desktop-radius-lg);
-  background: var(--desktop-surface);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(var(--desktop-accent-rgb), 0.09),
+      rgba(var(--desktop-accent-rgb), 0.03) 18%,
+      transparent 52%
+    ),
+    var(--desktop-surface);
   box-shadow: var(--desktop-card-shadow-soft);
 }
 
@@ -420,7 +427,14 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
   overflow: hidden;
-  background: var(--desktop-surface-strong);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(var(--desktop-accent-rgb), 0.11),
+      rgba(var(--desktop-accent-rgb), 0.04) 20%,
+      transparent 56%
+    ),
+    var(--desktop-surface-strong);
 }
 
 .desktop-docs-sidebar__header {
@@ -428,7 +442,14 @@ function findNodePathBySourceId(nodes: DocsSourceGroup[], sourceId: string): str
   gap: 0.42rem;
   padding: 0.62rem 0.74rem 0.6rem;
   border-bottom: 1px solid color-mix(in srgb, var(--desktop-line-strong) 62%, var(--desktop-line));
-  background: var(--desktop-surface-strong);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(var(--desktop-accent-rgb), 0.12),
+      rgba(var(--desktop-accent-rgb), 0.05) 62%,
+      rgba(var(--desktop-accent-rgb), 0.02)
+    ),
+    var(--desktop-surface-strong);
 }
 
 .desktop-docs-sidebar__header-copy {
