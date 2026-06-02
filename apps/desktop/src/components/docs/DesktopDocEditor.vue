@@ -240,32 +240,31 @@ const VDITOR_ZH_CN: Record<string, string> = {}
 .desktop-doc-editor__editor {
   position: relative;
   min-width: 0;
+  padding: 0.52rem 0.6rem 0.68rem;
 }
 
 .desktop-doc-editor__editor :deep(.vditor) {
-  border: 1px solid color-mix(in srgb, var(--desktop-line-strong) 46%, var(--desktop-line));
-  border-radius: 16px;
-  overflow: hidden;
-  background: var(--desktop-surface-strong);
-  box-shadow: 0 10px 22px rgba(var(--desktop-shadow), 0.05);
+  border: 0 !important;
+  border-radius: 0;
+  overflow: visible;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .desktop-doc-editor__editor--dirty :deep(.vditor) {
-  border-color: rgba(var(--desktop-accent-rgb), 0.34);
-  box-shadow:
-    0 0 0 1px rgba(var(--desktop-accent-rgb), 0.08),
-    0 12px 28px rgba(var(--desktop-shadow), 0.08);
+  box-shadow: none !important;
 }
 
 .desktop-doc-editor__editor--error :deep(.vditor) {
-  border-color: rgba(201, 77, 95, 0.42);
-  box-shadow:
-    0 0 0 1px rgba(201, 77, 95, 0.12),
-    0 12px 28px rgba(var(--desktop-shadow), 0.08);
+  box-shadow: none !important;
 }
 
 .desktop-doc-editor__editor--readonly :deep(.vditor) {
   opacity: 0.76;
+}
+
+.desktop-doc-editor__editor :deep(.vditor-toolbar) {
+  display: none !important;
 }
 
 .desktop-doc-editor__editor :deep(.vditor-reset) {
@@ -273,8 +272,11 @@ const VDITOR_ZH_CN: Record<string, string> = {}
   font-family: var(--desktop-font-sans);
 }
 
+.desktop-doc-editor__editor :deep(.vditor-ir),
+.desktop-doc-editor__editor :deep(.vditor-sv),
 .desktop-doc-editor__editor :deep(.vditor-content) {
-  background: var(--desktop-surface-strong);
+  border: 0 !important;
+  background: transparent !important;
 }
 
 .desktop-doc-editor__editor :deep(.vditor-ir pre.vditor-reset),
@@ -284,6 +286,10 @@ const VDITOR_ZH_CN: Record<string, string> = {}
   padding: 1rem 1.08rem 1.18rem !important;
   background: transparent;
   color: var(--desktop-ink);
+}
+
+.desktop-doc-editor__editor :deep(.vditor-wysiwyg:focus) {
+  outline: none;
 }
 
 .desktop-doc-editor__editor[data-markdown-theme='github'] :deep(.vditor-wysiwyg) {
