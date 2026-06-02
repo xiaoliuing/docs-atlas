@@ -644,9 +644,12 @@
 
   .desktop-doc-editor__editor :deep(.vditor-ir),
   .desktop-doc-editor__editor :deep(.vditor-sv),
-  .desktop-doc-editor__editor :deep(.vditor-content) {
+  .desktop-doc-editor__editor :deep(.vditor-content),
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg),
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview) {
     border: 0 !important;
     background: var(--panel-background-color) !important;
+    background-color: var(--panel-background-color) !important;
   }
 
   .desktop-doc-editor__editor :deep(.vditor-ir pre.vditor-reset),
@@ -665,7 +668,8 @@
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg pre.vditor-reset),
   .desktop-doc-editor__editor :deep(.vditor-ir pre.vditor-reset),
   .desktop-doc-editor__editor :deep(.vditor-ir .vditor-reset),
-  .desktop-doc-editor__editor :deep(.vditor-sv) {
+  .desktop-doc-editor__editor :deep(.vditor-sv),
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview) {
     background: var(--textarea-background-color) !important;
     background-color: var(--textarea-background-color) !important;
   }
@@ -679,7 +683,9 @@
 
   .desktop-doc-editor__editor
     :deep(.vditor-wysiwyg div.vditor-wysiwyg__block[data-type="code-block"]),
-  .desktop-doc-editor__editor :deep(.vditor-ir__node[data-type="code-block"]) {
+  .desktop-doc-editor__editor :deep(.vditor-ir__node[data-type="code-block"]),
+  .desktop-doc-editor__editor
+    :deep(.vditor-wysiwyg__block[data-type="code-block"] .vditor-wysiwyg__preview) {
     margin: 1rem 0;
     border: 1px solid var(--editor-code-border);
     border-radius: 14px;
@@ -697,7 +703,11 @@
     :deep(.vditor-wysiwyg div.vditor-wysiwyg__block pre),
   .desktop-doc-editor__editor
     :deep(.vditor-ir__node[data-type="code-block"] pre),
-  .desktop-doc-editor__editor :deep(pre.vditor-reset[data-type="code-block"]) {
+  .desktop-doc-editor__editor :deep(pre.vditor-reset[data-type="code-block"]),
+  .desktop-doc-editor__editor
+    :deep(.vditor-wysiwyg__block[data-type="code-block"] .vditor-wysiwyg__preview pre),
+  .desktop-doc-editor__editor
+    :deep(.vditor-wysiwyg__block[data-type="code-block"] .vditor-wysiwyg__preview .hljs) {
     margin: 0 !important;
     padding: 0 !important;
     border: 0 !important;
@@ -727,9 +737,18 @@
 
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg pre code),
   .desktop-doc-editor__editor :deep(.vditor-ir pre code),
-  .desktop-doc-editor__editor :deep(pre.vditor-reset code) {
+  .desktop-doc-editor__editor :deep(pre.vditor-reset code),
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview code),
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview .hljs) {
     color: var(--editor-code-text) !important;
     font-family: var(--desktop-font-mono);
+  }
+
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview .hljs),
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview pre),
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview pre code) {
+    background: var(--editor-code-bg) !important;
+    background-color: var(--editor-code-bg) !important;
   }
 
   .desktop-doc-editor__editor :deep(code[data-marker="`"]),
