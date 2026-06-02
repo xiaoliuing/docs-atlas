@@ -17,6 +17,7 @@ Docs Atlas 现在以桌面端为主，所以这组文档的阅读顺序也按桌
 - 桌面端去哪里下载
 - 第一次打开桌面端后该做什么
 - 怎样把不同目录的文档接进来
+- 如何在桌面端里直接修改 Markdown 并保存
 - 怎样组织 Markdown，才能获得更好的阅读体验
 - Web 端在这个项目里承担什么角色
 
@@ -27,13 +28,14 @@ Docs Atlas 现在以桌面端为主，所以这组文档的阅读顺序也按桌
 - Latest Release: https://github.com/xiaoliuing/docs-atlas/releases/latest
 - Releases 页面: https://github.com/xiaoliuing/docs-atlas/releases
 
-当前最新版本是 `desktop-v0.31.10`，发布时间为 `2026-05-20`。
+最新桌面端版本请以 Releases 页面为准。
 
 ## 建议的理解方式
 
 你可以把 Docs Atlas 理解成两层：
 
 - 桌面端负责长期使用、本地知识库管理和文档聚合
+- 桌面端也支持直接编辑正文并保存回本地 Markdown
 - Web 端负责预览、发布和只读分享
 
 如果你只是想开始用这个项目，优先从桌面端开始。

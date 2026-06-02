@@ -63,7 +63,8 @@ backend/
 2. 让 AI 生成一组 Markdown
 3. 人工筛选、修改和补充
 4. 放入某个文档仓库的文档源目录
-5. 用 Docs Atlas 聚合阅读
+5. 在 Docs Atlas 桌面端里继续编辑和修订正文
+6. 用 Docs Atlas 聚合阅读
 
 ## 图片和资源怎么处理
 
