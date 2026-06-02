@@ -220,21 +220,36 @@
     const rootStyles = window.getComputedStyle(document.documentElement);
     const palette = resolveEditorPalette(theme, props.markdownThemeId);
     const tokenEntries = [
-      ["--border-color", mixRootToken("--desktop-line-strong", "--desktop-line", 0.34)],
+      [
+        "--border-color",
+        mixRootToken("--desktop-line-strong", "--desktop-line", 0.34),
+      ],
       ["--second-color", "rgba(var(--desktop-accent-rgb), 0.18)"],
       ["--panel-background-color", palette.panelBackground],
       ["--panel-shadow", "none"],
       ["--toolbar-background-color", "transparent"],
       ["--toolbar-icon-color", readRootToken("--desktop-muted", rootStyles)],
-      ["--toolbar-icon-hover-color", readRootToken("--desktop-accent", rootStyles)],
+      [
+        "--toolbar-icon-hover-color",
+        readRootToken("--desktop-accent", rootStyles),
+      ],
       ["--textarea-background-color", palette.textareaBackground],
       ["--textarea-text-color", readRootToken("--desktop-ink", rootStyles)],
       ["--resize-icon-color", readRootToken("--desktop-muted", rootStyles)],
       ["--resize-background-color", "transparent"],
-      ["--resize-hover-icon-color", readRootToken("--desktop-accent", rootStyles)],
-      ["--resize-hover-background-color", rgbaRootToken("--desktop-accent-rgb", 0.1)],
+      [
+        "--resize-hover-icon-color",
+        readRootToken("--desktop-accent", rootStyles),
+      ],
+      [
+        "--resize-hover-background-color",
+        rgbaRootToken("--desktop-accent-rgb", 0.1),
+      ],
       ["--count-background-color", rgbaRootToken("--desktop-accent-rgb", 0.08)],
-      ["--heading-border-color", mixRootToken("--desktop-line-strong", "--desktop-line", 0.3)],
+      [
+        "--heading-border-color",
+        mixRootToken("--desktop-line-strong", "--desktop-line", 0.3),
+      ],
       ["--blockquote-color", readRootToken("--desktop-muted", rootStyles)],
       ["--ir-heading-color", readRootToken("--desktop-accent", rootStyles)],
       ["--ir-title-color", readRootToken("--desktop-soft", rootStyles)],
@@ -262,7 +277,8 @@
   }
 
   function readRootToken(name: string, rootStyles?: CSSStyleDeclaration) {
-    const styles = rootStyles ?? window.getComputedStyle(document.documentElement);
+    const styles =
+      rootStyles ?? window.getComputedStyle(document.documentElement);
     return styles.getPropertyValue(name).trim();
   }
 
@@ -296,15 +312,29 @@
         panelBackground: isDark ? fieldStrong : "#ffffff",
         textareaBackground: isDark ? surfaceStrong : "#ffffff",
         codeBackground: isDark ? "#161b22" : "#f6f8fa",
-        codeBorder: isDark ? "rgba(110, 118, 129, 0.32)" : "rgba(31, 35, 40, 0.10)",
+        codeBorder: isDark
+          ? "rgba(110, 118, 129, 0.32)"
+          : "rgba(31, 35, 40, 0.10)",
         codeText: isDark ? "#e6edf3" : "#24292f",
-        inlineCodeBackground: isDark ? "rgba(110, 118, 129, 0.18)" : "rgba(175, 184, 193, 0.2)",
+        inlineCodeBackground: isDark
+          ? "rgba(110, 118, 129, 0.18)"
+          : "rgba(175, 184, 193, 0.2)",
         inlineCodeColor: isDark ? "#ffb86b" : "#b42318",
-        quoteBackground: isDark ? "rgba(110, 118, 129, 0.1)" : "rgba(175, 184, 193, 0.12)",
-        tableHeadBackground: isDark ? "rgba(110, 118, 129, 0.14)" : "rgba(246, 248, 250, 0.96)",
-        tableZebraBackground: isDark ? "rgba(110, 118, 129, 0.06)" : "rgba(246, 248, 250, 0.72)",
-        mutedLine: isDark ? "rgba(110, 118, 129, 0.34)" : "rgba(31, 35, 40, 0.12)",
-        softFill: isDark ? "rgba(110, 118, 129, 0.1)" : "rgba(175, 184, 193, 0.12)",
+        quoteBackground: isDark
+          ? "rgba(110, 118, 129, 0.1)"
+          : "rgba(175, 184, 193, 0.12)",
+        tableHeadBackground: isDark
+          ? "rgba(110, 118, 129, 0.14)"
+          : "rgba(246, 248, 250, 0.96)",
+        tableZebraBackground: isDark
+          ? "rgba(110, 118, 129, 0.06)"
+          : "rgba(246, 248, 250, 0.72)",
+        mutedLine: isDark
+          ? "rgba(110, 118, 129, 0.34)"
+          : "rgba(31, 35, 40, 0.12)",
+        softFill: isDark
+          ? "rgba(110, 118, 129, 0.1)"
+          : "rgba(175, 184, 193, 0.12)",
       };
     }
 
@@ -313,19 +343,35 @@
         panelBackground: isDark
           ? `color-mix(in srgb, ${surfaceStrong} 92%, rgba(var(--desktop-accent-rgb), 0.08))`
           : `color-mix(in srgb, ${surfaceStrong} 94%, rgba(var(--desktop-accent-rgb), 0.05))`,
-        textareaBackground: isDark ? field : readRootToken("--desktop-field-bg-strong"),
+        textareaBackground: isDark
+          ? field
+          : readRootToken("--desktop-field-bg-strong"),
         codeBackground: isDark
           ? "color-mix(in srgb, rgba(11, 18, 32, 0.92) 86%, rgba(var(--desktop-accent-rgb), 0.12))"
           : "color-mix(in srgb, white 88%, rgba(var(--desktop-accent-rgb), 0.08))",
-        codeBorder: isDark ? "rgba(var(--desktop-accent-rgb), 0.18)" : "rgba(var(--desktop-accent-rgb), 0.12)",
+        codeBorder: isDark
+          ? "rgba(var(--desktop-accent-rgb), 0.18)"
+          : "rgba(var(--desktop-accent-rgb), 0.12)",
         codeText: isDark ? "#edf3ff" : "#1f2b3d",
-        inlineCodeBackground: isDark ? "rgba(var(--desktop-accent-rgb), 0.14)" : "rgba(var(--desktop-accent-rgb), 0.08)",
+        inlineCodeBackground: isDark
+          ? "rgba(var(--desktop-accent-rgb), 0.14)"
+          : "rgba(var(--desktop-accent-rgb), 0.08)",
         inlineCodeColor: readRootToken("--desktop-accent"),
-        quoteBackground: isDark ? "rgba(var(--desktop-accent-rgb), 0.09)" : "rgba(var(--desktop-accent-rgb), 0.05)",
-        tableHeadBackground: isDark ? "rgba(var(--desktop-accent-rgb), 0.12)" : "rgba(var(--desktop-accent-rgb), 0.06)",
-        tableZebraBackground: isDark ? "rgba(255, 255, 255, 0.03)" : "rgba(var(--desktop-accent-rgb), 0.025)",
-        mutedLine: isDark ? "rgba(var(--desktop-accent-rgb), 0.22)" : "rgba(var(--desktop-accent-rgb), 0.12)",
-        softFill: isDark ? "rgba(var(--desktop-accent-rgb), 0.1)" : "rgba(var(--desktop-accent-rgb), 0.06)",
+        quoteBackground: isDark
+          ? "rgba(var(--desktop-accent-rgb), 0.09)"
+          : "rgba(var(--desktop-accent-rgb), 0.05)",
+        tableHeadBackground: isDark
+          ? "rgba(var(--desktop-accent-rgb), 0.12)"
+          : "rgba(var(--desktop-accent-rgb), 0.06)",
+        tableZebraBackground: isDark
+          ? "rgba(255, 255, 255, 0.03)"
+          : "rgba(var(--desktop-accent-rgb), 0.025)",
+        mutedLine: isDark
+          ? "rgba(var(--desktop-accent-rgb), 0.22)"
+          : "rgba(var(--desktop-accent-rgb), 0.12)",
+        softFill: isDark
+          ? "rgba(var(--desktop-accent-rgb), 0.1)"
+          : "rgba(var(--desktop-accent-rgb), 0.06)",
       };
     }
 
@@ -340,15 +386,29 @@
         codeBackground: isDark
           ? "color-mix(in srgb, rgba(14, 22, 38, 0.94) 84%, rgba(var(--desktop-accent-rgb), 0.14))"
           : "color-mix(in srgb, #f7f5f1 90%, rgba(var(--desktop-accent-rgb), 0.06))",
-        codeBorder: isDark ? "rgba(var(--desktop-accent-rgb), 0.16)" : "rgba(99, 112, 138, 0.12)",
+        codeBorder: isDark
+          ? "rgba(var(--desktop-accent-rgb), 0.16)"
+          : "rgba(99, 112, 138, 0.12)",
         codeText: isDark ? "#f3f6fd" : "#243146",
-        inlineCodeBackground: isDark ? "rgba(var(--desktop-accent-rgb), 0.12)" : "rgba(99, 112, 138, 0.1)",
+        inlineCodeBackground: isDark
+          ? "rgba(var(--desktop-accent-rgb), 0.12)"
+          : "rgba(99, 112, 138, 0.1)",
         inlineCodeColor: isDark ? "#9ac2ff" : "#304d93",
-        quoteBackground: isDark ? "rgba(var(--desktop-accent-rgb), 0.08)" : "rgba(99, 112, 138, 0.06)",
-        tableHeadBackground: isDark ? "rgba(var(--desktop-accent-rgb), 0.11)" : "rgba(99, 112, 138, 0.06)",
-        tableZebraBackground: isDark ? "rgba(255, 255, 255, 0.028)" : "rgba(99, 112, 138, 0.028)",
-        mutedLine: isDark ? "rgba(var(--desktop-accent-rgb), 0.18)" : "rgba(99, 112, 138, 0.12)",
-        softFill: isDark ? "rgba(var(--desktop-accent-rgb), 0.1)" : "rgba(99, 112, 138, 0.05)",
+        quoteBackground: isDark
+          ? "rgba(var(--desktop-accent-rgb), 0.08)"
+          : "rgba(99, 112, 138, 0.06)",
+        tableHeadBackground: isDark
+          ? "rgba(var(--desktop-accent-rgb), 0.11)"
+          : "rgba(99, 112, 138, 0.06)",
+        tableZebraBackground: isDark
+          ? "rgba(255, 255, 255, 0.028)"
+          : "rgba(99, 112, 138, 0.028)",
+        mutedLine: isDark
+          ? "rgba(var(--desktop-accent-rgb), 0.18)"
+          : "rgba(99, 112, 138, 0.12)",
+        softFill: isDark
+          ? "rgba(var(--desktop-accent-rgb), 0.1)"
+          : "rgba(99, 112, 138, 0.05)",
       };
     }
 
@@ -362,15 +422,29 @@
       codeBackground: isDark
         ? "color-mix(in srgb, rgba(10, 18, 34, 0.94) 84%, rgba(var(--desktop-accent-rgb), 0.16))"
         : "color-mix(in srgb, white 86%, rgba(var(--desktop-accent-rgb), 0.08))",
-      codeBorder: isDark ? "rgba(var(--desktop-accent-rgb), 0.18)" : "rgba(var(--desktop-accent-rgb), 0.12)",
+      codeBorder: isDark
+        ? "rgba(var(--desktop-accent-rgb), 0.18)"
+        : "rgba(var(--desktop-accent-rgb), 0.12)",
       codeText: isDark ? "#f1f5ff" : "#22314a",
-      inlineCodeBackground: isDark ? "rgba(var(--desktop-accent-rgb), 0.14)" : "rgba(var(--desktop-accent-rgb), 0.08)",
+      inlineCodeBackground: isDark
+        ? "rgba(var(--desktop-accent-rgb), 0.14)"
+        : "rgba(var(--desktop-accent-rgb), 0.08)",
       inlineCodeColor: isDark ? "#9dc2ff" : readRootToken("--desktop-accent"),
-      quoteBackground: isDark ? "rgba(var(--desktop-accent-rgb), 0.08)" : "rgba(var(--desktop-accent-rgb), 0.05)",
-      tableHeadBackground: isDark ? "rgba(var(--desktop-accent-rgb), 0.12)" : "rgba(var(--desktop-accent-rgb), 0.05)",
-      tableZebraBackground: isDark ? "rgba(255, 255, 255, 0.026)" : "rgba(var(--desktop-accent-rgb), 0.024)",
-      mutedLine: isDark ? "rgba(var(--desktop-accent-rgb), 0.2)" : "rgba(var(--desktop-accent-rgb), 0.12)",
-      softFill: isDark ? "rgba(var(--desktop-accent-rgb), 0.11)" : "rgba(var(--desktop-accent-rgb), 0.06)",
+      quoteBackground: isDark
+        ? "rgba(var(--desktop-accent-rgb), 0.08)"
+        : "rgba(var(--desktop-accent-rgb), 0.05)",
+      tableHeadBackground: isDark
+        ? "rgba(var(--desktop-accent-rgb), 0.12)"
+        : "rgba(var(--desktop-accent-rgb), 0.05)",
+      tableZebraBackground: isDark
+        ? "rgba(255, 255, 255, 0.026)"
+        : "rgba(var(--desktop-accent-rgb), 0.024)",
+      mutedLine: isDark
+        ? "rgba(var(--desktop-accent-rgb), 0.2)"
+        : "rgba(var(--desktop-accent-rgb), 0.12)",
+      softFill: isDark
+        ? "rgba(var(--desktop-accent-rgb), 0.11)"
+        : "rgba(var(--desktop-accent-rgb), 0.06)",
     };
   }
 
@@ -532,15 +606,24 @@
     color: var(--desktop-ink);
   }
 
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg > .vditor-reset > h1:before),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg > .vditor-reset > h2:before),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg > .vditor-reset > h3:before),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg > .vditor-reset > h4:before),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg > .vditor-reset > h5:before),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg > .vditor-reset > h6:before),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg div.vditor-wysiwyg__block:before),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg div[data-type="link-ref-defs-block"]:before),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg div[data-type="footnotes-block"]:before),
+  .desktop-doc-editor__editor
+    :deep(.vditor-wysiwyg > .vditor-reset > h1:before),
+  .desktop-doc-editor__editor
+    :deep(.vditor-wysiwyg > .vditor-reset > h2:before),
+  .desktop-doc-editor__editor
+    :deep(.vditor-wysiwyg > .vditor-reset > h3:before),
+  .desktop-doc-editor__editor
+    :deep(.vditor-wysiwyg > .vditor-reset > h4:before),
+  .desktop-doc-editor__editor
+    :deep(.vditor-wysiwyg > .vditor-reset > h5:before),
+  .desktop-doc-editor__editor
+    :deep(.vditor-wysiwyg > .vditor-reset > h6:before),
+  .desktop-doc-editor__editor
+    :deep(.vditor-wysiwyg div.vditor-wysiwyg__block:before),
+  .desktop-doc-editor__editor
+    :deep(.vditor-wysiwyg div[data-type="link-ref-defs-block"]:before),
+  .desktop-doc-editor__editor
+    :deep(.vditor-wysiwyg div[data-type="footnotes-block"]:before),
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg .vditor-toc:before) {
     color: rgba(var(--desktop-accent-rgb), 0.42);
   }
@@ -550,10 +633,12 @@
   }
 
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg span[data-type="link-ref"]),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg sup[data-type="footnotes-ref"]),
+  .desktop-doc-editor__editor
+    :deep(.vditor-wysiwyg sup[data-type="footnotes-ref"]),
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg span[data-type="toc-h"]),
   .desktop-doc-editor__editor :deep(.vditor-ir__node[data-type="link-ref"]),
-  .desktop-doc-editor__editor :deep(.vditor-ir__node[data-type="footnotes-ref"]) {
+  .desktop-doc-editor__editor
+    :deep(.vditor-ir__node[data-type="footnotes-ref"]) {
     color: var(--desktop-accent) !important;
   }
 
@@ -589,18 +674,30 @@
       calc(var(--desktop-radius-lg) - 1px);
   }
 
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg div.vditor-wysiwyg__block[data-type="code-block"]),
+  .desktop-doc-editor__editor
+    :deep(.vditor-wysiwyg div.vditor-wysiwyg__block[data-type="code-block"]),
   .desktop-doc-editor__editor :deep(.vditor-ir__node[data-type="code-block"]) {
     margin: 1rem 0;
     border: 1px solid var(--editor-code-border);
     border-radius: 14px;
     background: var(--editor-code-bg) !important;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    overflow: hidden;
   }
 
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg div.vditor-wysiwyg__block pre),
-  .desktop-doc-editor__editor :deep(.vditor-ir__node[data-type="code-block"] pre),
+  .desktop-doc-editor__editor :deep(.vditor-reset pre > code) {
+    background-image: none !important;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.vditor-wysiwyg div.vditor-wysiwyg__block pre),
+  .desktop-doc-editor__editor
+    :deep(.vditor-ir__node[data-type="code-block"] pre),
   .desktop-doc-editor__editor :deep(pre.vditor-reset[data-type="code-block"]) {
+    margin: 0 !important;
+    padding: 0.95rem 1rem 1rem !important;
+    border: 0 !important;
+    border-radius: 0 !important;
     background: transparent !important;
     color: var(--editor-code-text) !important;
     font-family: var(--desktop-font-mono);
@@ -608,11 +705,37 @@
     line-height: 1.7;
   }
 
+  .desktop-doc-editor__editor
+    :deep(.vditor-wysiwyg div.vditor-wysiwyg__block[data-type="code-block"] pre:first-child),
+  .desktop-doc-editor__editor
+    :deep(.vditor-wysiwyg div.vditor-wysiwyg__block[data-type="code-block"] pre:last-child) {
+    margin: 0 !important;
+  }
+
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg pre code),
   .desktop-doc-editor__editor :deep(.vditor-ir pre code),
   .desktop-doc-editor__editor :deep(pre.vditor-reset code) {
     color: var(--editor-code-text) !important;
     font-family: var(--desktop-font-mono);
+  }
+
+  .desktop-doc-editor__editor
+    :deep(code[data-marker="`"]),
+  .desktop-doc-editor__editor
+    :deep(.vditor-reset p code[data-marker="`"]),
+  .desktop-doc-editor__editor
+    :deep(.vditor-reset li code[data-marker="`"]),
+  .desktop-doc-editor__editor
+    :deep(.vditor-reset td code[data-marker="`"]),
+  .desktop-doc-editor__editor
+    :deep(.vditor-reset blockquote code[data-marker="`"]) {
+    display: inline-block;
+    padding: 0.16rem 0.42rem !important;
+    border: 1px solid var(--editor-code-border);
+    border-radius: 8px;
+    background: var(--editor-inline-code-bg) !important;
+    color: var(--editor-inline-code-color) !important;
+    line-height: 1.35;
   }
 
   .desktop-doc-editor__editor :deep(.vditor-reset p code),
