@@ -341,11 +341,11 @@
     if (markdownThemeId === "compact") {
       return {
         panelBackground: isDark
-          ? `color-mix(in srgb, ${surfaceStrong} 92%, rgba(var(--desktop-accent-rgb), 0.08))`
-          : `color-mix(in srgb, ${surfaceStrong} 94%, rgba(var(--desktop-accent-rgb), 0.05))`,
+          ? `color-mix(in srgb, ${surfaceStrong} 84%, rgba(var(--desktop-accent-rgb), 0.16))`
+          : `color-mix(in srgb, ${surfaceStrong} 88%, rgba(var(--desktop-accent-rgb), 0.08))`,
         textareaBackground: isDark
-          ? field
-          : readRootToken("--desktop-field-bg-strong"),
+          ? `color-mix(in srgb, ${fieldStrong} 82%, rgba(var(--desktop-accent-rgb), 0.16))`
+          : `color-mix(in srgb, ${fieldStrong} 90%, rgba(var(--desktop-accent-rgb), 0.08))`,
         codeBackground: isDark
           ? "color-mix(in srgb, rgba(11, 18, 32, 0.92) 86%, rgba(var(--desktop-accent-rgb), 0.12))"
           : "color-mix(in srgb, white 88%, rgba(var(--desktop-accent-rgb), 0.08))",
@@ -378,11 +378,11 @@
     if (markdownThemeId === "reading") {
       return {
         panelBackground: isDark
-          ? `color-mix(in srgb, ${surfaceStrong} 88%, rgba(var(--desktop-accent-rgb), 0.1))`
-          : `color-mix(in srgb, ${surfaceStrong} 90%, rgba(var(--desktop-accent-rgb), 0.04))`,
+          ? `color-mix(in srgb, ${surfaceStrong} 82%, rgba(var(--desktop-accent-rgb), 0.14))`
+          : `color-mix(in srgb, ${surfaceStrong} 88%, rgba(var(--desktop-accent-rgb), 0.06))`,
         textareaBackground: isDark
-          ? `color-mix(in srgb, ${fieldStrong} 90%, rgba(var(--desktop-accent-rgb), 0.06))`
-          : `color-mix(in srgb, ${surface} 82%, white)`,
+          ? `color-mix(in srgb, ${fieldStrong} 82%, rgba(var(--desktop-accent-rgb), 0.14))`
+          : `color-mix(in srgb, ${surface} 86%, rgba(var(--desktop-accent-rgb), 0.05))`,
         codeBackground: isDark
           ? "color-mix(in srgb, rgba(14, 22, 38, 0.94) 84%, rgba(var(--desktop-accent-rgb), 0.14))"
           : "color-mix(in srgb, #f7f5f1 90%, rgba(var(--desktop-accent-rgb), 0.06))",
@@ -414,11 +414,11 @@
 
     return {
       panelBackground: isDark
-        ? `color-mix(in srgb, ${surfaceStrong} 90%, rgba(var(--desktop-accent-rgb), 0.08))`
-        : `color-mix(in srgb, ${surfaceStrong} 92%, rgba(var(--desktop-accent-rgb), 0.04))`,
+        ? `color-mix(in srgb, ${surfaceStrong} 84%, rgba(var(--desktop-accent-rgb), 0.14))`
+        : `color-mix(in srgb, ${surfaceStrong} 88%, rgba(var(--desktop-accent-rgb), 0.06))`,
       textareaBackground: isDark
-        ? `color-mix(in srgb, ${fieldStrong} 90%, rgba(var(--desktop-accent-rgb), 0.05))`
-        : readRootToken("--desktop-surface-strong"),
+        ? `color-mix(in srgb, ${fieldStrong} 82%, rgba(var(--desktop-accent-rgb), 0.14))`
+        : `color-mix(in srgb, ${readRootToken("--desktop-surface-strong")} 90%, rgba(var(--desktop-accent-rgb), 0.06))`,
       codeBackground: isDark
         ? "color-mix(in srgb, rgba(10, 18, 34, 0.94) 84%, rgba(var(--desktop-accent-rgb), 0.16))"
         : "color-mix(in srgb, white 86%, rgba(var(--desktop-accent-rgb), 0.08))",
@@ -663,13 +663,16 @@
   }
 
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg pre.vditor-reset),
+  .desktop-doc-editor__editor :deep(.vditor-ir pre.vditor-reset),
   .desktop-doc-editor__editor :deep(.vditor-ir .vditor-reset),
   .desktop-doc-editor__editor :deep(.vditor-sv) {
     background: var(--textarea-background-color) !important;
+    background-color: var(--textarea-background-color) !important;
   }
 
   .desktop-doc-editor__editor :deep(.vditor-reset) {
     background: var(--textarea-background-color) !important;
+    background-color: var(--textarea-background-color) !important;
     border-radius: 0 0 calc(var(--desktop-radius-lg) - 1px)
       calc(var(--desktop-radius-lg) - 1px);
   }
@@ -681,7 +684,8 @@
     border: 1px solid var(--editor-code-border);
     border-radius: 14px;
     background: var(--editor-code-bg) !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    background-color: var(--editor-code-bg) !important;
+    box-shadow: none;
     overflow: hidden;
   }
 
@@ -695,10 +699,11 @@
     :deep(.vditor-ir__node[data-type="code-block"] pre),
   .desktop-doc-editor__editor :deep(pre.vditor-reset[data-type="code-block"]) {
     margin: 0 !important;
-    padding: 0.95rem 1rem 1rem !important;
+    padding: 0 !important;
     border: 0 !important;
     border-radius: 0 !important;
-    background: transparent !important;
+    background: var(--editor-code-bg) !important;
+    background-color: var(--editor-code-bg) !important;
     color: var(--editor-code-text) !important;
     font-family: var(--desktop-font-mono);
     font-size: 0.86rem;
@@ -706,9 +711,17 @@
   }
 
   .desktop-doc-editor__editor
-    :deep(.vditor-wysiwyg div.vditor-wysiwyg__block[data-type="code-block"] pre:first-child),
+    :deep(
+      .vditor-wysiwyg
+        div.vditor-wysiwyg__block[data-type="code-block"]
+        pre:first-child
+    ),
   .desktop-doc-editor__editor
-    :deep(.vditor-wysiwyg div.vditor-wysiwyg__block[data-type="code-block"] pre:last-child) {
+    :deep(
+      .vditor-wysiwyg
+        div.vditor-wysiwyg__block[data-type="code-block"]
+        pre:last-child
+    ) {
     margin: 0 !important;
   }
 
@@ -719,14 +732,10 @@
     font-family: var(--desktop-font-mono);
   }
 
-  .desktop-doc-editor__editor
-    :deep(code[data-marker="`"]),
-  .desktop-doc-editor__editor
-    :deep(.vditor-reset p code[data-marker="`"]),
-  .desktop-doc-editor__editor
-    :deep(.vditor-reset li code[data-marker="`"]),
-  .desktop-doc-editor__editor
-    :deep(.vditor-reset td code[data-marker="`"]),
+  .desktop-doc-editor__editor :deep(code[data-marker="`"]),
+  .desktop-doc-editor__editor :deep(.vditor-reset p code[data-marker="`"]),
+  .desktop-doc-editor__editor :deep(.vditor-reset li code[data-marker="`"]),
+  .desktop-doc-editor__editor :deep(.vditor-reset td code[data-marker="`"]),
   .desktop-doc-editor__editor
     :deep(.vditor-reset blockquote code[data-marker="`"]) {
     display: inline-block;
