@@ -242,6 +242,16 @@
       ["--ir-link-color", readRootToken("--desktop-accent", rootStyles)],
       ["--ir-bracket-color", readRootToken("--desktop-accent", rootStyles)],
       ["--ir-paren-color", readRootToken("--desktop-muted", rootStyles)],
+      ["--editor-muted-line", palette.mutedLine],
+      ["--editor-soft-fill", palette.softFill],
+      ["--editor-code-bg", palette.codeBackground],
+      ["--editor-code-border", palette.codeBorder],
+      ["--editor-inline-code-bg", palette.inlineCodeBackground],
+      ["--editor-inline-code-color", palette.inlineCodeColor],
+      ["--editor-code-text", palette.codeText],
+      ["--editor-quote-bg", palette.quoteBackground],
+      ["--editor-table-head-bg", palette.tableHeadBackground],
+      ["--editor-table-zebra-bg", palette.tableZebraBackground],
     ] as const;
 
     for (const [name, value] of tokenEntries) {
@@ -285,6 +295,16 @@
       return {
         panelBackground: isDark ? fieldStrong : "#ffffff",
         textareaBackground: isDark ? surfaceStrong : "#ffffff",
+        codeBackground: isDark ? "#161b22" : "#f6f8fa",
+        codeBorder: isDark ? "rgba(110, 118, 129, 0.32)" : "rgba(31, 35, 40, 0.10)",
+        codeText: isDark ? "#e6edf3" : "#24292f",
+        inlineCodeBackground: isDark ? "rgba(110, 118, 129, 0.18)" : "rgba(175, 184, 193, 0.2)",
+        inlineCodeColor: isDark ? "#ffb86b" : "#b42318",
+        quoteBackground: isDark ? "rgba(110, 118, 129, 0.1)" : "rgba(175, 184, 193, 0.12)",
+        tableHeadBackground: isDark ? "rgba(110, 118, 129, 0.14)" : "rgba(246, 248, 250, 0.96)",
+        tableZebraBackground: isDark ? "rgba(110, 118, 129, 0.06)" : "rgba(246, 248, 250, 0.72)",
+        mutedLine: isDark ? "rgba(110, 118, 129, 0.34)" : "rgba(31, 35, 40, 0.12)",
+        softFill: isDark ? "rgba(110, 118, 129, 0.1)" : "rgba(175, 184, 193, 0.12)",
       };
     }
 
@@ -294,6 +314,18 @@
           ? `color-mix(in srgb, ${surfaceStrong} 92%, rgba(var(--desktop-accent-rgb), 0.08))`
           : `color-mix(in srgb, ${surfaceStrong} 94%, rgba(var(--desktop-accent-rgb), 0.05))`,
         textareaBackground: isDark ? field : readRootToken("--desktop-field-bg-strong"),
+        codeBackground: isDark
+          ? "color-mix(in srgb, rgba(11, 18, 32, 0.92) 86%, rgba(var(--desktop-accent-rgb), 0.12))"
+          : "color-mix(in srgb, white 88%, rgba(var(--desktop-accent-rgb), 0.08))",
+        codeBorder: isDark ? "rgba(var(--desktop-accent-rgb), 0.18)" : "rgba(var(--desktop-accent-rgb), 0.12)",
+        codeText: isDark ? "#edf3ff" : "#1f2b3d",
+        inlineCodeBackground: isDark ? "rgba(var(--desktop-accent-rgb), 0.14)" : "rgba(var(--desktop-accent-rgb), 0.08)",
+        inlineCodeColor: readRootToken("--desktop-accent"),
+        quoteBackground: isDark ? "rgba(var(--desktop-accent-rgb), 0.09)" : "rgba(var(--desktop-accent-rgb), 0.05)",
+        tableHeadBackground: isDark ? "rgba(var(--desktop-accent-rgb), 0.12)" : "rgba(var(--desktop-accent-rgb), 0.06)",
+        tableZebraBackground: isDark ? "rgba(255, 255, 255, 0.03)" : "rgba(var(--desktop-accent-rgb), 0.025)",
+        mutedLine: isDark ? "rgba(var(--desktop-accent-rgb), 0.22)" : "rgba(var(--desktop-accent-rgb), 0.12)",
+        softFill: isDark ? "rgba(var(--desktop-accent-rgb), 0.1)" : "rgba(var(--desktop-accent-rgb), 0.06)",
       };
     }
 
@@ -305,6 +337,18 @@
         textareaBackground: isDark
           ? `color-mix(in srgb, ${fieldStrong} 90%, rgba(var(--desktop-accent-rgb), 0.06))`
           : `color-mix(in srgb, ${surface} 82%, white)`,
+        codeBackground: isDark
+          ? "color-mix(in srgb, rgba(14, 22, 38, 0.94) 84%, rgba(var(--desktop-accent-rgb), 0.14))"
+          : "color-mix(in srgb, #f7f5f1 90%, rgba(var(--desktop-accent-rgb), 0.06))",
+        codeBorder: isDark ? "rgba(var(--desktop-accent-rgb), 0.16)" : "rgba(99, 112, 138, 0.12)",
+        codeText: isDark ? "#f3f6fd" : "#243146",
+        inlineCodeBackground: isDark ? "rgba(var(--desktop-accent-rgb), 0.12)" : "rgba(99, 112, 138, 0.1)",
+        inlineCodeColor: isDark ? "#9ac2ff" : "#304d93",
+        quoteBackground: isDark ? "rgba(var(--desktop-accent-rgb), 0.08)" : "rgba(99, 112, 138, 0.06)",
+        tableHeadBackground: isDark ? "rgba(var(--desktop-accent-rgb), 0.11)" : "rgba(99, 112, 138, 0.06)",
+        tableZebraBackground: isDark ? "rgba(255, 255, 255, 0.028)" : "rgba(99, 112, 138, 0.028)",
+        mutedLine: isDark ? "rgba(var(--desktop-accent-rgb), 0.18)" : "rgba(99, 112, 138, 0.12)",
+        softFill: isDark ? "rgba(var(--desktop-accent-rgb), 0.1)" : "rgba(99, 112, 138, 0.05)",
       };
     }
 
@@ -315,6 +359,18 @@
       textareaBackground: isDark
         ? `color-mix(in srgb, ${fieldStrong} 90%, rgba(var(--desktop-accent-rgb), 0.05))`
         : readRootToken("--desktop-surface-strong"),
+      codeBackground: isDark
+        ? "color-mix(in srgb, rgba(10, 18, 34, 0.94) 84%, rgba(var(--desktop-accent-rgb), 0.16))"
+        : "color-mix(in srgb, white 86%, rgba(var(--desktop-accent-rgb), 0.08))",
+      codeBorder: isDark ? "rgba(var(--desktop-accent-rgb), 0.18)" : "rgba(var(--desktop-accent-rgb), 0.12)",
+      codeText: isDark ? "#f1f5ff" : "#22314a",
+      inlineCodeBackground: isDark ? "rgba(var(--desktop-accent-rgb), 0.14)" : "rgba(var(--desktop-accent-rgb), 0.08)",
+      inlineCodeColor: isDark ? "#9dc2ff" : readRootToken("--desktop-accent"),
+      quoteBackground: isDark ? "rgba(var(--desktop-accent-rgb), 0.08)" : "rgba(var(--desktop-accent-rgb), 0.05)",
+      tableHeadBackground: isDark ? "rgba(var(--desktop-accent-rgb), 0.12)" : "rgba(var(--desktop-accent-rgb), 0.05)",
+      tableZebraBackground: isDark ? "rgba(255, 255, 255, 0.026)" : "rgba(var(--desktop-accent-rgb), 0.024)",
+      mutedLine: isDark ? "rgba(var(--desktop-accent-rgb), 0.2)" : "rgba(var(--desktop-accent-rgb), 0.12)",
+      softFill: isDark ? "rgba(var(--desktop-accent-rgb), 0.11)" : "rgba(var(--desktop-accent-rgb), 0.06)",
     };
   }
 
@@ -462,6 +518,14 @@
     font-family: var(--desktop-font-sans);
   }
 
+  .desktop-doc-editor__editor :deep(.vditor-reset p),
+  .desktop-doc-editor__editor :deep(.vditor-reset li),
+  .desktop-doc-editor__editor :deep(.vditor-reset blockquote),
+  .desktop-doc-editor__editor :deep(.vditor-reset td),
+  .desktop-doc-editor__editor :deep(.vditor-reset th) {
+    color: var(--desktop-ink);
+  }
+
   .desktop-doc-editor__editor :deep(.vditor-reset h1),
   .desktop-doc-editor__editor :deep(.vditor-reset h2),
   .desktop-doc-editor__editor :deep(.vditor-reset h3) {
@@ -519,16 +583,89 @@
     background: var(--textarea-background-color) !important;
   }
 
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg div.vditor-wysiwyg__block[data-type="code-block"]),
+  .desktop-doc-editor__editor :deep(.vditor-ir__node[data-type="code-block"]) {
+    margin: 1rem 0;
+    border: 1px solid var(--editor-code-border);
+    border-radius: 14px;
+    background: var(--editor-code-bg) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg div.vditor-wysiwyg__block pre),
+  .desktop-doc-editor__editor :deep(.vditor-ir__node[data-type="code-block"] pre),
+  .desktop-doc-editor__editor :deep(pre.vditor-reset[data-type="code-block"]) {
+    background: transparent !important;
+    color: var(--editor-code-text) !important;
+    font-family: var(--desktop-font-mono);
+    font-size: 0.86rem;
+    line-height: 1.7;
+  }
+
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg pre code),
+  .desktop-doc-editor__editor :deep(.vditor-ir pre code),
+  .desktop-doc-editor__editor :deep(pre.vditor-reset code) {
+    color: var(--editor-code-text) !important;
+    font-family: var(--desktop-font-mono);
+  }
+
+  .desktop-doc-editor__editor :deep(.vditor-reset p code),
+  .desktop-doc-editor__editor :deep(.vditor-reset li code),
+  .desktop-doc-editor__editor :deep(.vditor-reset td code),
+  .desktop-doc-editor__editor :deep(.vditor-reset blockquote code) {
+    padding: 0.16rem 0.42rem;
+    border: 1px solid var(--editor-code-border);
+    border-radius: 8px;
+    background: var(--editor-inline-code-bg);
+    color: var(--editor-inline-code-color);
+    font-family: var(--desktop-font-mono);
+    font-size: 0.86em;
+  }
+
+  .desktop-doc-editor__editor :deep(blockquote) {
+    margin: 1rem 0;
+    padding: 0.9rem 1rem;
+    border-left: 3px solid rgba(var(--desktop-accent-rgb), 0.34);
+    border-radius: 0 14px 14px 0;
+    background: var(--editor-quote-bg);
+  }
+
+  .desktop-doc-editor__editor :deep(hr) {
+    border: 0;
+    border-top: 1px solid var(--editor-muted-line);
+  }
+
+  .desktop-doc-editor__editor :deep(table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    border: 1px solid var(--editor-code-border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--panel-background-color);
+  }
+
+  .desktop-doc-editor__editor :deep(thead tr) {
+    background: var(--editor-table-head-bg);
+  }
+
+  .desktop-doc-editor__editor :deep(th),
+  .desktop-doc-editor__editor :deep(td) {
+    padding: 0.68rem 0.8rem;
+    border: 1px solid var(--editor-code-border);
+    vertical-align: top;
+  }
+
+  .desktop-doc-editor__editor :deep(tbody tr:nth-child(even)) {
+    background: var(--editor-table-zebra-bg);
+  }
+
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg:focus) {
     outline: none;
   }
 
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg pre.vditor-reset) {
     caret-color: var(--desktop-accent);
-  }
-
-  .desktop-doc-editor__editor :deep(blockquote) {
-    border-left-color: rgba(var(--desktop-accent-rgb), 0.34);
   }
 
   .desktop-doc-editor__editor :deep(::selection) {
