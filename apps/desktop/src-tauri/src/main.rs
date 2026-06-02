@@ -520,6 +520,42 @@ fn scan_workspace_sources(
 }
 
 #[tauri::command]
+fn save_markdown_document(app: AppHandle, path: String, markdown: String) -> Result<bool, String> {
+  let trimmed_path = path.trim();
+  if trimmed_path.is_empty() {
+    return Err("文档路径不能为空".to_string());
+  }
+
+  let markdown_path = PathBuf::from(trimmed_path);
+  if !markdown_path.exists() {
+    return Err("目标文档不存在".to_string());
+  }
+
+  let metadata = std::fs::metadata(&markdown_path).map_err(|error| error.to_string())?;
+  if !metadata.is_file() {
+    return Err("目标路径不是文件".to_string());
+  }
+
+  let is_markdown = markdown_path
+    .extension()
+    .and_then(|extension| extension.to_str())
+    .map(|extension| extension.eq_ignore_ascii_case("md"))
+    .unwrap_or(false);
+  if !is_markdown {
+    return Err("仅支持保存 Markdown 文档".to_string());
+  }
+
+  std::fs::write(&markdown_path, markdown).map_err(|error| error.to_string())?;
+  record_app_info(
+    &app,
+    "workspace.document.save",
+    &format!("path={}", markdown_path.to_string_lossy()),
+  );
+
+  Ok(true)
+}
+
+#[tauri::command]
 fn get_default_docs_path(app: AppHandle) -> Result<String, String> {
   Ok(resolve_default_docs_path(&app))
 }
@@ -1013,6 +1049,7 @@ fn main() {
       open_logs_directory,
       pick_folder_path,
       pick_folder_paths,
+      save_markdown_document,
       scan_workspace_sources,
       set_window_background_color,
       unwatch_workspace_sources,

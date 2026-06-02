@@ -31,6 +31,10 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
   const refreshVersion = shallowRef(0)
   let activeTaskId = 0
 
+  function refresh() {
+    refreshVersion.value += 1
+  }
+
   watch(
     () => [createWorkspaceFingerprint(toValue(options.workspace)), refreshVersion.value] as const,
     async (_, __, onCleanup) => {
@@ -122,6 +126,7 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
     searchIndex: computed(() => searchIndexRef.value),
     sourceGroups: computed(() => sourceGroupsRef.value),
     unhealthySourceCount: computed(() => sourceStatusesRef.value.filter((item) => item.state !== 'ready').length),
+    refresh,
   }
 }
 

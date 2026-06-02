@@ -12,6 +12,9 @@
   import type { WorkspaceSourceNode } from "@docs-atlas/shared-types/workspace";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import {
+    saveMarkdownDocument,
+  } from "@/api/documents";
+  import {
     exportLogsFile,
     listenDesktopMenuActions,
     openAppDataDirectory,
@@ -394,6 +397,14 @@
       currentWorkspaceId.value,
       selectedDocSlug.value,
     );
+  }
+
+  async function handleSaveCurrentDoc(
+    absolutePath: string,
+    markdown: string,
+  ) {
+    await saveMarkdownDocument(absolutePath, markdown);
+    workspaceDocs.refresh();
   }
 
   function closeFloatingPanels() {
@@ -973,6 +984,7 @@
               :prev-doc="prevDoc"
               :markdown-theme-id="preferences.markdownThemeId"
               :restore-scroll-top="restoredScrollTop"
+              :save-doc="handleSaveCurrentDoc"
               @select-doc="handleSelectDoc"
               @scroll-top-change="handleDocScrollTopChange"
               @toggle-favorite="handleToggleCurrentDocFavorite"

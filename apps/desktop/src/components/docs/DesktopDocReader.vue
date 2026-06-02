@@ -14,6 +14,7 @@ const props = withDefaults(
     nextDoc: DocMeta | null
     prevDoc: DocMeta | null
     restoreScrollTop?: number
+    saveDoc: (absolutePath: string, markdown: string) => Promise<void>
   }>(),
   {
     isFavorite: false,
@@ -76,7 +77,7 @@ function handleScroll(event: Event) {
         :is-favorite="props.isFavorite"
         :highlight-query="highlightQuery"
         :markdown-theme-id="props.markdownThemeId"
-        @select-doc="emit('selectDoc', $event)"
+        :save-doc="props.saveDoc"
         @toggle-favorite="emit('toggleFavorite')"
       />
       <DesktopDocPager

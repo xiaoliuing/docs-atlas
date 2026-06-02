@@ -24,8 +24,10 @@ export type DocMeta = {
 }
 
 export type DocDetail = DocMeta & {
+  absolutePath?: string
   html: string
   headings: DocHeading[]
+  markdown?: string
 }
 
 export type DocSection = {

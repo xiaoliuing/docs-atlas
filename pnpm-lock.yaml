@@ -34,6 +34,9 @@ importers:
       sanitize-html:
         specifier: ^2.17.0
         version: 2.17.4
+      vditor:
+        specifier: ^3.11.2
+        version: 3.11.2
       vue:
         specifier: ^3.5.0
         version: 3.5.34(typescript@5.9.3)
@@ -1233,6 +1236,9 @@ packages:
       '@modelcontextprotocol/sdk':
         optional: true
 
+  diff-match-patch@1.0.5:
+    resolution: {integrity: sha512-IayShXAgj/QMXgB0IWmKx+rOPuGMhqm5w6jvFxmVenXKIzRqTAAsbBPT3kWQeGANj3jGgvcvv4yK6SxqYmikgw==}
+
   dom-serializer@2.0.0:
     resolution: {integrity: sha512-wIkAryiqt/nV5EQKqQpo3SToSOV9J0DnbJqwK7Wv/Trc92zIAYZ4FlMu+JPFW1DfGFt81ZTCGgDEabffXeLyJg==}
 
@@ -1727,6 +1733,9 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
+
+  vditor@3.11.2:
+    resolution: {integrity: sha512-8QguQQUPWbBFocnfQmWjz4jiykQnvsmCuhOomGIVVK7vc+dQq2h8w9qQQuEjUTZpnZT5fEdYbj4aLr1NGdAZaA==}
 
   vite-ssg@28.3.0:
     resolution: {integrity: sha512-dIUjv+scfhJTfYGwf83R0KGAmr/duIo9oln5ZsQOIZZACm3voAON//7oKhtEwaOTtD4QTTab+nhvyn0QiIaFMA==}
@@ -2842,6 +2851,8 @@ snapshots:
       - typescript
       - utf-8-validate
 
+  diff-match-patch@1.0.5: {}
+
   dom-serializer@2.0.0:
     dependencies:
       domelementtype: 2.3.0
@@ -3402,6 +3413,10 @@ snapshots:
   valibot@1.4.0(typescript@5.9.3):
     optionalDependencies:
       typescript: 5.9.3
+
+  vditor@3.11.2:
+    dependencies:
+      diff-match-patch: 1.0.5
 
   vite-ssg@28.3.0(unhead@2.1.15)(vite@8.0.12(@types/node@24.12.4)(terser@5.47.1)(yaml@2.9.0))(vue-router@4.6.4(vue@3.5.34(typescript@5.9.3)))(vue@3.5.34(typescript@5.9.3)):
     dependencies:
