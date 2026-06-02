@@ -40,22 +40,6 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
     suppressedWatchRefreshUntil.value = Date.now() + durationMs
   }
 
-  function applySavedDoc(slug: string, markdown: string, modifiedAt: string) {
-    const currentDetail = docDetailsBySlugRef.value[slug]
-    if (!currentDetail) {
-      return
-    }
-
-    docDetailsBySlugRef.value = {
-      ...docDetailsBySlugRef.value,
-      [slug]: {
-        ...currentDetail,
-        markdown,
-        modifiedAt,
-      },
-    }
-  }
-
   watch(
     () => [createWorkspaceFingerprint(toValue(options.workspace)), refreshVersion.value] as const,
     async (_, __, onCleanup) => {
@@ -151,7 +135,6 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
     searchIndex: computed(() => searchIndexRef.value),
     sourceGroups: computed(() => sourceGroupsRef.value),
     unhealthySourceCount: computed(() => sourceStatusesRef.value.filter((item) => item.state !== 'ready').length),
-    applySavedDoc,
     refresh,
     suppressWatchRefresh,
   }

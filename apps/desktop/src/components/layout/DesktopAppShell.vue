@@ -403,13 +403,8 @@
     absolutePath: string,
     markdown: string,
   ) {
-    const currentSlug = selectedDocSlug.value;
-    workspaceDocs.suppressWatchRefresh();
+    workspaceDocs.suppressWatchRefresh(15_000);
     await saveMarkdownDocument(absolutePath, markdown);
-    if (currentSlug) {
-      const modifiedAt = new Date().toISOString();
-      workspaceDocs.applySavedDoc(currentSlug, markdown, modifiedAt);
-    }
   }
 
   function closeFloatingPanels() {
