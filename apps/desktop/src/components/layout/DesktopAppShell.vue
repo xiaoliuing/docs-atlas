@@ -11,9 +11,7 @@
   import type { UnlistenFn } from "@tauri-apps/api/event";
   import type { WorkspaceSourceNode } from "@docs-atlas/shared-types/workspace";
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import {
-    saveMarkdownDocument,
-  } from "@/api/documents";
+  import { saveMarkdownDocument } from "@/api/documents";
   import {
     exportLogsFile,
     listenDesktopMenuActions,
@@ -117,8 +115,14 @@
     workspaces,
     workspaceSourceIds: currentWorkspaceSourceIds,
   });
-  const { accentOptions, markdownThemeOptions, preferences, setAccent, setMarkdownTheme, setThemeMode } =
-    useDesktopPreferences();
+  const {
+    accentOptions,
+    markdownThemeOptions,
+    preferences,
+    setAccent,
+    setMarkdownTheme,
+    setThemeMode,
+  } = useDesktopPreferences();
   const { activeId, scrollToHeading } = useDesktopActiveHeadings(headings);
   const {
     checkForUpdates,
@@ -401,10 +405,7 @@
     );
   }
 
-  async function handleSaveCurrentDoc(
-    absolutePath: string,
-    markdown: string,
-  ) {
+  async function handleSaveCurrentDoc(absolutePath: string, markdown: string) {
     workspaceDocs.pauseWatchRefresh();
     await saveMarkdownDocument(absolutePath, markdown);
   }
@@ -1178,18 +1179,19 @@
     overflow: hidden;
     background:
       radial-gradient(
-        ellipse at 50% -10%,
-        rgba(255, 255, 255, 0.3),
-        transparent 44%
+        ellipse at 50% -12%,
+        rgba(var(--desktop-accent-rgb), 0.1),
+        transparent 46%
       ),
       linear-gradient(
         135deg,
-        rgba(255, 255, 255, 0.22),
-        rgba(255, 255, 255, 0) 32%
+        rgba(var(--desktop-accent-rgb), 0.06),
+        rgba(var(--desktop-accent-rgb), 0.018) 30%,
+        transparent 68%
       ),
       radial-gradient(
         circle at top left,
-        rgba(var(--desktop-accent-rgb), 0.06),
+        rgba(var(--desktop-accent-rgb), 0.065),
         transparent 24%
       ),
       var(--desktop-app-bg, transparent);
@@ -1201,18 +1203,22 @@
     inset: 0.64rem;
     z-index: 0;
     pointer-events: none;
-    border: 1px solid rgba(var(--desktop-accent-rgb), 0.09);
+    border: 1px solid rgba(var(--desktop-accent-rgb), 0.085);
     border-radius: 30px;
     background:
       repeating-linear-gradient(
         135deg,
-        rgba(var(--desktop-accent-rgb), 0.02) 0,
-        rgba(var(--desktop-accent-rgb), 0.02) 1px,
+        rgba(var(--desktop-accent-rgb), 0.018) 0,
+        rgba(var(--desktop-accent-rgb), 0.018) 1px,
         transparent 1px,
         transparent 12px
       ),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 36%),
-      rgba(var(--desktop-accent-rgb), 0.018);
+      linear-gradient(
+        180deg,
+        rgba(var(--desktop-accent-rgb), 0.065),
+        transparent 34%
+      ),
+      rgba(var(--desktop-accent-rgb), 0.015);
   }
 
   .desktop-workbench::after {
@@ -1223,48 +1229,53 @@
     pointer-events: none;
     border-radius: 26px;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.42),
-      inset 0 0 0 1px rgba(var(--desktop-accent-rgb), 0.035);
+      inset 0 1px 0 rgba(var(--desktop-accent-rgb), 0.08),
+      inset 0 0 0 1px rgba(var(--desktop-accent-rgb), 0.028);
   }
 
-  :global(:root[data-theme='dark']) .desktop-workbench {
+  :global(:root[data-theme="dark"]) .desktop-workbench {
     background:
       radial-gradient(
-        ellipse at 50% -10%,
-        rgba(255, 255, 255, 0.055),
-        transparent 44%
+        ellipse at 50% -12%,
+        rgba(var(--desktop-accent-rgb), 0.13),
+        transparent 48%
       ),
       linear-gradient(
         135deg,
-        rgba(255, 255, 255, 0.055),
-        rgba(255, 255, 255, 0) 32%
+        rgba(var(--desktop-accent-rgb), 0.085),
+        rgba(var(--desktop-accent-rgb), 0.03) 32%,
+        transparent 70%
       ),
       radial-gradient(
         circle at top left,
-        rgba(var(--desktop-accent-rgb), 0.075),
-        transparent 24%
+        rgba(var(--desktop-accent-rgb), 0.09),
+        transparent 26%
       ),
       var(--desktop-app-bg, transparent);
   }
 
-  :global(:root[data-theme='dark']) .desktop-workbench::before {
-    border-color: rgba(var(--desktop-accent-rgb), 0.13);
+  :global(:root[data-theme="dark"]) .desktop-workbench::before {
+    border-color: rgba(var(--desktop-accent-rgb), 0.12);
     background:
       repeating-linear-gradient(
         135deg,
-        rgba(255, 255, 255, 0.018) 0,
-        rgba(255, 255, 255, 0.018) 1px,
+        rgba(var(--desktop-accent-rgb), 0.018) 0,
+        rgba(var(--desktop-accent-rgb), 0.018) 1px,
         transparent 1px,
         transparent 12px
       ),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent 36%),
-      rgba(var(--desktop-accent-rgb), 0.025);
+      linear-gradient(
+        180deg,
+        rgba(var(--desktop-accent-rgb), 0.07),
+        transparent 34%
+      ),
+      rgba(var(--desktop-accent-rgb), 0.022);
   }
 
-  :global(:root[data-theme='dark']) .desktop-workbench::after {
+  :global(:root[data-theme="dark"]) .desktop-workbench::after {
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      inset 0 0 0 1px rgba(var(--desktop-accent-rgb), 0.065);
+      inset 0 1px 0 rgba(var(--desktop-accent-rgb), 0.055),
+      inset 0 0 0 1px rgba(var(--desktop-accent-rgb), 0.05);
   }
 
   .desktop-workbench > * {
@@ -1297,9 +1308,9 @@
   }
 
   .desktop-workbench__main--reader {
-    border: 1px solid color-mix(in srgb, var(--desktop-line-strong) 70%, var(--desktop-line));
-    border-radius: 26px;
-    background:
+    /* border: 1px solid color-mix(in srgb, var(--desktop-line-strong) 70%, var(--desktop-line)); */
+    /* border-radius: 26px; */
+    /* background:
       linear-gradient(
         180deg,
         rgba(255, 255, 255, 0.22),
@@ -1312,7 +1323,7 @@
       ),
       var(--desktop-surface);
     box-shadow: var(--desktop-card-shadow);
-    padding: 1rem 1.08rem 1.08rem;
+    padding: 1rem 1.08rem 1.08rem; */
   }
 
   .desktop-workbench__main--page {
@@ -1331,7 +1342,8 @@
 
   .desktop-workbench__toc {
     min-height: 0;
-    border: 1px solid color-mix(in srgb, var(--desktop-line-strong) 54%, var(--desktop-line));
+    border: 1px solid
+      color-mix(in srgb, var(--desktop-line-strong) 54%, var(--desktop-line));
     border-radius: var(--desktop-radius-lg);
     background: var(--desktop-surface);
     box-shadow: var(--desktop-card-shadow-soft);
