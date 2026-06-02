@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { nextTick, useTemplateRef, watch } from 'vue'
 import type { DesktopMarkdownThemeId } from '@/composables/useDesktopPreferences'
 import type { DocDetail, DocMeta } from '@/types/docs'
 import DesktopDocContent from './DesktopDocContent.vue'
@@ -28,37 +27,6 @@ const emit = defineEmits<{
   scrollTopChange: [top: number]
   toggleFavorite: []
 }>()
-
-const scrollRef = useTemplateRef<HTMLElement>('scroll')
-
-watch(
-  () => [props.doc?.slug ?? '', props.restoreScrollTop, props.highlightQuery] as const,
-  async ([slug, restoreScrollTop, highlightQuery]) => {
-    if (!slug) {
-      return
-    }
-
-    await nextTick()
-
-    const scrollElement = scrollRef.value
-    if (!scrollElement) {
-      return
-    }
-
-    scrollElement.scrollTop = highlightQuery.trim() ? 0 : Math.max(0, restoreScrollTop)
-    emit('scrollTopChange', scrollElement.scrollTop)
-  },
-  { immediate: true },
-)
-
-function handleScroll(event: Event) {
-  const target = event.target
-  if (!(target instanceof HTMLElement)) {
-    return
-  }
-
-  emit('scrollTopChange', target.scrollTop)
-}
 </script>
 
 <template>
@@ -66,26 +34,21 @@ function handleScroll(event: Event) {
     v-if="doc"
     class="desktop-doc-reader"
   >
-    <div
-      id="desktop-doc-scroll"
-      ref="scroll"
-      class="desktop-doc-reader__scroll desktop-scroll"
-      @scroll="handleScroll"
-    >
-      <DesktopDocContent
-        :doc="doc"
-        :is-favorite="props.isFavorite"
-        :highlight-query="highlightQuery"
-        :markdown-theme-id="props.markdownThemeId"
-        :save-doc="props.saveDoc"
-        @toggle-favorite="emit('toggleFavorite')"
-      />
-      <DesktopDocPager
-        :next-doc="nextDoc"
-        :prev-doc="prevDoc"
-        @select-doc="emit('selectDoc', $event)"
-      />
-    </div>
+    <DesktopDocContent
+      :doc="doc"
+      :is-favorite="props.isFavorite"
+      :highlight-query="highlightQuery"
+      :markdown-theme-id="props.markdownThemeId"
+      :restore-scroll-top="props.restoreScrollTop"
+      :save-doc="props.saveDoc"
+      @scroll-top-change="emit('scrollTopChange', $event)"
+      @toggle-favorite="emit('toggleFavorite')"
+    />
+    <DesktopDocPager
+      :next-doc="nextDoc"
+      :prev-doc="prevDoc"
+      @select-doc="emit('selectDoc', $event)"
+    />
   </section>
 
   <section
@@ -99,18 +62,12 @@ function handleScroll(event: Event) {
 
 <style scoped>
 .desktop-doc-reader {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-}
-
-.desktop-doc-reader__scroll {
-  display: grid;
-  gap: 1rem;
-  min-height: 0;
-  overflow-y: auto;
-  padding-right: 0.15rem;
 }
 
 .desktop-doc-reader__empty {

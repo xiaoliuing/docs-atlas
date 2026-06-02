@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import { nextTick, useTemplateRef, watch } from "vue";
   import type { DesktopMarkdownThemeId } from "@/composables/useDesktopPreferences";
   import type { DocDetail } from "@/types/docs";
   import DesktopUiIcon from "@/components/ui/DesktopUiIcon.vue";
@@ -10,18 +11,54 @@
       isFavorite?: boolean;
       highlightQuery?: string;
       markdownThemeId?: DesktopMarkdownThemeId;
+      restoreScrollTop?: number;
       saveDoc: (absolutePath: string, markdown: string) => Promise<void>;
     }>(),
     {
       isFavorite: false,
       highlightQuery: "",
       markdownThemeId: "atlas",
+      restoreScrollTop: 0,
     },
   );
 
   const emit = defineEmits<{
+    scrollTopChange: [top: number];
     toggleFavorite: [];
   }>();
+
+  const bodyScrollRef = useTemplateRef<HTMLElement>("bodyScroll");
+
+  watch(
+    () => [props.doc.slug, props.restoreScrollTop, props.highlightQuery] as const,
+    async ([slug, restoreScrollTop, highlightQuery]) => {
+      if (!slug) {
+        return;
+      }
+
+      await nextTick();
+
+      const scrollElement = bodyScrollRef.value;
+      if (!scrollElement) {
+        return;
+      }
+
+      scrollElement.scrollTop = highlightQuery.trim()
+        ? 0
+        : Math.max(0, restoreScrollTop);
+      emit("scrollTopChange", scrollElement.scrollTop);
+    },
+    { immediate: true },
+  );
+
+  function handleBodyScroll(event: Event) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+
+    emit("scrollTopChange", target.scrollTop);
+  }
 </script>
 
 <template>
@@ -54,12 +91,18 @@
         </div>
       </header>
 
-      <DesktopDocEditor
-        :doc="doc"
-        :highlight-query="props.highlightQuery"
-        :markdown-theme-id="props.markdownThemeId"
-        :save-doc="props.saveDoc"
-      />
+      <div
+        ref="bodyScroll"
+        class="doc-content__body-scroll desktop-scroll"
+        @scroll="handleBodyScroll"
+      >
+        <DesktopDocEditor
+          :doc="doc"
+          :highlight-query="props.highlightQuery"
+          :markdown-theme-id="props.markdownThemeId"
+          :save-doc="props.saveDoc"
+        />
+      </div>
     </div>
   </article>
 </template>
@@ -67,10 +110,14 @@
 <style scoped>
   .doc-content {
     min-width: 0;
+    min-height: 0;
   }
 
   .doc-content__panel {
-    display: grid;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
     border: 1px solid
       color-mix(in srgb, var(--desktop-line-strong) 38%, var(--desktop-line));
     border-radius: var(--desktop-radius-lg);
@@ -78,7 +125,7 @@
       linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 18%),
       var(--desktop-surface-strong);
     box-shadow: 0 12px 28px rgba(var(--desktop-shadow), 0.065);
-    overflow: visible;
+    overflow: hidden;
   }
 
   .doc-content__panel[data-markdown-theme="github"] {
@@ -86,8 +133,7 @@
   }
 
   .doc-content__header {
-    position: sticky;
-    top: 0;
+    flex-shrink: 0;
     z-index: 4;
     padding: 0.82rem 0.96rem 0.72rem;
     border-bottom: 1px solid rgba(var(--desktop-accent-rgb), 0.08);
@@ -105,6 +151,12 @@
     backdrop-filter: blur(12px);
     border-radius: calc(var(--desktop-radius-lg) - 1px)
       calc(var(--desktop-radius-lg) - 1px) 0 0;
+  }
+
+  .doc-content__body-scroll {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
   }
 
   .doc-content__header-top {
