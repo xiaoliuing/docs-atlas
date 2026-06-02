@@ -61,6 +61,7 @@ export type WorkspaceSourceDocumentSnapshot = {
   sourceRoot: string
   absolutePath: string
   relativePath: string
+  modifiedAt: number
   markdown: string
 }
 

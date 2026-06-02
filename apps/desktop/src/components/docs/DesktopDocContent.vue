@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { nextTick, useTemplateRef, watch } from "vue";
+  import { computed, nextTick, shallowRef, useTemplateRef, watch } from "vue";
   import type { DesktopMarkdownThemeId } from "@/composables/useDesktopPreferences";
   import type { DocDetail } from "@/types/docs";
   import DesktopUiIcon from "@/components/ui/DesktopUiIcon.vue";
@@ -28,6 +28,26 @@
   }>();
 
   const bodyScrollRef = useTemplateRef<HTMLElement>("bodyScroll");
+  const currentModifiedAt = shallowRef(props.doc.modifiedAt ?? "");
+
+  const formattedModifiedAt = computed(() => {
+    if (!currentModifiedAt.value) {
+      return "未记录编辑时间";
+    }
+
+    const date = new Date(currentModifiedAt.value);
+    if (Number.isNaN(date.getTime())) {
+      return "未记录编辑时间";
+    }
+
+    return new Intl.DateTimeFormat("zh-CN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  });
 
   watch(
     () => [props.doc.slug, props.restoreScrollTop, props.highlightQuery] as const,
@@ -51,6 +71,14 @@
     { immediate: true },
   );
 
+  watch(
+    () => props.doc.modifiedAt ?? "",
+    (nextValue) => {
+      currentModifiedAt.value = nextValue;
+    },
+    { immediate: true },
+  );
+
   function handleBodyScroll(event: Event) {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
@@ -58,6 +86,10 @@
     }
 
     emit("scrollTopChange", target.scrollTop);
+  }
+
+  function handleDocSaved(payload: { modifiedAt: string }) {
+    currentModifiedAt.value = payload.modifiedAt;
   }
 </script>
 
@@ -69,13 +101,16 @@
     >
       <header class="doc-content__header">
         <div class="doc-content__header-top">
-          <p class="doc-content__section">
-            {{
-              doc.sectionTitle
-                ? `${doc.sourceLabel} / ${doc.sectionTitle}`
-                : doc.sourceLabel
-            }}
-          </p>
+          <div class="doc-content__identity">
+            <p class="doc-content__section">
+              {{
+                doc.sectionTitle
+                  ? `${doc.sourceLabel} / ${doc.sectionTitle}`
+                  : doc.sourceLabel
+              }}
+            </p>
+            <h1 class="doc-content__title">{{ doc.title }}</h1>
+          </div>
 
           <button
             :class="[
@@ -89,6 +124,11 @@
             <span>{{ props.isFavorite ? "已收藏" : "收藏" }}</span>
           </button>
         </div>
+
+        <div class="doc-content__meta">
+          <span class="doc-content__meta-label">最后编辑</span>
+          <strong class="doc-content__meta-value">{{ formattedModifiedAt }}</strong>
+        </div>
       </header>
 
       <div
@@ -101,6 +141,7 @@
           :highlight-query="props.highlightQuery"
           :markdown-theme-id="props.markdownThemeId"
           :save-doc="props.saveDoc"
+          @saved="handleDocSaved"
         />
       </div>
     </div>
@@ -161,9 +202,15 @@
 
   .doc-content__header-top {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
+  }
+
+  .doc-content__identity {
+    display: grid;
+    gap: 0.18rem;
+    min-width: 0;
   }
 
   .doc-content__section {
@@ -172,6 +219,35 @@
     font-size: 0.76rem;
     font-weight: 600;
     line-height: 1.45;
+  }
+
+  .doc-content__title {
+    margin: 0;
+    color: var(--desktop-ink);
+    font-size: 1.14rem;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  .doc-content__meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+    margin-top: 0.58rem;
+    color: var(--desktop-muted);
+    font-size: 0.74rem;
+    line-height: 1.4;
+  }
+
+  .doc-content__meta-label {
+    color: var(--desktop-muted);
+  }
+
+  .doc-content__meta-value {
+    color: var(--desktop-ink);
+    font-size: 0.76rem;
+    font-weight: 600;
   }
 
   .doc-content__favorite {

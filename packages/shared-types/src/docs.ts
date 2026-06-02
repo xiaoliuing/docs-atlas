@@ -25,6 +25,7 @@ export type DocMeta = {
 
 export type DocDetail = DocMeta & {
   absolutePath?: string
+  modifiedAt?: string | null
   html: string
   headings: DocHeading[]
   markdown?: string

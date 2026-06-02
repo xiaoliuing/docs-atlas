@@ -180,6 +180,8 @@ struct WorkspaceSourceDocumentPayload {
   source_root: String,
   absolute_path: String,
   relative_path: String,
+  #[serde(default)]
+  modified_at: u64,
   markdown: String,
 }
 
@@ -2039,6 +2041,7 @@ fn scan_single_source(
         source_root: source.path.clone(),
         absolute_path: document.absolute_path,
         relative_path: document.relative_path,
+        modified_at: document.modified_at,
         markdown: document.markdown,
       })
       .collect::<Vec<_>>();
@@ -2066,6 +2069,7 @@ fn scan_single_source(
         source_root: source.path.clone(),
         absolute_path: snapshot.absolute_path.to_string_lossy().to_string(),
         relative_path: snapshot.relative_path.clone(),
+        modified_at: snapshot.modified_at,
         markdown,
       })
     })

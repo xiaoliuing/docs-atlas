@@ -294,6 +294,7 @@ function buildRawDoc(document: WorkspaceSourceDocumentSnapshot, source: Resolved
     sourcePath: normalizePath(`${source.label}/${relativePath}`),
     summary,
     absolutePath: document.absolutePath,
+    modifiedAt: formatModifiedAt(document.modifiedAt),
     html: rendered.html,
     headings: rendered.headings.filter((heading): heading is DocHeading => heading.level === 2 || heading.level === 3),
     markdown: document.markdown,
@@ -306,6 +307,14 @@ function buildRawDoc(document: WorkspaceSourceDocumentSnapshot, source: Resolved
     detail,
     plainText: extractPlainText(document.markdown),
   }
+}
+
+function formatModifiedAt(value: number): string | null {
+  if (!Number.isFinite(value) || value <= 0) {
+    return null
+  }
+
+  return new Date(value * 1000).toISOString()
 }
 
 function renderMarkdown(

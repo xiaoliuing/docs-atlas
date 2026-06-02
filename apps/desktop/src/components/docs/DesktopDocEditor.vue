@@ -34,17 +34,26 @@
     },
   );
 
+  const emit = defineEmits<{
+    saved: [payload: { mode: "auto" | "manual"; modifiedAt: string }];
+  }>();
+
   const hostRef = useTemplateRef<HTMLDivElement>("host");
   const editorRef = shallowRef<Vditor | null>(null);
   const isSaving = shallowRef(false);
   const saveError = shallowRef("");
+  const saveSuccessMessage = shallowRef("");
   const draftMarkdown = shallowRef(props.doc.markdown ?? "");
   const savedMarkdown = shallowRef(props.doc.markdown ?? "");
   const themeName = shallowRef<"dark" | "classic">("classic");
   const previewImages = shallowRef<PreviewImage[]>([]);
   const activePreviewImageIndex = shallowRef(-1);
+  const currentDocAbsolutePath = shallowRef(props.doc.absolutePath?.trim() ?? "");
+  const currentDocModifiedAt = shallowRef(props.doc.modifiedAt ?? "");
   let themeObserver: MutationObserver | null = null;
   let previewEnhancementTimer: number | null = null;
+  let autoSaveTimer: number | null = null;
+  let saveFeedbackTimer: number | null = null;
   let mermaidSequence = 0;
 
   const hasEditableSource = computed(() =>
@@ -53,8 +62,32 @@
   const isDirty = computed(() => draftMarkdown.value !== savedMarkdown.value);
 
   watch(
-    () => [props.doc.slug, props.doc.markdown ?? ""] as const,
-    async ([, markdown]) => {
+    () => props.doc.slug,
+    async (nextSlug, previousSlug) => {
+      if (!previousSlug || nextSlug === previousSlug) {
+        return;
+      }
+
+      await persistDraft({
+        absolutePath: currentDocAbsolutePath.value,
+        markdown: draftMarkdown.value,
+        mode: "auto",
+      });
+    },
+    { flush: "sync" },
+  );
+
+  watch(
+    () =>
+      [
+        props.doc.slug,
+        props.doc.markdown ?? "",
+        props.doc.absolutePath?.trim() ?? "",
+        props.doc.modifiedAt ?? "",
+      ] as const,
+    async ([slug, markdown, absolutePath, modifiedAt]) => {
+      currentDocAbsolutePath.value = absolutePath;
+      currentDocModifiedAt.value = modifiedAt;
       draftMarkdown.value = markdown;
       savedMarkdown.value = markdown;
       saveError.value = "";
@@ -99,6 +132,9 @@
     createEditor();
     syncTheme();
     bindThemeObserver();
+    autoSaveTimer = window.setInterval(() => {
+      void persistDraft({ mode: "auto" });
+    }, 10_000);
     window.addEventListener("keydown", handleWindowKeydown, true);
   });
 
@@ -110,6 +146,19 @@
       window.clearTimeout(previewEnhancementTimer);
       previewEnhancementTimer = null;
     }
+    if (autoSaveTimer !== null) {
+      window.clearInterval(autoSaveTimer);
+      autoSaveTimer = null;
+    }
+    if (saveFeedbackTimer !== null) {
+      window.clearTimeout(saveFeedbackTimer);
+      saveFeedbackTimer = null;
+    }
+    void persistDraft({
+      absolutePath: currentDocAbsolutePath.value,
+      markdown: draftMarkdown.value,
+      mode: "auto",
+    });
     editorRef.value?.destroy();
     editorRef.value = null;
   });
@@ -675,16 +724,19 @@
     };
   }
 
-  async function handleSave() {
+  async function persistDraft(options?: {
+    absolutePath?: string;
+    markdown?: string;
+    mode?: "auto" | "manual";
+  }) {
     const editor = editorRef.value;
-    const absolutePath = props.doc.absolutePath?.trim();
-    if (!editor || !absolutePath || isSaving.value) {
-      return;
-    }
-
-    const nextMarkdown = editor.getValue();
-    if (nextMarkdown === savedMarkdown.value) {
-      return;
+    const absolutePath =
+      options?.absolutePath ?? currentDocAbsolutePath.value ?? "";
+    const mode = options?.mode ?? "manual";
+    const nextMarkdown =
+      options?.markdown ?? editor?.getValue() ?? draftMarkdown.value;
+    if (!absolutePath || isSaving.value || nextMarkdown === savedMarkdown.value) {
+      return false;
     }
 
     isSaving.value = true;
@@ -692,14 +744,27 @@
 
     try {
       await props.saveDoc(absolutePath, nextMarkdown);
+      const modifiedAt = new Date().toISOString();
       savedMarkdown.value = nextMarkdown;
       draftMarkdown.value = nextMarkdown;
+      currentDocModifiedAt.value = modifiedAt;
+      emit("saved", { mode, modifiedAt });
+      if (mode === "manual") {
+        showSaveSuccess("已保存");
+      }
+      return true;
     } catch (error) {
       saveError.value =
         error instanceof Error ? error.message : "保存失败，请稍后重试";
+      clearSaveSuccess();
+      return false;
     } finally {
       isSaving.value = false;
     }
+  }
+
+  async function handleSave() {
+    await persistDraft({ mode: "manual" });
   }
 
   function handleWindowKeydown(event: KeyboardEvent) {
@@ -720,17 +785,35 @@
     void handleSave();
   }
 
+  function showSaveSuccess(message: string) {
+    saveSuccessMessage.value = message;
+    if (saveFeedbackTimer !== null) {
+      window.clearTimeout(saveFeedbackTimer);
+    }
+    saveFeedbackTimer = window.setTimeout(() => {
+      saveSuccessMessage.value = "";
+      saveFeedbackTimer = null;
+    }, 1800);
+  }
+
+  function clearSaveSuccess() {
+    saveSuccessMessage.value = "";
+    if (saveFeedbackTimer !== null) {
+      window.clearTimeout(saveFeedbackTimer);
+      saveFeedbackTimer = null;
+    }
+  }
+
   const VDITOR_ZH_CN: Record<string, string> = {};
 </script>
 
 <template>
   <div
-    ref="host"
-    class="desktop-doc-editor__editor"
+    class="desktop-doc-editor"
     :class="{
-      'desktop-doc-editor__editor--dirty': isDirty && !isSaving && !saveError,
-      'desktop-doc-editor__editor--error': !!saveError,
-      'desktop-doc-editor__editor--readonly': !hasEditableSource,
+      'desktop-doc-editor--dirty': isDirty && !isSaving && !saveError,
+      'desktop-doc-editor--error': !!saveError,
+      'desktop-doc-editor--readonly': !hasEditableSource,
     }"
     :data-markdown-theme="props.markdownThemeId"
     :title="
@@ -741,8 +824,22 @@
           ? '已修改，按 Ctrl/Cmd + S 保存'
           : '所见即所得编辑')
     "
-    @click="handleEditorClick"
-  />
+  >
+    <div
+      ref="host"
+      class="desktop-doc-editor__editor"
+      @click="handleEditorClick"
+    />
+
+    <transition name="desktop-doc-editor__save-feedback">
+      <div
+        v-if="saveSuccessMessage"
+        class="desktop-doc-editor__save-feedback"
+      >
+        {{ saveSuccessMessage }}
+      </div>
+    </transition>
+  </div>
 
   <DesktopDocImagePreview
     v-if="activePreviewImageIndex >= 0"
@@ -754,10 +851,14 @@
 </template>
 
 <style scoped>
+  .desktop-doc-editor {
+    position: relative;
+    min-width: 0;
+  }
+
   .desktop-doc-editor__editor,
   .desktop-doc-editor__editor.vditor,
   .desktop-doc-editor__editor.vditor.vditor--dark {
-    position: relative;
     min-width: 0;
     padding: 0;
     border: 0 !important;
@@ -796,6 +897,44 @@
     --ir-paren-color: var(--desktop-muted);
   }
 
+  .desktop-doc-editor__save-feedback {
+    position: absolute;
+    top: 0.9rem;
+    right: 1rem;
+    z-index: 16;
+    padding: 0.34rem 0.62rem;
+    border: 1px solid rgba(var(--desktop-accent-rgb), 0.16);
+    border-radius: 999px;
+    background: color-mix(
+      in srgb,
+      var(--desktop-surface-strong) 88%,
+      rgba(var(--desktop-accent-rgb), 0.12)
+    );
+    color: var(--desktop-accent);
+    font-size: 0.74rem;
+    font-weight: 600;
+    line-height: 1;
+    box-shadow: 0 10px 24px rgba(var(--desktop-shadow), 0.08);
+    pointer-events: none;
+  }
+
+  .desktop-doc-editor--error :deep(.vditor) {
+    outline: 1px solid rgba(215, 70, 70, 0.18);
+  }
+
+  .desktop-doc-editor__save-feedback-enter-active,
+  .desktop-doc-editor__save-feedback-leave-active {
+    transition:
+      opacity 0.18s ease,
+      transform 0.18s ease;
+  }
+
+  .desktop-doc-editor__save-feedback-enter-from,
+  .desktop-doc-editor__save-feedback-leave-to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
   .desktop-doc-editor__editor.vditor {
     overflow: visible;
   }
@@ -807,15 +946,15 @@
     box-shadow: none !important;
   }
 
-  .desktop-doc-editor__editor--dirty {
+  .desktop-doc-editor--dirty .desktop-doc-editor__editor {
     box-shadow: none !important;
   }
 
-  .desktop-doc-editor__editor--error {
+  .desktop-doc-editor--error .desktop-doc-editor__editor {
     box-shadow: none !important;
   }
 
-  .desktop-doc-editor__editor--readonly {
+  .desktop-doc-editor--readonly .desktop-doc-editor__editor {
     opacity: 0.76;
   }
 
