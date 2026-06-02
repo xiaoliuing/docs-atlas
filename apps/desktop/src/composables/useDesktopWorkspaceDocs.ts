@@ -29,10 +29,31 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
   const isLoading = shallowRef(false)
   const error = shallowRef('')
   const refreshVersion = shallowRef(0)
+  const suppressedWatchRefreshUntil = shallowRef(0)
   let activeTaskId = 0
 
   function refresh() {
     refreshVersion.value += 1
+  }
+
+  function suppressWatchRefresh(durationMs = 1_800) {
+    suppressedWatchRefreshUntil.value = Date.now() + durationMs
+  }
+
+  function applySavedDoc(slug: string, markdown: string, modifiedAt: string) {
+    const currentDetail = docDetailsBySlugRef.value[slug]
+    if (!currentDetail) {
+      return
+    }
+
+    docDetailsBySlugRef.value = {
+      ...docDetailsBySlugRef.value,
+      [slug]: {
+        ...currentDetail,
+        markdown,
+        modifiedAt,
+      },
+    }
   }
 
   watch(
@@ -72,6 +93,10 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
       try {
         unlistenWatch = await listenWorkspaceSourceWatch((payload) => {
           if (payload.workspaceId !== workspace.id) {
+            return
+          }
+
+          if (Date.now() < suppressedWatchRefreshUntil.value) {
             return
           }
 
@@ -126,7 +151,9 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
     searchIndex: computed(() => searchIndexRef.value),
     sourceGroups: computed(() => sourceGroupsRef.value),
     unhealthySourceCount: computed(() => sourceStatusesRef.value.filter((item) => item.state !== 'ready').length),
+    applySavedDoc,
     refresh,
+    suppressWatchRefresh,
   }
 }
 
