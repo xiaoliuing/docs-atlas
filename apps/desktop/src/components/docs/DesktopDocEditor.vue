@@ -396,10 +396,27 @@
     const images = root.querySelectorAll<HTMLImageElement>("img[src]");
     for (const image of images) {
       const currentSrc = image.getAttribute("src")?.trim() ?? "";
-      const nextSrc = resolvePreviewAssetSource(currentSrc, absolutePath);
+      const originalSrc =
+        image.dataset.docsAtlasOriginalSrc?.trim() || currentSrc;
+      const nextSrc = resolvePreviewAssetSource(originalSrc, absolutePath);
       if (nextSrc && nextSrc !== currentSrc) {
+        image.dataset.docsAtlasOriginalSrc = originalSrc;
         image.setAttribute("src", nextSrc);
       }
+    }
+  }
+
+  function restorePreviewImages(root: HTMLElement) {
+    const images = root.querySelectorAll<HTMLImageElement>(
+      "img[data-docs-atlas-original-src]",
+    );
+    for (const image of images) {
+      const originalSrc = image.dataset.docsAtlasOriginalSrc?.trim();
+      if (!originalSrc) {
+        continue;
+      }
+
+      image.setAttribute("src", originalSrc);
     }
   }
 
@@ -724,11 +741,14 @@
     mode?: "auto" | "manual";
   }) {
     const editor = editorRef.value;
+    const host = hostRef.value;
     const absolutePath =
       options?.absolutePath ?? currentDocAbsolutePath.value ?? "";
     const mode = options?.mode ?? "manual";
     const nextMarkdown =
-      options?.markdown ?? editor?.getValue() ?? draftMarkdown.value;
+      options?.markdown ??
+      getEditorMarkdownForSave(editor, host, absolutePath) ??
+      draftMarkdown.value;
     if (!absolutePath || isSaving.value || nextMarkdown === savedMarkdown.value) {
       return false;
     }
@@ -755,6 +775,29 @@
 
   async function handleSave() {
     await persistDraft({ mode: "manual" });
+  }
+
+  function getEditorMarkdownForSave(
+    editor: Vditor | null,
+    host: HTMLElement | null,
+    absolutePath: string,
+  ) {
+    if (!editor) {
+      return "";
+    }
+
+    if (!host || !absolutePath) {
+      return editor.getValue();
+    }
+
+    restorePreviewImages(host);
+
+    try {
+      return editor.getValue();
+    } finally {
+      rewritePreviewImages(host, absolutePath);
+      schedulePreviewEnhancements();
+    }
   }
 
   function handleWindowKeydown(event: KeyboardEvent) {
