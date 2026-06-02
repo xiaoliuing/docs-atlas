@@ -583,6 +583,12 @@
     background: var(--textarea-background-color) !important;
   }
 
+  .desktop-doc-editor__editor :deep(.vditor-reset) {
+    background: var(--textarea-background-color) !important;
+    border-radius: 0 0 calc(var(--desktop-radius-lg) - 1px)
+      calc(var(--desktop-radius-lg) - 1px);
+  }
+
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg div.vditor-wysiwyg__block[data-type="code-block"]),
   .desktop-doc-editor__editor :deep(.vditor-ir__node[data-type="code-block"]) {
     margin: 1rem 0;
