@@ -184,11 +184,65 @@
 
   function applyEditorTheme() {
     const editor = editorRef.value;
-    if (!editor) {
+    const host = hostRef.value;
+    if (!editor || !host || typeof window === "undefined") {
       return;
     }
 
-    editor.setTheme(resolveThemeName());
+    const theme = resolveThemeName();
+    editor.setTheme(theme);
+
+    const rootStyles = window.getComputedStyle(document.documentElement);
+    const tokenEntries = [
+      ["--border-color", mixRootToken("--desktop-line-strong", "--desktop-line", 0.34)],
+      ["--second-color", "rgba(var(--desktop-accent-rgb), 0.18)"],
+      ["--panel-background-color", readRootToken("--desktop-surface-strong", rootStyles)],
+      ["--panel-shadow", "none"],
+      ["--toolbar-background-color", "transparent"],
+      ["--toolbar-icon-color", readRootToken("--desktop-muted", rootStyles)],
+      ["--toolbar-icon-hover-color", readRootToken("--desktop-accent", rootStyles)],
+      ["--textarea-background-color", "transparent"],
+      ["--textarea-text-color", readRootToken("--desktop-ink", rootStyles)],
+      ["--resize-icon-color", readRootToken("--desktop-muted", rootStyles)],
+      ["--resize-background-color", "transparent"],
+      ["--resize-hover-icon-color", readRootToken("--desktop-accent", rootStyles)],
+      ["--resize-hover-background-color", rgbaRootToken("--desktop-accent-rgb", 0.1)],
+      ["--count-background-color", rgbaRootToken("--desktop-accent-rgb", 0.08)],
+      ["--heading-border-color", mixRootToken("--desktop-line-strong", "--desktop-line", 0.3)],
+      ["--blockquote-color", readRootToken("--desktop-muted", rootStyles)],
+      ["--ir-heading-color", readRootToken("--desktop-accent", rootStyles)],
+      ["--ir-title-color", readRootToken("--desktop-soft", rootStyles)],
+      ["--ir-bi-color", readRootToken("--desktop-accent", rootStyles)],
+      ["--ir-link-color", readRootToken("--desktop-accent", rootStyles)],
+      ["--ir-bracket-color", readRootToken("--desktop-accent", rootStyles)],
+      ["--ir-paren-color", readRootToken("--desktop-muted", rootStyles)],
+    ] as const;
+
+    for (const [name, value] of tokenEntries) {
+      host.style.setProperty(name, value);
+    }
+
+    host.dataset.vditorTheme = theme;
+  }
+
+  function readRootToken(name: string, rootStyles?: CSSStyleDeclaration) {
+    const styles = rootStyles ?? window.getComputedStyle(document.documentElement);
+    return styles.getPropertyValue(name).trim();
+  }
+
+  function rgbaRootToken(name: string, alpha: number) {
+    const rgb = readRootToken(name);
+    return `rgba(${rgb}, ${alpha})`;
+  }
+
+  function mixRootToken(
+    primaryName: string,
+    secondaryName: string,
+    primaryRatio: number,
+  ) {
+    const primary = readRootToken(primaryName);
+    const secondary = readRootToken(secondaryName);
+    return `color-mix(in srgb, ${primary} ${Math.round(primaryRatio * 100)}%, ${secondary})`;
   }
 
   async function handleSave() {
@@ -261,7 +315,9 @@
 </template>
 
 <style scoped>
-  .desktop-doc-editor__editor {
+  .desktop-doc-editor__editor,
+  .desktop-doc-editor__editor.vditor,
+  .desktop-doc-editor__editor.vditor.vditor--dark {
     position: relative;
     min-width: 0;
     padding: 0;
@@ -305,6 +361,7 @@
     overflow: visible;
   }
 
+  .desktop-doc-editor__editor.vditor > :deep(.vditor-content),
   .desktop-doc-editor__editor.vditor > :deep(div),
   .desktop-doc-editor__editor :deep(.vditor-content > div) {
     border: 0 !important;
@@ -332,8 +389,35 @@
     font-family: var(--desktop-font-sans);
   }
 
+  .desktop-doc-editor__editor :deep(.vditor-reset h1),
+  .desktop-doc-editor__editor :deep(.vditor-reset h2),
+  .desktop-doc-editor__editor :deep(.vditor-reset h3) {
+    color: var(--desktop-ink);
+  }
+
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg > .vditor-reset > h1:before),
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg > .vditor-reset > h2:before),
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg > .vditor-reset > h3:before),
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg > .vditor-reset > h4:before),
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg > .vditor-reset > h5:before),
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg > .vditor-reset > h6:before),
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg div.vditor-wysiwyg__block:before),
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg div[data-type="link-ref-defs-block"]:before),
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg div[data-type="footnotes-block"]:before),
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg .vditor-toc:before) {
+    color: rgba(var(--desktop-accent-rgb), 0.42);
+  }
+
   .desktop-doc-editor__editor :deep(a) {
     color: var(--desktop-accent);
+  }
+
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg span[data-type="link-ref"]),
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg sup[data-type="footnotes-ref"]),
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg span[data-type="toc-h"]),
+  .desktop-doc-editor__editor :deep(.vditor-ir__node[data-type="link-ref"]),
+  .desktop-doc-editor__editor :deep(.vditor-ir__node[data-type="footnotes-ref"]) {
+    color: var(--desktop-accent) !important;
   }
 
   .desktop-doc-editor__editor :deep(.vditor-ir),
@@ -358,6 +442,14 @@
 
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg:focus) {
     outline: none;
+  }
+
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg pre.vditor-reset) {
+    caret-color: var(--desktop-accent);
+  }
+
+  .desktop-doc-editor__editor :deep(blockquote) {
+    border-left-color: rgba(var(--desktop-accent-rgb), 0.34);
   }
 
   .desktop-doc-editor__editor :deep(::selection) {
