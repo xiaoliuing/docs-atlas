@@ -361,16 +361,16 @@
   }
 
   function collectPreviewImages(root: HTMLElement) {
-    const nextImages = Array.from(root.querySelectorAll<HTMLImageElement>("img[src]")).map(
-      (image, index) => {
-        image.dataset.previewIndex = String(index);
-        return {
-          alt: image.getAttribute("alt")?.trim() ?? "",
-          src: image.getAttribute("src")?.trim() ?? "",
-          title: image.getAttribute("title")?.trim() ?? "",
-        };
-      },
-    );
+    const nextImages = Array.from(
+      root.querySelectorAll<HTMLImageElement>("img[src]"),
+    ).map((image, index) => {
+      image.dataset.previewIndex = String(index);
+      return {
+        alt: image.getAttribute("alt")?.trim() ?? "",
+        src: image.getAttribute("src")?.trim() ?? "",
+        title: image.getAttribute("title")?.trim() ?? "",
+      };
+    });
 
     previewImages.value = nextImages;
     if (activePreviewImageIndex.value >= nextImages.length) {
@@ -415,7 +415,8 @@
     });
 
     for (const panel of previewPanels) {
-      const languageNode = panel.querySelector<HTMLElement>(".language-mermaid");
+      const languageNode =
+        panel.querySelector<HTMLElement>(".language-mermaid");
       if (!languageNode) {
         continue;
       }
@@ -449,7 +450,9 @@
       return;
     }
 
-    const image = target.closest("img[data-preview-index]") as HTMLImageElement | null;
+    const image = target.closest(
+      "img[data-preview-index]",
+    ) as HTMLImageElement | null;
     if (!image) {
       return;
     }
@@ -469,8 +472,13 @@
   function splitUrlReference(value: string) {
     const hashIndex = value.indexOf("#");
     const queryIndex = value.indexOf("?");
-    const cutoffCandidates = [hashIndex, queryIndex].filter((index) => index >= 0);
-    const cutoff = cutoffCandidates.length > 0 ? Math.min(...cutoffCandidates) : value.length;
+    const cutoffCandidates = [hashIndex, queryIndex].filter(
+      (index) => index >= 0,
+    );
+    const cutoff =
+      cutoffCandidates.length > 0
+        ? Math.min(...cutoffCandidates)
+        : value.length;
 
     return {
       pathname: value.slice(0, cutoff),
@@ -479,7 +487,11 @@
   }
 
   function isAbsoluteFilePath(pathname: string) {
-    return pathname.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(pathname) || pathname.startsWith("file://");
+    return (
+      pathname.startsWith("/") ||
+      /^[a-zA-Z]:[\\/]/.test(pathname) ||
+      pathname.startsWith("file://")
+    );
   }
 
   function resolveRelativeFilePath(fromPath: string, targetPath: string) {
@@ -524,10 +536,12 @@
       return {
         panelBackground: isDark ? fieldStrong : "#ffffff",
         textareaBackground: isDark ? surfaceStrong : "#ffffff",
-        codeBackground: isDark ? "#161b22" : "#f6f8fa",
+        codeBackground: isDark
+          ? "color-mix(in srgb, #161b22 78%, rgba(var(--desktop-accent-rgb), 0.22))"
+          : "color-mix(in srgb, #f6f8fa 90%, rgba(var(--desktop-accent-rgb), 0.1))",
         codeBorder: isDark
-          ? "rgba(110, 118, 129, 0.32)"
-          : "rgba(31, 35, 40, 0.10)",
+          ? "rgba(var(--desktop-accent-rgb), 0.24)"
+          : "rgba(var(--desktop-accent-rgb), 0.14)",
         codeText: isDark ? "#e6edf3" : "#24292f",
         inlineCodeBackground: isDark
           ? "rgba(110, 118, 129, 0.18)"
@@ -560,8 +574,8 @@
           ? `color-mix(in srgb, ${fieldStrong} 82%, rgba(var(--desktop-accent-rgb), 0.16))`
           : `color-mix(in srgb, ${fieldStrong} 90%, rgba(var(--desktop-accent-rgb), 0.08))`,
         codeBackground: isDark
-          ? "color-mix(in srgb, rgba(11, 18, 32, 0.92) 86%, rgba(var(--desktop-accent-rgb), 0.12))"
-          : "color-mix(in srgb, white 88%, rgba(var(--desktop-accent-rgb), 0.08))",
+          ? "color-mix(in srgb, rgba(11, 18, 32, 0.92) 74%, rgba(var(--desktop-accent-rgb), 0.26))"
+          : "color-mix(in srgb, white 84%, rgba(var(--desktop-accent-rgb), 0.12))",
         codeBorder: isDark
           ? "rgba(var(--desktop-accent-rgb), 0.18)"
           : "rgba(var(--desktop-accent-rgb), 0.12)",
@@ -597,8 +611,8 @@
           ? `color-mix(in srgb, ${fieldStrong} 82%, rgba(var(--desktop-accent-rgb), 0.14))`
           : `color-mix(in srgb, ${surface} 86%, rgba(var(--desktop-accent-rgb), 0.05))`,
         codeBackground: isDark
-          ? "color-mix(in srgb, rgba(14, 22, 38, 0.94) 84%, rgba(var(--desktop-accent-rgb), 0.14))"
-          : "color-mix(in srgb, #f7f5f1 90%, rgba(var(--desktop-accent-rgb), 0.06))",
+          ? "color-mix(in srgb, rgba(14, 22, 38, 0.94) 74%, rgba(var(--desktop-accent-rgb), 0.24))"
+          : "color-mix(in srgb, #f7f5f1 86%, rgba(var(--desktop-accent-rgb), 0.1))",
         codeBorder: isDark
           ? "rgba(var(--desktop-accent-rgb), 0.16)"
           : "rgba(99, 112, 138, 0.12)",
@@ -633,8 +647,8 @@
         ? `color-mix(in srgb, ${fieldStrong} 82%, rgba(var(--desktop-accent-rgb), 0.14))`
         : `color-mix(in srgb, ${readRootToken("--desktop-surface-strong")} 90%, rgba(var(--desktop-accent-rgb), 0.06))`,
       codeBackground: isDark
-        ? "color-mix(in srgb, rgba(10, 18, 34, 0.94) 84%, rgba(var(--desktop-accent-rgb), 0.16))"
-        : "color-mix(in srgb, white 86%, rgba(var(--desktop-accent-rgb), 0.08))",
+        ? "color-mix(in srgb, rgba(10, 18, 34, 0.94) 72%, rgba(var(--desktop-accent-rgb), 0.28))"
+        : "color-mix(in srgb, white 82%, rgba(var(--desktop-accent-rgb), 0.12))",
       codeBorder: isDark
         ? "rgba(var(--desktop-accent-rgb), 0.18)"
         : "rgba(var(--desktop-accent-rgb), 0.12)",
@@ -992,7 +1006,8 @@
     max-width: 100%;
     height: auto;
     border-radius: 12px;
-    border: 1px solid color-mix(in srgb, var(--editor-code-border) 90%, transparent);
+    border: 1px solid
+      color-mix(in srgb, var(--editor-code-border) 90%, transparent);
     box-shadow: 0 12px 26px rgba(var(--desktop-shadow), 0.12);
     cursor: zoom-in;
   }
@@ -1065,7 +1080,7 @@
 
   .desktop-doc-editor__editor :deep(th),
   .desktop-doc-editor__editor :deep(td) {
-    width: 1%;
+    width: auto;
     padding: 0.68rem 0.8rem;
     border: 1px solid var(--editor-code-border);
     vertical-align: top;
@@ -1155,5 +1170,8 @@
     margin-inline: auto;
     font-size: 1rem;
     line-height: 1.84;
+  }
+  :deep(.language-mermaid) {
+    text-align: -webkit-center !important;
   }
 </style>
