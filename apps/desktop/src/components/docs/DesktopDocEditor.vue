@@ -8,6 +8,8 @@
     useTemplateRef,
     watch,
   } from "vue";
+  import { convertFileSrc } from "@tauri-apps/api/core";
+  import mermaid from "mermaid";
   import Vditor from "vditor";
   import type { DesktopMarkdownThemeId } from "@/composables/useDesktopPreferences";
   import type { DocDetail } from "@/types/docs";
@@ -33,6 +35,8 @@
   const savedMarkdown = shallowRef(props.doc.markdown ?? "");
   const themeName = shallowRef<"dark" | "classic">("classic");
   let themeObserver: MutationObserver | null = null;
+  let previewEnhancementTimer: number | null = null;
+  let mermaidSequence = 0;
 
   const hasEditableSource = computed(() =>
     Boolean(props.doc.absolutePath && typeof props.doc.markdown === "string"),
@@ -50,10 +54,12 @@
 
       const editor = editorRef.value;
       if (!editor || editor.getValue() === markdown) {
+        schedulePreviewEnhancements();
         return;
       }
 
       editor.setValue(markdown, true);
+      schedulePreviewEnhancements();
     },
     { immediate: true },
   );
@@ -91,6 +97,10 @@
     window.removeEventListener("keydown", handleWindowKeydown, true);
     themeObserver?.disconnect();
     themeObserver = null;
+    if (previewEnhancementTimer !== null) {
+      window.clearTimeout(previewEnhancementTimer);
+      previewEnhancementTimer = null;
+    }
     editorRef.value?.destroy();
     editorRef.value = null;
   });
@@ -105,6 +115,7 @@
         draftMarkdown.value = editor.getValue();
         savedMarkdown.value = editor.getValue();
         applyEditorTheme();
+        schedulePreviewEnhancements();
         if (!hasEditableSource.value) {
           editor.disabled();
         }
@@ -124,6 +135,7 @@
         if (saveError.value) {
           saveError.value = "";
         }
+        schedulePreviewEnhancements();
       },
       mode: "wysiwyg",
       outline: {
@@ -274,6 +286,36 @@
     }
 
     host.dataset.vditorTheme = theme;
+    schedulePreviewEnhancements();
+  }
+
+  function schedulePreviewEnhancements() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (previewEnhancementTimer !== null) {
+      window.clearTimeout(previewEnhancementTimer);
+    }
+
+    previewEnhancementTimer = window.setTimeout(() => {
+      previewEnhancementTimer = null;
+      void applyPreviewEnhancements();
+    }, 24);
+  }
+
+  async function applyPreviewEnhancements() {
+    const host = hostRef.value;
+    const absolutePath = props.doc.absolutePath?.trim();
+    if (!host) {
+      return;
+    }
+
+    if (absolutePath) {
+      rewritePreviewImages(host, absolutePath);
+    }
+
+    await renderMermaidPreviews(host);
   }
 
   function readRootToken(name: string, rootStyles?: CSSStyleDeclaration) {
@@ -295,6 +337,125 @@
     const primary = readRootToken(primaryName);
     const secondary = readRootToken(secondaryName);
     return `color-mix(in srgb, ${primary} ${Math.round(primaryRatio * 100)}%, ${secondary})`;
+  }
+
+  function rewritePreviewImages(root: HTMLElement, absolutePath: string) {
+    const images = root.querySelectorAll<HTMLImageElement>("img[src]");
+    for (const image of images) {
+      const currentSrc = image.getAttribute("src")?.trim() ?? "";
+      const nextSrc = resolvePreviewAssetSource(currentSrc, absolutePath);
+      if (nextSrc && nextSrc !== currentSrc) {
+        image.setAttribute("src", nextSrc);
+      }
+    }
+  }
+
+  function resolvePreviewAssetSource(src: string, absolutePath: string) {
+    if (
+      !src ||
+      src.startsWith("#") ||
+      /^data:/i.test(src) ||
+      /^asset:/i.test(src) ||
+      /^https?:\/\//i.test(src) ||
+      /^http:\/\/asset\.localhost/i.test(src) ||
+      /^\/\//.test(src)
+    ) {
+      return src;
+    }
+
+    const { pathname, suffix } = splitUrlReference(src);
+    const decodedPath = decodeURIComponent(pathname);
+    const resolvedPath = isAbsoluteFilePath(decodedPath)
+      ? normalizeResolvedPath(decodedPath)
+      : resolveRelativeFilePath(absolutePath, decodedPath);
+
+    return `${convertFileSrc(resolvedPath)}${suffix}`;
+  }
+
+  async function renderMermaidPreviews(root: HTMLElement) {
+    const previewPanels = root.querySelectorAll<HTMLElement>(
+      ".vditor-wysiwyg__preview, .vditor-ir__preview",
+    );
+    if (previewPanels.length === 0) {
+      return;
+    }
+
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "loose",
+      theme: resolveThemeName() === "dark" ? "dark" : "default",
+    });
+
+    for (const panel of previewPanels) {
+      const languageNode = panel.querySelector<HTMLElement>(".language-mermaid");
+      if (!languageNode) {
+        continue;
+      }
+
+      const source =
+        panel.dataset.mermaidSource?.trim() ||
+        languageNode.textContent?.trim() ||
+        "";
+      if (!source) {
+        continue;
+      }
+
+      panel.dataset.mermaidSource = source;
+
+      try {
+        const renderId = `docs-atlas-mermaid-${++mermaidSequence}`;
+        const { svg, bindFunctions } = await mermaid.render(renderId, source);
+        panel.innerHTML = svg;
+        panel.dataset.render = "1";
+        bindFunctions?.(panel);
+      } catch {
+        panel.dataset.render = "0";
+      }
+    }
+  }
+
+  function splitUrlReference(value: string) {
+    const hashIndex = value.indexOf("#");
+    const queryIndex = value.indexOf("?");
+    const cutoffCandidates = [hashIndex, queryIndex].filter((index) => index >= 0);
+    const cutoff = cutoffCandidates.length > 0 ? Math.min(...cutoffCandidates) : value.length;
+
+    return {
+      pathname: value.slice(0, cutoff),
+      suffix: value.slice(cutoff),
+    };
+  }
+
+  function isAbsoluteFilePath(pathname: string) {
+    return pathname.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(pathname) || pathname.startsWith("file://");
+  }
+
+  function resolveRelativeFilePath(fromPath: string, targetPath: string) {
+    const base = normalizeResolvedPath(fromPath);
+    const normalizedTarget = targetPath.replace(/\\/g, "/");
+    const fromSegments = base.split("/");
+    fromSegments.pop();
+
+    for (const segment of normalizedTarget.split("/")) {
+      if (!segment || segment === ".") {
+        continue;
+      }
+
+      if (segment === "..") {
+        if (fromSegments.length > 1) {
+          fromSegments.pop();
+        }
+        continue;
+      }
+
+      fromSegments.push(segment);
+    }
+
+    return fromSegments.join("/");
+  }
+
+  function normalizeResolvedPath(value: string) {
+    return value.replace(/^file:\/\//i, "").replace(/\\/g, "/");
   }
 
   function resolveEditorPalette(
@@ -670,22 +831,28 @@
   .desktop-doc-editor__editor :deep(.vditor-ir .vditor-reset),
   .desktop-doc-editor__editor :deep(.vditor-sv),
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview) {
-    background: var(--textarea-background-color) !important;
-    background-color: var(--textarea-background-color) !important;
+    /* background: var(--textarea-background-color) !important;
+    background-color: var(--textarea-background-color) !important; */
   }
 
   .desktop-doc-editor__editor :deep(.vditor-reset) {
-    background: var(--textarea-background-color) !important;
-    background-color: var(--textarea-background-color) !important;
+    /* background: var(--textarea-background-color) !important;
+    background-color: var(--textarea-background-color) !important; */
     border-radius: 0 0 calc(var(--desktop-radius-lg) - 1px)
       calc(var(--desktop-radius-lg) - 1px);
+  }
+
+  .desktop-doc-editor__editor :deep(.vditor-reset:focus) {
+    background-color: unset !important;
   }
 
   .desktop-doc-editor__editor
     :deep(.vditor-wysiwyg div.vditor-wysiwyg__block[data-type="code-block"]),
   .desktop-doc-editor__editor :deep(.vditor-ir__node[data-type="code-block"]),
   .desktop-doc-editor__editor
-    :deep(.vditor-wysiwyg__block[data-type="code-block"] .vditor-wysiwyg__preview) {
+    :deep(
+      .vditor-wysiwyg__block[data-type="code-block"] .vditor-wysiwyg__preview
+    ) {
     margin: 1rem 0;
     border: 1px solid var(--editor-code-border);
     border-radius: 14px;
@@ -705,11 +872,18 @@
     :deep(.vditor-ir__node[data-type="code-block"] pre),
   .desktop-doc-editor__editor :deep(pre.vditor-reset[data-type="code-block"]),
   .desktop-doc-editor__editor
-    :deep(.vditor-wysiwyg__block[data-type="code-block"] .vditor-wysiwyg__preview pre),
+    :deep(
+      .vditor-wysiwyg__block[data-type="code-block"]
+        .vditor-wysiwyg__preview
+        pre
+    ),
   .desktop-doc-editor__editor
-    :deep(.vditor-wysiwyg__block[data-type="code-block"] .vditor-wysiwyg__preview .hljs) {
+    :deep(
+      .vditor-wysiwyg__block[data-type="code-block"]
+        .vditor-wysiwyg__preview
+        .hljs
+    ) {
     margin: 0 !important;
-    padding: 0 !important;
     border: 0 !important;
     border-radius: 0 !important;
     background: var(--editor-code-bg) !important;
@@ -749,6 +923,20 @@
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview pre code) {
     background: var(--editor-code-bg) !important;
     background-color: var(--editor-code-bg) !important;
+  }
+
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview img),
+  .desktop-doc-editor__editor :deep(.vditor-reset img) {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: 12px;
+  }
+
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview svg) {
+    display: block;
+    max-width: 100%;
+    height: auto;
   }
 
   .desktop-doc-editor__editor :deep(code[data-marker="`"]),
