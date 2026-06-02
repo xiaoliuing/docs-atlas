@@ -61,10 +61,10 @@ const emit = defineEmits<{
 
 .doc-content__panel {
   display: grid;
-  border: 1px solid color-mix(in srgb, var(--desktop-line-strong) 48%, var(--desktop-line));
+  border: 1px solid color-mix(in srgb, var(--desktop-line-strong) 38%, var(--desktop-line));
   border-radius: var(--desktop-radius-lg);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 18%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 18%),
     var(--desktop-surface-strong);
   box-shadow: 0 12px 28px rgba(var(--desktop-shadow), 0.065);
   overflow: hidden;
@@ -75,11 +75,15 @@ const emit = defineEmits<{
 }
 
 .doc-content__header {
+  position: sticky;
+  top: 0;
+  z-index: 4;
   padding: 0.82rem 0.96rem 0.72rem;
   border-bottom: 1px solid rgba(var(--desktop-accent-rgb), 0.08);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 100%),
-    rgba(var(--desktop-accent-rgb), 0.028);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08)),
+    color-mix(in srgb, var(--desktop-surface-strong) 92%, rgba(var(--desktop-accent-rgb), 0.08));
+  backdrop-filter: blur(12px);
 }
 
 .doc-content__header-top {
@@ -92,7 +96,7 @@ const emit = defineEmits<{
 .doc-content__section {
   margin: 0;
   color: var(--desktop-muted);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
   line-height: 1.45;
 }
@@ -112,6 +116,7 @@ const emit = defineEmits<{
   font-weight: 600;
   cursor: pointer;
   transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+  flex-shrink: 0;
 }
 
 .doc-content__favorite:hover,
