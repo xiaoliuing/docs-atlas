@@ -3,7 +3,6 @@ import { computed, nextTick, onBeforeUnmount, onMounted, shallowRef, useTemplate
 import Vditor from 'vditor'
 import type { DesktopMarkdownThemeId } from '@/composables/useDesktopPreferences'
 import type { DocDetail } from '@/types/docs'
-import DesktopUiIcon from '@/components/ui/DesktopUiIcon.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -29,25 +28,6 @@ let themeObserver: MutationObserver | null = null
 
 const hasEditableSource = computed(() => Boolean(props.doc.absolutePath && typeof props.doc.markdown === 'string'))
 const isDirty = computed(() => draftMarkdown.value !== savedMarkdown.value)
-const statusText = computed(() => {
-  if (!hasEditableSource.value) {
-    return '当前文档不可编辑'
-  }
-
-  if (isSaving.value) {
-    return '保存中...'
-  }
-
-  if (saveError.value) {
-    return saveError.value
-  }
-
-  if (isDirty.value) {
-    return '已修改，按 Ctrl/Cmd + S 保存'
-  }
-
-  return '所见即所得编辑'
-})
 
 watch(
   () => [props.doc.slug, props.doc.markdown ?? ''] as const,
@@ -123,7 +103,7 @@ function createEditor() {
       enable: false,
     },
     counter: {
-      enable: true,
+      enable: false,
       type: 'markdown',
     },
     height: 'auto',
@@ -146,27 +126,9 @@ function createEditor() {
       mode: 'editor',
     },
     theme: resolveThemeName(),
-    toolbar: [
-      'headings',
-      'bold',
-      'italic',
-      'strike',
-      'link',
-      '|',
-      'list',
-      'ordered-list',
-      'check',
-      'quote',
-      'line',
-      'code',
-      'inline-code',
-      'table',
-      '|',
-      'undo',
-      'redo',
-    ],
+    toolbar: [],
     toolbarConfig: {
-      hide: false,
+      hide: true,
       pin: true,
     },
     value: props.doc.markdown ?? '',
@@ -257,152 +219,26 @@ function handleWindowKeydown(event: KeyboardEvent) {
   void handleSave()
 }
 
-const VDITOR_ZH_CN: Record<string, string> = {
-  bold: '粗体',
-  check: '任务列表',
-  code: '代码块',
-  edit: '编辑',
-  headings: '标题',
-  'inline-code': '行内代码',
-  italic: '斜体',
-  line: '分隔线',
-  link: '链接',
-  list: '无序列表',
-  'ordered-list': '有序列表',
-  preview: '预览',
-  quote: '引用',
-  redo: '重做',
-  strike: '删除线',
-  table: '表格',
-  undo: '撤销',
-  wysiwyg: '所见即所得',
-}
+const VDITOR_ZH_CN: Record<string, string> = {}
 </script>
 
 <template>
-  <section class="desktop-doc-editor">
-    <div class="desktop-doc-editor__statusbar">
-      <div class="desktop-doc-editor__statuscopy">
-        <span class="desktop-doc-editor__statuslabel">编辑器</span>
-        <span
-          class="desktop-doc-editor__statustext"
-          :class="{
-            'desktop-doc-editor__statustext--error': !!saveError,
-            'desktop-doc-editor__statustext--dirty': isDirty && !isSaving && !saveError,
-          }"
-        >
-          {{ statusText }}
-        </span>
-      </div>
-
-      <button
-        class="desktop-doc-editor__save"
-        :disabled="!hasEditableSource || !isDirty || isSaving"
-        type="button"
-        @click="handleSave"
-      >
-        <DesktopUiIcon name="bookmark" :size="14" />
-        <span>{{ isSaving ? '保存中' : '保存' }}</span>
-      </button>
-    </div>
-
-    <div
-      v-if="props.highlightQuery.trim()"
-      class="desktop-doc-editor__searchhint"
-    >
-      当前文档由搜索结果打开，编辑器模式下不显示命中高亮。
-    </div>
-
-    <div
-      ref="host"
-      class="desktop-doc-editor__editor"
-      :data-markdown-theme="props.markdownThemeId"
-    />
-  </section>
+  <div
+    ref="host"
+    class="desktop-doc-editor__editor"
+    :class="{
+      'desktop-doc-editor__editor--dirty': isDirty && !isSaving && !saveError,
+      'desktop-doc-editor__editor--error': !!saveError,
+      'desktop-doc-editor__editor--readonly': !hasEditableSource,
+    }"
+    :data-markdown-theme="props.markdownThemeId"
+    :title="saveError || (!hasEditableSource ? '当前文档不可编辑' : isDirty ? '已修改，按 Ctrl/Cmd + S 保存' : '所见即所得编辑')"
+  />
 </template>
 
 <style scoped>
-.desktop-doc-editor {
-  display: grid;
-  gap: 0.72rem;
-  min-width: 0;
-}
-
-.desktop-doc-editor__statusbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.8rem;
-}
-
-.desktop-doc-editor__statuscopy {
-  display: grid;
-  gap: 0.14rem;
-  min-width: 0;
-}
-
-.desktop-doc-editor__statuslabel {
-  color: var(--desktop-soft);
-  font-size: 0.64rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.desktop-doc-editor__statustext {
-  color: var(--desktop-muted);
-  font-size: 0.78rem;
-  line-height: 1.4;
-}
-
-.desktop-doc-editor__statustext--dirty {
-  color: var(--desktop-accent);
-}
-
-.desktop-doc-editor__statustext--error {
-  color: #c94d5f;
-}
-
-.desktop-doc-editor__save {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.42rem;
-  min-height: 2rem;
-  padding: 0.36rem 0.82rem;
-  border: 1px solid rgba(var(--desktop-accent-rgb), 0.16);
-  border-radius: 999px;
-  background: rgba(var(--desktop-accent-rgb), 0.08);
-  color: var(--desktop-accent);
-  font: inherit;
-  font-size: 0.76rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
-}
-
-.desktop-doc-editor__save:hover:not(:disabled) {
-  border-color: rgba(var(--desktop-accent-rgb), 0.28);
-  background: rgba(var(--desktop-accent-rgb), 0.12);
-  transform: translateY(-1px);
-}
-
-.desktop-doc-editor__save:disabled {
-  opacity: 0.52;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.desktop-doc-editor__searchhint {
-  padding: 0.62rem 0.76rem;
-  border: 1px solid rgba(var(--desktop-accent-rgb), 0.12);
-  border-radius: 0.82rem;
-  background: rgba(var(--desktop-accent-rgb), 0.05);
-  color: var(--desktop-muted);
-  font-size: 0.76rem;
-  line-height: 1.5;
-}
-
 .desktop-doc-editor__editor {
+  position: relative;
   min-width: 0;
 }
 
@@ -414,23 +250,22 @@ const VDITOR_ZH_CN: Record<string, string> = {
   box-shadow: 0 10px 22px rgba(var(--desktop-shadow), 0.05);
 }
 
-.desktop-doc-editor__editor :deep(.vditor-toolbar) {
-  padding: 0.38rem 0.45rem;
-  border-bottom: 1px solid var(--desktop-line);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.2), transparent 75%),
-    rgba(var(--desktop-accent-rgb), 0.035);
+.desktop-doc-editor__editor--dirty :deep(.vditor) {
+  border-color: rgba(var(--desktop-accent-rgb), 0.34);
+  box-shadow:
+    0 0 0 1px rgba(var(--desktop-accent-rgb), 0.08),
+    0 12px 28px rgba(var(--desktop-shadow), 0.08);
 }
 
-.desktop-doc-editor__editor :deep(.vditor-toolbar__item) {
-  color: var(--desktop-muted);
+.desktop-doc-editor__editor--error :deep(.vditor) {
+  border-color: rgba(201, 77, 95, 0.42);
+  box-shadow:
+    0 0 0 1px rgba(201, 77, 95, 0.12),
+    0 12px 28px rgba(var(--desktop-shadow), 0.08);
 }
 
-.desktop-doc-editor__editor :deep(.vditor-toolbar__item:hover),
-.desktop-doc-editor__editor :deep(.vditor-toolbar__item--current),
-.desktop-doc-editor__editor :deep(.vditor-toolbar__item--current:hover) {
-  color: var(--desktop-accent);
-  background: rgba(var(--desktop-accent-rgb), 0.1);
+.desktop-doc-editor__editor--readonly :deep(.vditor) {
+  opacity: 0.76;
 }
 
 .desktop-doc-editor__editor :deep(.vditor-reset) {
@@ -442,6 +277,8 @@ const VDITOR_ZH_CN: Record<string, string> = {
   background: var(--desktop-surface-strong);
 }
 
+.desktop-doc-editor__editor :deep(.vditor-ir pre.vditor-reset),
+.desktop-doc-editor__editor :deep(.vditor-sv),
 .desktop-doc-editor__editor :deep(.vditor-wysiwyg) {
   min-height: 28rem;
   padding: 1rem 1.08rem 1.18rem !important;
@@ -468,17 +305,5 @@ const VDITOR_ZH_CN: Record<string, string> = {
   margin-inline: auto;
   font-size: 1rem;
   line-height: 1.84;
-}
-
-.desktop-doc-editor__editor :deep(.vditor-counter) {
-  padding: 0.45rem 0.8rem 0.62rem;
-  border-top: 1px solid var(--desktop-line);
-  color: var(--desktop-soft);
-  background: rgba(var(--desktop-accent-rgb), 0.025);
-  font-size: 0.72rem;
-}
-
-.desktop-doc-editor__editor :deep(.vditor-tooltipped:hover::after) {
-  z-index: 10;
 }
 </style>
