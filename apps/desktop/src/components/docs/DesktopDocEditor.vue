@@ -49,6 +49,7 @@
   const activePreviewImageIndex = shallowRef(-1);
   const currentDocAbsolutePath = shallowRef(props.doc.absolutePath?.trim() ?? "");
   const currentDocModifiedAt = shallowRef(props.doc.modifiedAt ?? "");
+  const vditorCdn = resolveVditorCdn();
   let themeObserver: MutationObserver | null = null;
   let previewEnhancementTimer: number | null = null;
   let autoSaveTimer: number | null = null;
@@ -175,6 +176,7 @@
       cache: {
         enable: false,
       },
+      cdn: vditorCdn,
       counter: {
         enable: false,
         type: "markdown",
@@ -269,6 +271,16 @@
     return document.documentElement.dataset.theme === "dark"
       ? "dark"
       : "classic";
+  }
+
+  function resolveVditorCdn() {
+    const base = import.meta.env.BASE_URL;
+    if (!base || base === "/") {
+      return "/vditor";
+    }
+
+    const normalizedBase = base.endsWith("/") ? base.slice(0, -1) : base;
+    return `${normalizedBase}/vditor`;
   }
 
   function applyEditorTheme() {
