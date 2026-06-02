@@ -193,15 +193,16 @@
     editor.setTheme(theme);
 
     const rootStyles = window.getComputedStyle(document.documentElement);
+    const palette = resolveEditorPalette(theme, props.markdownThemeId);
     const tokenEntries = [
       ["--border-color", mixRootToken("--desktop-line-strong", "--desktop-line", 0.34)],
       ["--second-color", "rgba(var(--desktop-accent-rgb), 0.18)"],
-      ["--panel-background-color", readRootToken("--desktop-surface-strong", rootStyles)],
+      ["--panel-background-color", palette.panelBackground],
       ["--panel-shadow", "none"],
       ["--toolbar-background-color", "transparent"],
       ["--toolbar-icon-color", readRootToken("--desktop-muted", rootStyles)],
       ["--toolbar-icon-hover-color", readRootToken("--desktop-accent", rootStyles)],
-      ["--textarea-background-color", "transparent"],
+      ["--textarea-background-color", palette.textareaBackground],
       ["--textarea-text-color", readRootToken("--desktop-ink", rootStyles)],
       ["--resize-icon-color", readRootToken("--desktop-muted", rootStyles)],
       ["--resize-background-color", "transparent"],
@@ -243,6 +244,53 @@
     const primary = readRootToken(primaryName);
     const secondary = readRootToken(secondaryName);
     return `color-mix(in srgb, ${primary} ${Math.round(primaryRatio * 100)}%, ${secondary})`;
+  }
+
+  function resolveEditorPalette(
+    theme: "dark" | "classic",
+    markdownThemeId: DesktopMarkdownThemeId,
+  ) {
+    const isDark = theme === "dark";
+    const surfaceStrong = readRootToken("--desktop-surface-strong");
+    const surface = readRootToken("--desktop-surface");
+    const field = readRootToken("--desktop-field-bg");
+    const fieldStrong = readRootToken("--desktop-field-bg-strong");
+
+    if (markdownThemeId === "github") {
+      return {
+        panelBackground: isDark ? fieldStrong : "#ffffff",
+        textareaBackground: isDark ? surfaceStrong : "#ffffff",
+      };
+    }
+
+    if (markdownThemeId === "compact") {
+      return {
+        panelBackground: isDark
+          ? `color-mix(in srgb, ${surfaceStrong} 92%, rgba(var(--desktop-accent-rgb), 0.08))`
+          : `color-mix(in srgb, ${surfaceStrong} 94%, rgba(var(--desktop-accent-rgb), 0.05))`,
+        textareaBackground: isDark ? field : readRootToken("--desktop-field-bg-strong"),
+      };
+    }
+
+    if (markdownThemeId === "reading") {
+      return {
+        panelBackground: isDark
+          ? `color-mix(in srgb, ${surfaceStrong} 88%, rgba(var(--desktop-accent-rgb), 0.1))`
+          : `color-mix(in srgb, ${surfaceStrong} 90%, rgba(var(--desktop-accent-rgb), 0.04))`,
+        textareaBackground: isDark
+          ? `color-mix(in srgb, ${fieldStrong} 90%, rgba(var(--desktop-accent-rgb), 0.06))`
+          : `color-mix(in srgb, ${surface} 82%, white)`,
+      };
+    }
+
+    return {
+      panelBackground: isDark
+        ? `color-mix(in srgb, ${surfaceStrong} 90%, rgba(var(--desktop-accent-rgb), 0.08))`
+        : `color-mix(in srgb, ${surfaceStrong} 92%, rgba(var(--desktop-accent-rgb), 0.04))`,
+      textareaBackground: isDark
+        ? `color-mix(in srgb, ${fieldStrong} 90%, rgba(var(--desktop-accent-rgb), 0.05))`
+        : readRootToken("--desktop-surface-strong"),
+    };
   }
 
   async function handleSave() {
@@ -424,7 +472,7 @@
   .desktop-doc-editor__editor :deep(.vditor-sv),
   .desktop-doc-editor__editor :deep(.vditor-content) {
     border: 0 !important;
-    background: transparent !important;
+    background: var(--panel-background-color) !important;
   }
 
   .desktop-doc-editor__editor :deep(.vditor-ir pre.vditor-reset),
@@ -432,12 +480,18 @@
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg) {
     min-height: 28rem;
     padding: 1rem 1.08rem 1.18rem !important;
-    background: transparent;
+    background: var(--textarea-background-color);
     color: var(--desktop-ink);
   }
 
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg) {
     padding: 0 !important;
+  }
+
+  .desktop-doc-editor__editor :deep(.vditor-wysiwyg pre.vditor-reset),
+  .desktop-doc-editor__editor :deep(.vditor-ir .vditor-reset),
+  .desktop-doc-editor__editor :deep(.vditor-sv) {
+    background: var(--textarea-background-color) !important;
   }
 
   .desktop-doc-editor__editor :deep(.vditor-wysiwyg:focus) {
