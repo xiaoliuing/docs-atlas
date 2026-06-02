@@ -1200,10 +1200,10 @@
   .desktop-workbench::before {
     content: "";
     position: absolute;
-    inset: 0.64rem;
+    /* inset: 0.64rem; */
     z-index: 0;
     pointer-events: none;
-    border: 1px solid rgba(var(--desktop-accent-rgb), 0.085);
+    /* border: 1px solid rgba(var(--desktop-accent-rgb), 0.085); */
     border-radius: 30px;
     background:
       repeating-linear-gradient(
@@ -1228,9 +1228,9 @@
     z-index: 0;
     pointer-events: none;
     border-radius: 26px;
-    box-shadow:
+    /* box-shadow:
       inset 0 1px 0 rgba(var(--desktop-accent-rgb), 0.08),
-      inset 0 0 0 1px rgba(var(--desktop-accent-rgb), 0.028);
+      inset 0 0 0 1px rgba(var(--desktop-accent-rgb), 0.028); */
   }
 
   :global(:root[data-theme="dark"]) .desktop-workbench {
