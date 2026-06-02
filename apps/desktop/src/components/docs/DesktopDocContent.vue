@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { computed, nextTick, shallowRef, useTemplateRef, watch } from "vue";
+  import { computed, nextTick, onBeforeUnmount, shallowRef, useTemplateRef, watch } from "vue";
   import type { DesktopMarkdownThemeId } from "@/composables/useDesktopPreferences";
   import type { DocDetail } from "@/types/docs";
   import DesktopUiIcon from "@/components/ui/DesktopUiIcon.vue";
@@ -29,6 +29,8 @@
 
   const bodyScrollRef = useTemplateRef<HTMLElement>("bodyScroll");
   const currentModifiedAt = shallowRef(props.doc.modifiedAt ?? "");
+  const saveFeedbackMessage = shallowRef("");
+  let saveFeedbackTimer: number | null = null;
 
   const formattedModifiedAt = computed(() => {
     if (!currentModifiedAt.value) {
@@ -79,6 +81,13 @@
     { immediate: true },
   );
 
+  watch(
+    () => props.doc.slug,
+    () => {
+      clearSaveFeedback();
+    },
+  );
+
   function handleBodyScroll(event: Event) {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
@@ -88,9 +97,35 @@
     emit("scrollTopChange", target.scrollTop);
   }
 
-  function handleDocSaved(payload: { modifiedAt: string }) {
+  function handleDocSaved(payload: { mode: "auto" | "manual"; modifiedAt: string }) {
     currentModifiedAt.value = payload.modifiedAt;
+    if (payload.mode === "manual") {
+      showSaveFeedback("已保存");
+    }
   }
+
+  function showSaveFeedback(message: string) {
+    saveFeedbackMessage.value = message;
+    if (saveFeedbackTimer !== null) {
+      window.clearTimeout(saveFeedbackTimer);
+    }
+    saveFeedbackTimer = window.setTimeout(() => {
+      saveFeedbackMessage.value = "";
+      saveFeedbackTimer = null;
+    }, 1800);
+  }
+
+  function clearSaveFeedback() {
+    saveFeedbackMessage.value = "";
+    if (saveFeedbackTimer !== null) {
+      window.clearTimeout(saveFeedbackTimer);
+      saveFeedbackTimer = null;
+    }
+  }
+
+  onBeforeUnmount(() => {
+    clearSaveFeedback();
+  });
 </script>
 
 <template>
@@ -128,6 +163,14 @@
         <div class="doc-content__meta">
           <span class="doc-content__meta-label">最后编辑</span>
           <strong class="doc-content__meta-value">{{ formattedModifiedAt }}</strong>
+          <transition name="doc-content__save-feedback">
+            <span
+              v-if="saveFeedbackMessage"
+              class="doc-content__save-feedback"
+            >
+              {{ saveFeedbackMessage }}
+            </span>
+          </transition>
         </div>
       </header>
 
@@ -248,6 +291,33 @@
     color: var(--desktop-ink);
     font-size: 0.76rem;
     font-weight: 600;
+  }
+
+  .doc-content__save-feedback {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.42rem;
+    padding: 0.12rem 0.48rem;
+    border: 1px solid rgba(var(--desktop-accent-rgb), 0.16);
+    border-radius: 999px;
+    background: rgba(var(--desktop-accent-rgb), 0.08);
+    color: var(--desktop-accent);
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .doc-content__save-feedback-enter-active,
+  .doc-content__save-feedback-leave-active {
+    transition:
+      opacity 0.18s ease,
+      transform 0.18s ease;
+  }
+
+  .doc-content__save-feedback-enter-from,
+  .doc-content__save-feedback-leave-to {
+    opacity: 0;
+    transform: translateY(-2px);
   }
 
   .doc-content__favorite {

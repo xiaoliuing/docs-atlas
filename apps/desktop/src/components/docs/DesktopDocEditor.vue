@@ -42,7 +42,6 @@
   const editorRef = shallowRef<Vditor | null>(null);
   const isSaving = shallowRef(false);
   const saveError = shallowRef("");
-  const saveSuccessMessage = shallowRef("");
   const draftMarkdown = shallowRef(props.doc.markdown ?? "");
   const savedMarkdown = shallowRef(props.doc.markdown ?? "");
   const themeName = shallowRef<"dark" | "classic">("classic");
@@ -53,7 +52,6 @@
   let themeObserver: MutationObserver | null = null;
   let previewEnhancementTimer: number | null = null;
   let autoSaveTimer: number | null = null;
-  let saveFeedbackTimer: number | null = null;
   let mermaidSequence = 0;
 
   const hasEditableSource = computed(() =>
@@ -149,10 +147,6 @@
     if (autoSaveTimer !== null) {
       window.clearInterval(autoSaveTimer);
       autoSaveTimer = null;
-    }
-    if (saveFeedbackTimer !== null) {
-      window.clearTimeout(saveFeedbackTimer);
-      saveFeedbackTimer = null;
     }
     void persistDraft({
       absolutePath: currentDocAbsolutePath.value,
@@ -749,14 +743,10 @@
       draftMarkdown.value = nextMarkdown;
       currentDocModifiedAt.value = modifiedAt;
       emit("saved", { mode, modifiedAt });
-      if (mode === "manual") {
-        showSaveSuccess("已保存");
-      }
       return true;
     } catch (error) {
       saveError.value =
         error instanceof Error ? error.message : "保存失败，请稍后重试";
-      clearSaveSuccess();
       return false;
     } finally {
       isSaving.value = false;
@@ -785,25 +775,6 @@
     void handleSave();
   }
 
-  function showSaveSuccess(message: string) {
-    saveSuccessMessage.value = message;
-    if (saveFeedbackTimer !== null) {
-      window.clearTimeout(saveFeedbackTimer);
-    }
-    saveFeedbackTimer = window.setTimeout(() => {
-      saveSuccessMessage.value = "";
-      saveFeedbackTimer = null;
-    }, 1800);
-  }
-
-  function clearSaveSuccess() {
-    saveSuccessMessage.value = "";
-    if (saveFeedbackTimer !== null) {
-      window.clearTimeout(saveFeedbackTimer);
-      saveFeedbackTimer = null;
-    }
-  }
-
   const VDITOR_ZH_CN: Record<string, string> = {};
 </script>
 
@@ -830,15 +801,6 @@
       class="desktop-doc-editor__editor"
       @click="handleEditorClick"
     />
-
-    <transition name="desktop-doc-editor__save-feedback">
-      <div
-        v-if="saveSuccessMessage"
-        class="desktop-doc-editor__save-feedback"
-      >
-        {{ saveSuccessMessage }}
-      </div>
-    </transition>
   </div>
 
   <DesktopDocImagePreview
@@ -897,42 +859,8 @@
     --ir-paren-color: var(--desktop-muted);
   }
 
-  .desktop-doc-editor__save-feedback {
-    position: absolute;
-    top: 0.9rem;
-    right: 1rem;
-    z-index: 16;
-    padding: 0.34rem 0.62rem;
-    border: 1px solid rgba(var(--desktop-accent-rgb), 0.16);
-    border-radius: 999px;
-    background: color-mix(
-      in srgb,
-      var(--desktop-surface-strong) 88%,
-      rgba(var(--desktop-accent-rgb), 0.12)
-    );
-    color: var(--desktop-accent);
-    font-size: 0.74rem;
-    font-weight: 600;
-    line-height: 1;
-    box-shadow: 0 10px 24px rgba(var(--desktop-shadow), 0.08);
-    pointer-events: none;
-  }
-
   .desktop-doc-editor--error :deep(.vditor) {
     outline: 1px solid rgba(215, 70, 70, 0.18);
-  }
-
-  .desktop-doc-editor__save-feedback-enter-active,
-  .desktop-doc-editor__save-feedback-leave-active {
-    transition:
-      opacity 0.18s ease,
-      transform 0.18s ease;
-  }
-
-  .desktop-doc-editor__save-feedback-enter-from,
-  .desktop-doc-editor__save-feedback-leave-to {
-    opacity: 0;
-    transform: translateY(-4px);
   }
 
   .desktop-doc-editor__editor.vditor {
