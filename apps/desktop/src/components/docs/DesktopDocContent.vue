@@ -67,6 +67,8 @@
 <style scoped>
   .doc-content {
     min-width: 0;
+    border-radius: var(--desktop-radius-lg);
+    overflow: hidden;
   }
 
   .doc-content__panel {
@@ -78,7 +80,7 @@
       linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 18%),
       var(--desktop-surface-strong);
     box-shadow: 0 12px 28px rgba(var(--desktop-shadow), 0.065);
-    overflow: hidden;
+    overflow: visible;
   }
 
   .doc-content__panel[data-markdown-theme="github"] {
@@ -92,7 +94,11 @@
     padding: 0.82rem 0.96rem 0.72rem;
     border-bottom: 1px solid rgba(var(--desktop-accent-rgb), 0.08);
     background:
-      linear-gradient(180deg, rgba(var(--desktop-accent-rgb), 0.075), transparent 88%),
+      linear-gradient(
+        180deg,
+        rgba(var(--desktop-accent-rgb), 0.075),
+        transparent 88%
+      ),
       color-mix(
         in srgb,
         var(--desktop-surface-strong) 94%,
