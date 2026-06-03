@@ -47,7 +47,9 @@
   const themeName = shallowRef<"dark" | "classic">("classic");
   const previewImages = shallowRef<PreviewImage[]>([]);
   const activePreviewImageIndex = shallowRef(-1);
-  const currentDocAbsolutePath = shallowRef(props.doc.absolutePath?.trim() ?? "");
+  const currentDocAbsolutePath = shallowRef(
+    props.doc.absolutePath?.trim() ?? "",
+  );
   const currentDocModifiedAt = shallowRef(props.doc.modifiedAt ?? "");
   const vditorCdn = resolveVditorCdn();
   let themeObserver: MutationObserver | null = null;
@@ -761,7 +763,11 @@
       options?.markdown ??
       getEditorMarkdownForSave(editor, host, absolutePath) ??
       draftMarkdown.value;
-    if (!absolutePath || isSaving.value || nextMarkdown === savedMarkdown.value) {
+    if (
+      !absolutePath ||
+      isSaving.value ||
+      nextMarkdown === savedMarkdown.value
+    ) {
       return false;
     }
 
@@ -948,6 +954,7 @@
   .desktop-doc-editor__editor :deep(.vditor-reset) {
     color: var(--desktop-ink);
     font-family: var(--desktop-font-sans);
+    padding: 10px 50px !important;
   }
 
   .desktop-doc-editor__editor :deep(.vditor-reset p),
