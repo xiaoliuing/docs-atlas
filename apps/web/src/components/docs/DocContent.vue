@@ -159,7 +159,13 @@ function scrollToHighlight(element: HTMLElement) {
     padding: 1.3rem 1.4rem;
     border: 1px solid var(--color-line);
     border-radius: 22px;
-    background: var(--surface-panel-alt);
+    background:
+      linear-gradient(
+        180deg,
+        rgba(var(--color-accent-rgb), 0.08),
+        transparent 90%
+      ),
+      var(--surface-panel-alt);
     box-shadow: 0 10px 24px rgba(var(--theme-shadow-rgb), 0.08);
   }
 
@@ -211,7 +217,13 @@ function scrollToHighlight(element: HTMLElement) {
     padding: 1rem clamp(0.72rem, 1vw, 0.96rem);
     border: 1px solid var(--color-line);
     border-radius: 22px;
-    background: var(--surface-markdown);
+    background:
+      linear-gradient(
+        180deg,
+        rgba(var(--color-accent-rgb), 0.05),
+        transparent 6rem
+      ),
+      var(--surface-markdown);
     box-shadow: 0 12px 28px rgba(var(--theme-shadow-rgb), 0.08);
   }
 
