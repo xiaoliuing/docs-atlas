@@ -174,6 +174,25 @@
         />
 
         <div ref="themeMenu" class="site-header__controls">
+          <a
+            aria-label="打开 Docs Atlas GitHub 仓库"
+            class="site-header__github-link"
+            href="https://github.com/xiaoliuing/docs-atlas"
+            rel="noreferrer"
+            target="_blank"
+          >
+            <svg
+              aria-hidden="true"
+              class="site-header__github-icon"
+              viewBox="0 0 24 24"
+            >
+              <path
+                fill="currentColor"
+                d="M12 2C6.48 2 2 6.59 2 12.24c0 4.52 2.87 8.36 6.84 9.71.5.1.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.21-3.37-1.21-.46-1.18-1.11-1.49-1.11-1.49-.91-.64.07-.63.07-.63 1 .07 1.53 1.05 1.53 1.05.9 1.57 2.35 1.12 2.92.86.09-.67.35-1.12.63-1.38-2.22-.26-4.56-1.14-4.56-5.05 0-1.11.39-2.01 1.03-2.72-.1-.26-.45-1.31.1-2.74 0 0 .84-.28 2.75 1.04A9.32 9.32 0 0 1 12 6.84c.85 0 1.71.12 2.51.36 1.91-1.32 2.75-1.04 2.75-1.04.55 1.43.2 2.48.1 2.74.64.71 1.03 1.61 1.03 2.72 0 3.92-2.34 4.79-4.57 5.04.36.32.68.95.68 1.92 0 1.39-.01 2.5-.01 2.84 0 .27.18.59.69.49A10.25 10.25 0 0 0 22 12.24C22 6.59 17.52 2 12 2Z"
+              />
+            </svg>
+          </a>
+
           <button
             :aria-label="shouldShowMobileSearch ? '收起搜索' : '打开搜索'"
             class="site-header__search-trigger"
@@ -403,6 +422,7 @@
   }
 
   .site-header__search-trigger,
+  .site-header__github-link,
   .site-header__theme-trigger {
     min-width: 42px;
     min-height: 42px;
@@ -416,6 +436,7 @@
     background: var(--surface-chip);
     color: var(--color-ink);
     cursor: pointer;
+    text-decoration: none;
     transition:
       background-color 0.18s ease,
       border-color 0.18s ease,
@@ -428,6 +449,7 @@
   }
 
   .site-header__search-trigger:hover,
+  .site-header__github-link:hover,
   .site-header__theme-trigger:hover,
   .site-header__mode-button:hover,
   .site-header__palette-option:hover {
@@ -439,6 +461,15 @@
   .site-header__search-icon {
     width: 1.05rem;
     height: 1.05rem;
+  }
+
+  .site-header__github-link {
+    padding: 0;
+  }
+
+  .site-header__github-icon {
+    width: 1.08rem;
+    height: 1.08rem;
   }
 
   .site-header__theme-mark {
@@ -643,6 +674,7 @@
     }
 
     .site-header__menu,
+    .site-header__github-link,
     .site-header__search-trigger,
     .site-header__theme-trigger {
       min-width: 40px;

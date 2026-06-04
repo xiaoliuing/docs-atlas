@@ -40,6 +40,9 @@
   --surface-table-line: #d8dee4;
   --surface-quote: #f6f8fa;
   --surface-markdown: rgba(255, 255, 255, 0.92);
+  --surface-markdown-strong: rgba(255, 255, 255, 0.98);
+  --surface-markdown-soft: rgba(var(--theme-mist-rgb), 0.76);
+  --surface-markdown-accent: rgba(var(--color-accent-rgb), 0.06);
   --text-on-contrast: #eff4ff;
   --text-on-contrast-soft: rgba(239, 244, 255, 0.72);
   --font-body:
@@ -110,6 +113,9 @@
   --surface-table-line: #30363d;
   --surface-quote: #11161d;
   --surface-markdown: rgba(var(--theme-mist-rgb), 0.9);
+  --surface-markdown-strong: rgba(var(--theme-panel-rgb), 0.9);
+  --surface-markdown-soft: rgba(255, 255, 255, 0.03);
+  --surface-markdown-accent: rgba(var(--color-accent-rgb), 0.12);
   --text-on-contrast: #edf3ff;
   --text-on-contrast-soft: rgba(237, 243, 255, 0.72);
   --shadow-panel: 0 24px 52px rgba(var(--theme-shadow-rgb), 0.36);
@@ -377,12 +383,12 @@ body {
     ),
     radial-gradient(
       circle at top left,
-      rgba(255, 255, 255, 0.16),
+      var(--surface-markdown-soft),
       transparent 34%
     ),
     radial-gradient(
       circle at bottom right,
-      rgba(var(--color-accent-rgb), 0.12),
+      var(--surface-markdown-accent),
       transparent 26%
     ),
     linear-gradient(
@@ -589,6 +595,7 @@ pre {
   border: 1px solid var(--surface-table-line);
   border-radius: 6px;
   background: var(--surface-inline-code);
+  color: var(--color-accent-deep);
   font-size: 0.88em;
 }
 
@@ -616,6 +623,10 @@ pre {
 
 .prose thead {
   background: var(--surface-table-head);
+}
+
+.prose tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--surface-table) 88%, var(--surface-markdown-soft));
 }
 
 .prose th {
