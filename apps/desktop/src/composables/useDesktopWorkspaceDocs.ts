@@ -45,9 +45,25 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
     watchRefreshPaused.value = true
   }
 
-  function resumeWatchRefresh() {
+  function resumeWatchRefresh(options?: { suppressForMs?: number }) {
     watchRefreshPaused.value = false
-    suppressedWatchRefreshUntil.value = 0
+    suppressedWatchRefreshUntil.value =
+      options?.suppressForMs && options.suppressForMs > 0 ? Date.now() + options.suppressForMs : 0
+  }
+
+  function updateDocModifiedAt(slug: string, modifiedAt: string) {
+    const targetDoc = docDetailsBySlugRef.value[slug]
+    if (!targetDoc) {
+      return
+    }
+
+    docDetailsBySlugRef.value = {
+      ...docDetailsBySlugRef.value,
+      [slug]: {
+        ...targetDoc,
+        modifiedAt,
+      },
+    }
   }
 
   watch(
@@ -153,6 +169,7 @@ export function useDesktopWorkspaceDocs(options: UseDesktopWorkspaceDocsOptions)
     refresh,
     resumeWatchRefresh,
     suppressWatchRefresh,
+    updateDocModifiedAt,
   }
 }
 

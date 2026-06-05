@@ -1,8 +1,10 @@
 import { onBeforeUnmount, onMounted, shallowRef, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import type { DocHeading } from '@/types/docs'
 
-const HEADING_OFFSET = 52
 const SCROLL_CONTAINER_ID = 'desktop-doc-scroll'
+const DOC_RENDERED_EVENT = 'docs-atlas:doc-rendered'
+const HEADING_OFFSET = 52
+type HeadingTarget = { id: string; index: number }
 
 export function useDesktopActiveHeadings(headings: MaybeRefOrGetter<DocHeading[]>) {
   const activeId = shallowRef('')
@@ -28,30 +30,70 @@ export function useDesktopActiveHeadings(headings: MaybeRefOrGetter<DocHeading[]
     boundScrollContainer = scrollContainer
   }
 
+  function getHeadingElements() {
+    if (!isClient) {
+      return []
+    }
+
+    const editorRoot = document.querySelector<HTMLElement>(
+      `#${SCROLL_CONTAINER_ID} .desktop-doc-editor__editor .ProseMirror`,
+    )
+    if (!editorRoot) {
+      return []
+    }
+
+    return Array.from(editorRoot.querySelectorAll<HTMLElement>('h2, h3'))
+  }
+
+  function getRenderedHeadings() {
+    const currentHeadings = toValue(headings)
+    return getHeadingElements()
+      .map((element, index) => ({
+        element,
+        id: element.dataset.docHeadingId || currentHeadings[index]?.id || element.id || '',
+        index: Number.parseInt(element.dataset.docHeadingIndex ?? `${index}`, 10),
+      }))
+      .filter((item) => item.id)
+      .sort((left, right) => left.index - right.index)
+  }
+
+  function getHeadingElement(target: HeadingTarget | string, fallbackIndex?: number) {
+    const headingElements = getHeadingElements()
+    if (typeof target === 'string') {
+      const matchByDataId = headingElements.find((element) => element.dataset.docHeadingId === target)
+      if (matchByDataId) {
+        return matchByDataId
+      }
+
+      if (typeof fallbackIndex === 'number') {
+        return headingElements[fallbackIndex] ?? null
+      }
+
+      return headingElements.find((element) => element.id === target) ?? null
+    }
+
+    return headingElements[target.index] ?? headingElements.find((element) => element.dataset.docHeadingId === target.id) ?? null
+  }
+
   function syncActiveHeading() {
     if (!isClient) {
       return
     }
 
-    const currentHeadings = toValue(headings)
-    if (!currentHeadings.length) {
+    const renderedHeadings = getRenderedHeadings()
+    if (!renderedHeadings.length) {
       activeId.value = ''
       return
     }
 
-    let currentId = currentHeadings[0]?.id ?? ''
+    let currentId = renderedHeadings[0]?.id ?? ''
     const scrollContainer = getScrollContainer()
     const containerTop = scrollContainer?.getBoundingClientRect().top ?? 0
 
-    for (const heading of currentHeadings) {
-      const element = document.getElementById(heading.id)
-      if (!element) {
-        continue
-      }
-
+    for (const heading of renderedHeadings) {
       const top = scrollContainer
-        ? element.getBoundingClientRect().top - containerTop
-        : element.getBoundingClientRect().top
+        ? heading.element.getBoundingClientRect().top - containerTop
+        : heading.element.getBoundingClientRect().top
 
       if (top <= HEADING_OFFSET) {
         currentId = heading.id
@@ -63,14 +105,25 @@ export function useDesktopActiveHeadings(headings: MaybeRefOrGetter<DocHeading[]
     activeId.value = currentId
   }
 
-  function scrollToHeading(id: string) {
+  function scrollToHeading(target: HeadingTarget | string) {
     if (!isClient) {
       return
     }
 
-    const element = document.getElementById(id)
+    const id = typeof target === 'string' ? target : target.id
+    const element = getHeadingElement(target)
     if (!element) {
       return
+    }
+
+    activeId.value = id
+
+    const activeElement = document.activeElement
+    if (
+      activeElement instanceof HTMLElement &&
+      activeElement.closest('.desktop-doc-editor__editor')
+    ) {
+      activeElement.blur()
     }
 
     const scrollContainer = getScrollContainer()
@@ -97,11 +150,13 @@ export function useDesktopActiveHeadings(headings: MaybeRefOrGetter<DocHeading[]
     bindScrollContainer()
     syncActiveHeading()
     window.addEventListener('resize', syncActiveHeading)
+    window.addEventListener(DOC_RENDERED_EVENT, syncActiveHeading as EventListener)
   })
 
   onBeforeUnmount(() => {
     boundScrollContainer?.removeEventListener('scroll', syncActiveHeading)
     window.removeEventListener('resize', syncActiveHeading)
+    window.removeEventListener(DOC_RENDERED_EVENT, syncActiveHeading as EventListener)
   })
 
   watch(

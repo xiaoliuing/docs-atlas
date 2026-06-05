@@ -8,9 +8,12 @@
     useTemplateRef,
     watch,
   } from "vue";
+  import { languages as codeMirrorLanguages } from "@codemirror/language-data";
+  import { oneDark } from "@codemirror/theme-one-dark";
   import { convertFileSrc } from "@tauri-apps/api/core";
+  import { Crepe } from "@milkdown/crepe";
+  import { replaceAll } from "@milkdown/kit/utils";
   import mermaid from "mermaid";
-  import Vditor from "vditor";
   import DesktopDocImagePreview from "./DesktopDocImagePreview.vue";
   import type { DesktopMarkdownThemeId } from "@/composables/useDesktopPreferences";
   import type { DocDetail } from "@/types/docs";
@@ -19,6 +22,23 @@
     alt: string;
     src: string;
     title: string;
+  };
+
+  type EditorPalette = {
+    panelBackground: string;
+    surfaceLow: string;
+    codeBackground: string;
+    codeBorder: string;
+    codeText: string;
+    inlineCodeBackground: string;
+    inlineCodeColor: string;
+    quoteBackground: string;
+    tableHeadBackground: string;
+    tableZebraBackground: string;
+    mutedLine: string;
+    softFill: string;
+    hoverFill: string;
+    selectionFill: string;
   };
 
   const props = withDefaults(
@@ -39,23 +59,29 @@
   }>();
 
   const hostRef = useTemplateRef<HTMLDivElement>("host");
-  const editorRef = shallowRef<Vditor | null>(null);
-  const isSaving = shallowRef(false);
-  const saveError = shallowRef("");
+  const editorRef = shallowRef<Crepe | null>(null);
   const draftMarkdown = shallowRef(props.doc.markdown ?? "");
   const savedMarkdown = shallowRef(props.doc.markdown ?? "");
-  const themeName = shallowRef<"dark" | "classic">("classic");
+  const isSaving = shallowRef(false);
+  const saveError = shallowRef("");
   const previewImages = shallowRef<PreviewImage[]>([]);
   const activePreviewImageIndex = shallowRef(-1);
   const currentDocAbsolutePath = shallowRef(
     props.doc.absolutePath?.trim() ?? "",
   );
   const currentDocModifiedAt = shallowRef(props.doc.modifiedAt ?? "");
-  const vditorCdn = resolveVditorCdn();
+  const resolvedThemeName = shallowRef<"dark" | "light">("light");
+  const isEditorMounted = shallowRef(false);
+  const lastHydratedSlug = shallowRef(props.doc.slug);
+  const mermaidPreviewCache = new Map<string, Promise<string> | string>();
+  const mermaidPreviewModeByKey = new Map<string, boolean>();
+  let debugResizeObserver: ResizeObserver | null = null;
   let themeObserver: MutationObserver | null = null;
   let previewEnhancementTimer: number | null = null;
-  let autoSaveTimer: number | null = null;
   let mermaidSequence = 0;
+  let pendingHeadingSync = false;
+  let pendingImageSync = false;
+  let pendingOutlineSync = false;
 
   const hasEditableSource = computed(() =>
     Boolean(props.doc.absolutePath && typeof props.doc.markdown === "string"),
@@ -89,20 +115,33 @@
     async ([slug, markdown, absolutePath, modifiedAt]) => {
       currentDocAbsolutePath.value = absolutePath;
       currentDocModifiedAt.value = modifiedAt;
-      draftMarkdown.value = markdown;
-      savedMarkdown.value = markdown;
       saveError.value = "";
 
-      await nextTick();
-
       const editor = editorRef.value;
-      if (!editor || editor.getValue() === markdown) {
-        schedulePreviewEnhancements();
+      if (!editor) {
         return;
       }
 
-      editor.setValue(markdown, true);
-      schedulePreviewEnhancements();
+      const shouldHydrateContent = lastHydratedSlug.value !== slug;
+      lastHydratedSlug.value = slug;
+
+      if (shouldHydrateContent) {
+        draftMarkdown.value = markdown;
+        savedMarkdown.value = markdown;
+
+        await nextTick();
+
+        if (editor.getMarkdown() !== markdown) {
+          editor.editor.action(replaceAll(markdown, true));
+        }
+      }
+
+      editor.setReadonly(!hasEditableSource.value);
+      schedulePreviewEnhancements({
+        syncHeadings: true,
+        syncImages: true,
+        syncOutline: true,
+      });
     },
     { immediate: true },
   );
@@ -115,27 +154,14 @@
   );
 
   watch(hasEditableSource, (nextValue) => {
-    const editor = editorRef.value;
-    if (!editor) {
-      return;
-    }
-
-    if (nextValue) {
-      editor.enable();
-      return;
-    }
-
-    editor.disabled();
+    editorRef.value?.setReadonly(!nextValue);
   });
 
   onMounted(async () => {
     await nextTick();
-    createEditor();
     syncTheme();
+    await createEditor(draftMarkdown.value);
     bindThemeObserver();
-    autoSaveTimer = window.setInterval(() => {
-      void persistDraft({ mode: "auto" });
-    }, 10_000);
     window.addEventListener("keydown", handleWindowKeydown, true);
   });
 
@@ -143,76 +169,183 @@
     window.removeEventListener("keydown", handleWindowKeydown, true);
     themeObserver?.disconnect();
     themeObserver = null;
+    debugResizeObserver?.disconnect();
+    debugResizeObserver = null;
+    mermaidPreviewCache.clear();
     if (previewEnhancementTimer !== null) {
       window.clearTimeout(previewEnhancementTimer);
       previewEnhancementTimer = null;
-    }
-    if (autoSaveTimer !== null) {
-      window.clearInterval(autoSaveTimer);
-      autoSaveTimer = null;
     }
     void persistDraft({
       absolutePath: currentDocAbsolutePath.value,
       markdown: draftMarkdown.value,
       mode: "auto",
     });
-    editorRef.value?.destroy();
-    editorRef.value = null;
+    void destroyEditor();
   });
 
-  function createEditor() {
+  async function createEditor(defaultValue: string) {
     if (!hostRef.value) {
       return;
     }
 
-    const editor = new Vditor(hostRef.value, {
-      after() {
-        draftMarkdown.value = editor.getValue();
-        savedMarkdown.value = editor.getValue();
-        applyEditorTheme();
-        schedulePreviewEnhancements();
-        if (!hasEditableSource.value) {
-          editor.disabled();
+    hostRef.value.innerHTML = "";
+
+    const nextEditor = new Crepe({
+      root: hostRef.value,
+      defaultValue,
+      features: {
+        [Crepe.Feature.Toolbar]: false,
+        [Crepe.Feature.TopBar]: false,
+        [Crepe.Feature.BlockEdit]: false,
+        [Crepe.Feature.CodeMirror]: true,
+        [Crepe.Feature.Latex]: false,
+      },
+      featureConfigs: {
+        [Crepe.Feature.CodeMirror]: {
+          copyText: "复制代码",
+          languages: codeMirrorLanguages,
+          noResultText: "未找到语言",
+          onCopy: () => {},
+          previewToggleText: (previewOnlyMode) =>
+            previewOnlyMode ? "编辑" : "预览",
+          previewOnlyByDefault: true,
+          renderPreview: renderCodePreview,
+          searchPlaceholder: "搜索语言",
+          theme: resolvedThemeName.value === "dark" ? oneDark : [],
+        },
+        [Crepe.Feature.Placeholder]: {
+          text: "开始编写 Markdown 文档",
+          mode: "doc",
+        },
+        [Crepe.Feature.ImageBlock]: {
+          proxyDomURL(url: string) {
+            return resolvePreviewAssetSource(url, currentDocAbsolutePath.value);
+          },
+        },
+      },
+    });
+
+    nextEditor.on((listener) => {
+      listener.markdownUpdated((_, markdown) => {
+        if (markdown === draftMarkdown.value) {
+          return;
         }
-      },
-      cache: {
-        enable: false,
-      },
-      cdn: vditorCdn,
-      counter: {
-        enable: false,
-        type: "markdown",
-      },
-      height: "auto",
-      i18n: VDITOR_ZH_CN,
-      icon: "ant",
-      input(markdown) {
+
         draftMarkdown.value = markdown;
         if (saveError.value) {
           saveError.value = "";
         }
-        schedulePreviewEnhancements();
-      },
-      mode: "wysiwyg",
-      outline: {
-        enable: false,
-      },
-      placeholder: "开始编写 Markdown 文档",
-      preview: {
-        actions: [],
-        delay: 0,
-        mode: "editor",
-      },
-      theme: resolveThemeName(),
-      toolbar: [],
-      toolbarConfig: {
-        hide: true,
-        pin: true,
-      },
-      value: props.doc.markdown ?? "",
+        schedulePreviewEnhancements({
+          syncHeadings: true,
+          syncImages: true,
+          syncOutline: true,
+        });
+      });
+
+      listener.mounted(() => {
+        isEditorMounted.value = true;
+        schedulePreviewEnhancements({
+          syncHeadings: true,
+          syncImages: true,
+          syncOutline: true,
+        });
+      });
     });
 
-    editorRef.value = editor;
+    editorRef.value = nextEditor;
+    const restoreIntersectionObserver = installStableCodeBlockObserver();
+    try {
+      await nextEditor.create();
+    } finally {
+      restoreIntersectionObserver();
+    }
+    nextEditor.setReadonly(!hasEditableSource.value);
+    applyEditorTheme();
+  }
+
+  function installStableCodeBlockObserver() {
+    if (typeof window === "undefined" || !window.IntersectionObserver) {
+      return () => {};
+    }
+
+    // Milkdown tears down off-screen code blocks, which changes Mermaid/code block
+    // height and makes the document scroll by itself. Keep editor code blocks mounted.
+    const OriginalIntersectionObserver = window.IntersectionObserver;
+
+    class StableCodeBlockObserver {
+      readonly root: Element | Document | null = null;
+      readonly rootMargin = "200px";
+      readonly thresholds = [0];
+      private readonly callback: IntersectionObserverCallback;
+      private readonly observedTargets = new Set<Element>();
+
+      constructor(callback: IntersectionObserverCallback) {
+        this.callback = callback;
+      }
+
+      observe(target: Element) {
+        this.observedTargets.add(target);
+        window.requestAnimationFrame(() => {
+          if (!this.observedTargets.has(target)) {
+            return;
+          }
+
+          this.callback(
+            [
+              {
+                boundingClientRect: target.getBoundingClientRect(),
+                intersectionRatio: 1,
+                intersectionRect: target.getBoundingClientRect(),
+                isIntersecting: true,
+                rootBounds: null,
+                target,
+                time: performance.now(),
+              } as IntersectionObserverEntry,
+            ],
+            this as unknown as IntersectionObserver,
+          );
+        });
+      }
+
+      unobserve(target: Element) {
+        this.observedTargets.delete(target);
+      }
+
+      disconnect() {
+        this.observedTargets.clear();
+      }
+
+      takeRecords() {
+        return [];
+      }
+    }
+
+    window.IntersectionObserver =
+      StableCodeBlockObserver as unknown as typeof IntersectionObserver;
+
+    return () => {
+      window.IntersectionObserver = OriginalIntersectionObserver;
+    };
+  }
+
+  async function destroyEditor() {
+    isEditorMounted.value = false;
+    const editor = editorRef.value;
+    editorRef.value = null;
+    if (editor) {
+      await editor.destroy();
+    }
+    if (hostRef.value) {
+      hostRef.value.innerHTML = "";
+    }
+  }
+
+  async function rebuildEditor() {
+    const currentMarkdown = draftMarkdown.value;
+    await destroyEditor();
+    await nextTick();
+    await createEditor(currentMarkdown);
   }
 
   function bindThemeObserver() {
@@ -221,7 +354,7 @@
     }
 
     themeObserver = new MutationObserver((mutations) => {
-      let shouldSyncTheme = false;
+      let shouldRebuild = false;
       let shouldApplyTheme = false;
 
       for (const mutation of mutations) {
@@ -230,9 +363,13 @@
           attributeName === "data-theme" ||
           attributeName === "data-theme-mode"
         ) {
-          shouldSyncTheme = true;
+          const previousTheme = resolvedThemeName.value;
+          syncTheme();
           shouldApplyTheme = true;
-          break;
+          if (previousTheme !== resolvedThemeName.value) {
+            shouldRebuild = true;
+          }
+          continue;
         }
 
         if (attributeName === "data-theme-accent") {
@@ -240,8 +377,8 @@
         }
       }
 
-      if (shouldSyncTheme) {
-        syncTheme();
+      if (shouldRebuild) {
+        void rebuildEditor();
         return;
       }
 
@@ -257,108 +394,88 @@
   }
 
   function syncTheme() {
-    const nextTheme = resolveThemeName();
-    if (nextTheme !== themeName.value) {
-      themeName.value = nextTheme;
-    }
-
-    applyEditorTheme();
-  }
-
-  function resolveThemeName(): "dark" | "classic" {
-    if (typeof document === "undefined") {
-      return "classic";
-    }
-
-    return document.documentElement.dataset.theme === "dark"
-      ? "dark"
-      : "classic";
-  }
-
-  function resolveVditorCdn() {
-    const base = import.meta.env.BASE_URL;
-    if (!base || base === "/") {
-      return "/vditor";
-    }
-
-    const normalizedBase = base.endsWith("/") ? base.slice(0, -1) : base;
-    return `${normalizedBase}/vditor`;
+    resolvedThemeName.value =
+      document.documentElement.dataset.theme === "dark" ? "dark" : "light";
   }
 
   function applyEditorTheme() {
-    const editor = editorRef.value;
     const host = hostRef.value;
-    if (!editor || !host || typeof window === "undefined") {
+    if (!host || typeof window === "undefined") {
       return;
     }
 
-    const theme = resolveThemeName();
-    editor.setTheme(theme);
-
     const rootStyles = window.getComputedStyle(document.documentElement);
-    const palette = resolveEditorPalette(theme, props.markdownThemeId);
+    const palette = resolveEditorPalette(
+      resolvedThemeName.value,
+      props.markdownThemeId,
+    );
     const tokenEntries = [
+      ["--crepe-color-background", palette.panelBackground],
+      ["--crepe-color-surface", palette.surfaceLow],
+      ["--crepe-color-surface-low", palette.softFill],
       [
-        "--border-color",
-        mixRootToken("--desktop-line-strong", "--desktop-line", 0.34),
+        "--crepe-color-on-background",
+        readRootToken("--desktop-ink", rootStyles),
       ],
-      ["--second-color", "rgba(var(--desktop-accent-rgb), 0.18)"],
-      ["--panel-background-color", palette.panelBackground],
-      ["--panel-shadow", "none"],
-      ["--toolbar-background-color", "transparent"],
-      ["--toolbar-icon-color", readRootToken("--desktop-muted", rootStyles)],
+      ["--crepe-color-on-surface", readRootToken("--desktop-ink", rootStyles)],
       [
-        "--toolbar-icon-hover-color",
-        readRootToken("--desktop-accent", rootStyles),
+        "--crepe-color-on-surface-variant",
+        readRootToken("--desktop-muted", rootStyles),
       ],
-      ["--textarea-background-color", palette.textareaBackground],
-      ["--textarea-text-color", readRootToken("--desktop-ink", rootStyles)],
-      ["--resize-icon-color", readRootToken("--desktop-muted", rootStyles)],
-      ["--resize-background-color", "transparent"],
+      ["--crepe-color-outline", palette.mutedLine],
+      ["--crepe-color-primary", readRootToken("--desktop-accent", rootStyles)],
+      ["--crepe-color-secondary", palette.hoverFill],
       [
-        "--resize-hover-icon-color",
-        readRootToken("--desktop-accent", rootStyles),
+        "--crepe-color-on-secondary",
+        readRootToken("--desktop-ink", rootStyles),
       ],
+      ["--crepe-color-inverse", readRootToken("--desktop-soft", rootStyles)],
       [
-        "--resize-hover-background-color",
-        rgbaRootToken("--desktop-accent-rgb", 0.1),
+        "--crepe-color-on-inverse",
+        readRootToken("--desktop-surface-strong", rootStyles),
       ],
-      ["--count-background-color", rgbaRootToken("--desktop-accent-rgb", 0.08)],
+      ["--crepe-color-inline-code", palette.inlineCodeColor],
+      ["--crepe-color-error", "rgb(210, 69, 69)"],
+      ["--crepe-color-hover", palette.hoverFill],
+      ["--crepe-color-selected", palette.selectionFill],
+      ["--crepe-color-inline-area", palette.softFill],
+      ["--crepe-font-default", "var(--desktop-font-sans)"],
+      ["--crepe-font-title", "var(--desktop-font-sans)"],
       [
-        "--heading-border-color",
-        mixRootToken("--desktop-line-strong", "--desktop-line", 0.3),
+        "--crepe-font-code",
+        "'SFMono-Regular', 'JetBrains Mono', 'Fira Code', monospace",
       ],
-      ["--blockquote-color", readRootToken("--desktop-muted", rootStyles)],
-      ["--ir-heading-color", readRootToken("--desktop-accent", rootStyles)],
-      ["--ir-title-color", readRootToken("--desktop-soft", rootStyles)],
-      ["--ir-bi-color", readRootToken("--desktop-accent", rootStyles)],
-      ["--ir-link-color", readRootToken("--desktop-accent", rootStyles)],
-      ["--ir-bracket-color", readRootToken("--desktop-accent", rootStyles)],
-      ["--ir-paren-color", readRootToken("--desktop-muted", rootStyles)],
-      ["--editor-muted-line", palette.mutedLine],
-      ["--editor-soft-fill", palette.softFill],
-      ["--editor-code-bg", palette.codeBackground],
-      ["--editor-code-border", palette.codeBorder],
-      ["--editor-inline-code-bg", palette.inlineCodeBackground],
-      ["--editor-inline-code-color", palette.inlineCodeColor],
-      ["--editor-code-text", palette.codeText],
-      ["--editor-quote-bg", palette.quoteBackground],
-      ["--editor-table-head-bg", palette.tableHeadBackground],
-      ["--editor-table-zebra-bg", palette.tableZebraBackground],
+      ["--docs-atlas-code-bg", palette.codeBackground],
+      ["--docs-atlas-code-border", palette.codeBorder],
+      ["--docs-atlas-code-text", palette.codeText],
+      ["--docs-atlas-inline-code-bg", palette.inlineCodeBackground],
+      ["--docs-atlas-inline-code-color", palette.inlineCodeColor],
+      ["--docs-atlas-quote-bg", palette.quoteBackground],
+      ["--docs-atlas-table-head-bg", palette.tableHeadBackground],
+      ["--docs-atlas-table-zebra-bg", palette.tableZebraBackground],
+      ["--docs-atlas-soft-fill", palette.softFill],
+      ["--docs-atlas-muted-line", palette.mutedLine],
     ] as const;
 
     for (const [name, value] of tokenEntries) {
       host.style.setProperty(name, value);
     }
 
-    host.dataset.vditorTheme = theme;
-    schedulePreviewEnhancements();
+    host.dataset.themeMode = resolvedThemeName.value;
   }
 
-  function schedulePreviewEnhancements() {
+  function schedulePreviewEnhancements(options?: {
+    syncHeadings?: boolean;
+    syncImages?: boolean;
+    syncOutline?: boolean;
+  }) {
     if (typeof window === "undefined") {
       return;
     }
+
+    pendingHeadingSync = pendingHeadingSync || Boolean(options?.syncHeadings);
+    pendingImageSync = pendingImageSync || Boolean(options?.syncImages);
+    pendingOutlineSync = pendingOutlineSync || Boolean(options?.syncOutline);
 
     if (previewEnhancementTimer !== null) {
       window.clearTimeout(previewEnhancementTimer);
@@ -366,72 +483,109 @@
 
     previewEnhancementTimer = window.setTimeout(() => {
       previewEnhancementTimer = null;
-      void applyPreviewEnhancements();
-    }, 24);
+      applyPreviewEnhancements();
+    }, 80);
   }
 
-  async function applyPreviewEnhancements() {
+  function applyPreviewEnhancements() {
     const host = hostRef.value;
-    const absolutePath = props.doc.absolutePath?.trim();
     if (!host) {
       return;
     }
 
-    if (absolutePath) {
-      rewritePreviewImages(host, absolutePath);
+    const shouldSyncHeadings = pendingHeadingSync;
+    const shouldSyncImages = pendingImageSync;
+    const shouldSyncOutline = pendingOutlineSync;
+
+    pendingHeadingSync = false;
+    pendingImageSync = false;
+    pendingOutlineSync = false;
+
+    if (shouldSyncHeadings) {
+      syncHeadingAnchors(host);
+    }
+    if (shouldSyncImages) {
+      collectPreviewImages(host);
+    }
+    if (shouldSyncOutline) {
+      notifyOutlineSync();
+    }
+    syncDebugObservers(host);
+  }
+
+  function syncDebugObservers(root: HTMLElement) {
+    if (!import.meta.env.DEV || typeof ResizeObserver === "undefined") {
+      return;
     }
 
-    collectPreviewImages(host);
-    await renderMermaidPreviews(host);
-  }
+    debugResizeObserver?.disconnect();
 
-  function readRootToken(name: string, rootStyles?: CSSStyleDeclaration) {
-    const styles =
-      rootStyles ?? window.getComputedStyle(document.documentElement);
-    return styles.getPropertyValue(name).trim();
-  }
-
-  function rgbaRootToken(name: string, alpha: number) {
-    const rgb = readRootToken(name);
-    return `rgba(${rgb}, ${alpha})`;
-  }
-
-  function mixRootToken(
-    primaryName: string,
-    secondaryName: string,
-    primaryRatio: number,
-  ) {
-    const primary = readRootToken(primaryName);
-    const secondary = readRootToken(secondaryName);
-    return `color-mix(in srgb, ${primary} ${Math.round(primaryRatio * 100)}%, ${secondary})`;
-  }
-
-  function rewritePreviewImages(root: HTMLElement, absolutePath: string) {
-    const images = root.querySelectorAll<HTMLImageElement>("img[src]");
-    for (const image of images) {
-      const currentSrc = image.getAttribute("src")?.trim() ?? "";
-      const originalSrc =
-        image.dataset.docsAtlasOriginalSrc?.trim() || currentSrc;
-      const nextSrc = resolvePreviewAssetSource(originalSrc, absolutePath);
-      if (nextSrc && nextSrc !== currentSrc) {
-        image.dataset.docsAtlasOriginalSrc = originalSrc;
-        image.setAttribute("src", nextSrc);
-      }
-    }
-  }
-
-  function restorePreviewImages(root: HTMLElement) {
-    const images = root.querySelectorAll<HTMLImageElement>(
-      "img[data-docs-atlas-original-src]",
+    const targets = root.querySelectorAll<HTMLElement>(
+      ".milkdown-code-block, .milkdown-code-block-placeholder, .preview, .desktop-doc-editor__diagram-preview",
     );
-    for (const image of images) {
-      const originalSrc = image.dataset.docsAtlasOriginalSrc?.trim();
-      if (!originalSrc) {
-        continue;
+
+    debugResizeObserver = new ResizeObserver((entries) => {
+      entries.forEach((entry) => {
+        const target = entry.target as HTMLElement;
+        const text =
+          target.textContent?.replace(/\s+/g, " ").trim().slice(0, 48) ?? "";
+        console.debug("[DocsAtlas][code-block] resize", {
+          className: target.className,
+          height: Math.round(entry.contentRect.height),
+          slug: props.doc.slug,
+          text,
+        });
+      });
+    });
+
+    targets.forEach((target) => {
+      debugResizeObserver?.observe(target);
+    });
+
+    const editorRoot = root.querySelector(".ProseMirror");
+    console.debug("[DocsAtlas][editor] preview sync", {
+      codeBlockCount: root.querySelectorAll(".milkdown-code-block").length,
+      headingCount: editorRoot?.querySelectorAll("h2, h3").length ?? 0,
+      slug: props.doc.slug,
+    });
+  }
+
+  function syncHeadingAnchors(root: HTMLElement) {
+    const headingIds = props.doc.headings.map((heading) => heading.id);
+    if (!headingIds.length) {
+      return;
+    }
+
+    const headingElements = root.querySelectorAll<HTMLElement>(
+      ".ProseMirror h2, .ProseMirror h3",
+    );
+
+    headingElements.forEach((element, index) => {
+      const nextId = headingIds[index];
+      if (!nextId) {
+        element.removeAttribute("id");
+        delete element.dataset.docHeadingId;
+        delete element.dataset.docHeadingIndex;
+        return;
       }
 
-      image.setAttribute("src", originalSrc);
+      element.id = nextId;
+      element.dataset.docHeadingId = nextId;
+      element.dataset.docHeadingIndex = String(index);
+    });
+  }
+
+  function notifyOutlineSync() {
+    if (typeof window === "undefined") {
+      return;
     }
+
+    if (import.meta.env.DEV) {
+      console.debug("[DocsAtlas][outline] doc-rendered", {
+        slug: props.doc.slug,
+      });
+    }
+    window.dispatchEvent(new CustomEvent("docs-atlas:doc-rendered"));
   }
 
   function collectPreviewImages(root: HTMLElement) {
@@ -441,7 +595,7 @@
       image.dataset.previewIndex = String(index);
       return {
         alt: image.getAttribute("alt")?.trim() ?? "",
-        src: image.getAttribute("src")?.trim() ?? "",
+        src: image.currentSrc?.trim() || image.src?.trim() || "",
         title: image.getAttribute("title")?.trim() ?? "",
       };
     });
@@ -474,51 +628,130 @@
     return `${convertFileSrc(resolvedPath)}${suffix}`;
   }
 
-  async function renderMermaidPreviews(root: HTMLElement) {
-    const previewPanels = root.querySelectorAll<HTMLElement>(
-      ".vditor-wysiwyg__preview, .vditor-ir__preview",
+  function renderCodePreview(
+    language: string,
+    content: string,
+    applyPreview: (value: null | string | HTMLElement) => void,
+  ) {
+    if (language.trim().toLowerCase() !== "mermaid") {
+      return null;
+    }
+
+    const cacheKey = `${resolvedThemeName.value}::${content.trim()}`;
+    const cachedPreview = mermaidPreviewCache.get(cacheKey);
+    if (typeof cachedPreview === "string") {
+      return wrapMermaidPreview(cachedPreview);
+    }
+
+    applyPreview(
+      '<div class="desktop-doc-editor__diagram-preview">Rendering Mermaid...</div>',
     );
-    if (previewPanels.length === 0) {
-      return;
+
+    if (cachedPreview instanceof Promise) {
+      void cachedPreview
+        .then((svg) => {
+          applyPreview(wrapMermaidPreview(svg));
+        })
+        .catch(() => {
+          applyPreview(createMermaidErrorMarkup());
+        });
+      return undefined;
     }
 
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: "loose",
-      theme: resolveThemeName() === "dark" ? "dark" : "default",
+      theme: resolvedThemeName.value === "dark" ? "dark" : "default",
     });
 
-    for (const panel of previewPanels) {
-      const languageNode =
-        panel.querySelector<HTMLElement>(".language-mermaid");
-      if (!languageNode) {
-        continue;
-      }
+    const renderTask = mermaid
+      .render(`docs-atlas-mermaid-${++mermaidSequence}`, content)
+      .then(({ svg }) => {
+        mermaidPreviewCache.set(cacheKey, svg);
+        return svg;
+      })
+      .catch(() => {
+        mermaidPreviewCache.delete(cacheKey);
+        throw new Error("Mermaid render failed");
+      });
 
-      const source =
-        panel.dataset.mermaidSource?.trim() ||
-        languageNode.textContent?.trim() ||
-        "";
-      if (!source) {
-        continue;
-      }
+    mermaidPreviewCache.set(cacheKey, renderTask);
+    void renderTask
+      .then((svg) => {
+        applyPreview(wrapMermaidPreview(svg));
+      })
+      .catch(() => {
+        applyPreview(createMermaidErrorMarkup());
+      });
 
-      panel.dataset.mermaidSource = source;
+    return undefined;
+  }
 
-      try {
-        const renderId = `docs-atlas-mermaid-${++mermaidSequence}`;
-        const { svg, bindFunctions } = await mermaid.render(renderId, source);
-        panel.innerHTML = svg;
-        panel.dataset.render = "1";
-        panel.classList.add("desktop-doc-editor__diagram-preview");
-        bindFunctions?.(panel);
-      } catch {
-        panel.dataset.render = "0";
-      }
-    }
+  function wrapMermaidPreview(svg: string) {
+    return `<div class="desktop-doc-editor__diagram-preview">${svg}</div>`;
+  }
+
+  function createMermaidErrorMarkup() {
+    return '<div class="desktop-doc-editor__diagram-preview"><div class="desktop-doc-editor__diagram-error">Mermaid 渲染失败</div></div>';
   }
 
   function handleEditorClick(event: MouseEvent) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+
+    const previewToggleButton = target.closest(
+      ".preview-toggle-button",
+    ) as HTMLButtonElement | null;
+    if (previewToggleButton) {
+      window.setTimeout(() => {
+        syncMermaidPreviewModeState(previewToggleButton);
+      }, 0);
+    }
+
+    const image = target.closest(
+      "img[data-preview-index]",
+    ) as HTMLImageElement | null;
+    if (!image) {
+      return;
+    }
+
+    const index = Number.parseInt(image.dataset.previewIndex ?? "-1", 10);
+    if (Number.isNaN(index) || index < 0) {
+      return;
+    }
+
+    activePreviewImageIndex.value = index;
+  }
+
+  function handleEditorFocusIn(event: FocusEvent) {
+    const target = event.target;
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    console.debug("[DocsAtlas][editor] focusin", {
+      slug: props.doc.slug,
+      tagName: target instanceof HTMLElement ? target.tagName : "",
+      className: target instanceof HTMLElement ? target.className : "",
+    });
+  }
+
+  function handleEditorFocusOut(event: FocusEvent) {
+    const target = event.target;
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    console.debug("[DocsAtlas][editor] focusout", {
+      slug: props.doc.slug,
+      tagName: target instanceof HTMLElement ? target.tagName : "",
+      className: target instanceof HTMLElement ? target.className : "",
+    });
+  }
+
+  function handleEditorPointerUp(event: PointerEvent) {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
       return;
@@ -537,6 +770,53 @@
     }
 
     activePreviewImageIndex.value = index;
+  }
+
+  function syncMermaidPreviewModeState(toggleButton: HTMLButtonElement) {
+    const block = toggleButton.closest(
+      ".milkdown-code-block",
+    ) as HTMLElement | null;
+    if (!block) {
+      return;
+    }
+
+    const language =
+      block
+        .querySelector<HTMLElement>(".language-button")
+        ?.textContent?.trim()
+        .toLowerCase() ?? "";
+    if (language !== "mermaid") {
+      return;
+    }
+
+    const content = extractCodeBlockContent(block);
+    if (!content) {
+      return;
+    }
+
+    const key =
+      block.dataset.mermaidPreviewKey ??
+      createMermaidPreviewStateKey(props.doc.slug, content);
+    mermaidPreviewModeByKey.set(key, isCodeBlockPreviewOnly(block));
+    block.dataset.mermaidPreviewKey = key;
+  }
+
+  function extractCodeBlockContent(block: HTMLElement) {
+    const codeContent = block.querySelector<HTMLElement>(
+      ".cm-content, .milkdown-code-block-placeholder code",
+    );
+    return codeContent?.textContent?.replace(/\u00a0/g, " ").trim() ?? "";
+  }
+
+  function isCodeBlockPreviewOnly(block: HTMLElement) {
+    return (
+      block.querySelector(".codemirror-host")?.classList.contains("hidden") ??
+      false
+    );
+  }
+
+  function createMermaidPreviewStateKey(slug: string, content: string) {
+    return `${slug}::${content.trim()}`;
   }
 
   function closePreviewImage() {
@@ -597,25 +877,24 @@
   }
 
   function resolveEditorPalette(
-    theme: "dark" | "classic",
+    theme: "dark" | "light",
     markdownThemeId: DesktopMarkdownThemeId,
-  ) {
+  ): EditorPalette {
     const isDark = theme === "dark";
     const surfaceStrong = readRootToken("--desktop-surface-strong");
     const surface = readRootToken("--desktop-surface");
-    const field = readRootToken("--desktop-field-bg");
     const fieldStrong = readRootToken("--desktop-field-bg-strong");
 
     if (markdownThemeId === "github") {
       return {
         panelBackground: isDark ? fieldStrong : "#ffffff",
-        textareaBackground: isDark ? surfaceStrong : "#ffffff",
+        surfaceLow: isDark ? "rgba(110, 118, 129, 0.08)" : "#f8fafc",
         codeBackground: isDark
           ? "color-mix(in srgb, #161b22 78%, rgba(var(--desktop-accent-rgb), 0.22))"
-          : "color-mix(in srgb, #f6f8fa 90%, rgba(var(--desktop-accent-rgb), 0.1))",
+          : "color-mix(in srgb, #f6f8fa 92%, rgba(var(--desktop-accent-rgb), 0.08))",
         codeBorder: isDark
-          ? "rgba(var(--desktop-accent-rgb), 0.24)"
-          : "rgba(var(--desktop-accent-rgb), 0.14)",
+          ? "rgba(var(--desktop-accent-rgb), 0.22)"
+          : "rgba(31, 35, 40, 0.12)",
         codeText: isDark ? "#e6edf3" : "#24292f",
         inlineCodeBackground: isDark
           ? "rgba(110, 118, 129, 0.18)"
@@ -628,28 +907,34 @@
           ? "rgba(110, 118, 129, 0.14)"
           : "rgba(246, 248, 250, 0.96)",
         tableZebraBackground: isDark
-          ? "rgba(110, 118, 129, 0.06)"
+          ? "rgba(110, 118, 129, 0.05)"
           : "rgba(246, 248, 250, 0.72)",
         mutedLine: isDark
-          ? "rgba(110, 118, 129, 0.34)"
+          ? "rgba(110, 118, 129, 0.3)"
           : "rgba(31, 35, 40, 0.12)",
         softFill: isDark
           ? "rgba(110, 118, 129, 0.1)"
           : "rgba(175, 184, 193, 0.12)",
+        hoverFill: isDark
+          ? "rgba(110, 118, 129, 0.12)"
+          : "rgba(175, 184, 193, 0.14)",
+        selectionFill: isDark
+          ? "rgba(var(--desktop-accent-rgb), 0.18)"
+          : "rgba(var(--desktop-accent-rgb), 0.12)",
       };
     }
 
     if (markdownThemeId === "compact") {
       return {
         panelBackground: isDark
-          ? `color-mix(in srgb, ${surfaceStrong} 84%, rgba(var(--desktop-accent-rgb), 0.16))`
-          : `color-mix(in srgb, ${surfaceStrong} 88%, rgba(var(--desktop-accent-rgb), 0.08))`,
-        textareaBackground: isDark
-          ? `color-mix(in srgb, ${fieldStrong} 82%, rgba(var(--desktop-accent-rgb), 0.16))`
-          : `color-mix(in srgb, ${fieldStrong} 90%, rgba(var(--desktop-accent-rgb), 0.08))`,
+          ? `color-mix(in srgb, ${surfaceStrong} 84%, rgba(var(--desktop-accent-rgb), 0.14))`
+          : `color-mix(in srgb, ${surfaceStrong} 90%, rgba(var(--desktop-accent-rgb), 0.06))`,
+        surfaceLow: isDark
+          ? "rgba(var(--desktop-accent-rgb), 0.08)"
+          : "rgba(var(--desktop-accent-rgb), 0.04)",
         codeBackground: isDark
-          ? "color-mix(in srgb, rgba(11, 18, 32, 0.92) 74%, rgba(var(--desktop-accent-rgb), 0.26))"
-          : "color-mix(in srgb, white 84%, rgba(var(--desktop-accent-rgb), 0.12))",
+          ? "color-mix(in srgb, rgba(11, 18, 32, 0.92) 74%, rgba(var(--desktop-accent-rgb), 0.24))"
+          : "color-mix(in srgb, white 86%, rgba(var(--desktop-accent-rgb), 0.12))",
         codeBorder: isDark
           ? "rgba(var(--desktop-accent-rgb), 0.18)"
           : "rgba(var(--desktop-accent-rgb), 0.12)",
@@ -659,7 +944,7 @@
           : "rgba(var(--desktop-accent-rgb), 0.08)",
         inlineCodeColor: readRootToken("--desktop-accent"),
         quoteBackground: isDark
-          ? "rgba(var(--desktop-accent-rgb), 0.09)"
+          ? "rgba(var(--desktop-accent-rgb), 0.1)"
           : "rgba(var(--desktop-accent-rgb), 0.05)",
         tableHeadBackground: isDark
           ? "rgba(var(--desktop-accent-rgb), 0.12)"
@@ -671,8 +956,14 @@
           ? "rgba(var(--desktop-accent-rgb), 0.22)"
           : "rgba(var(--desktop-accent-rgb), 0.12)",
         softFill: isDark
-          ? "rgba(var(--desktop-accent-rgb), 0.1)"
+          ? "rgba(var(--desktop-accent-rgb), 0.12)"
           : "rgba(var(--desktop-accent-rgb), 0.06)",
+        hoverFill: isDark
+          ? "rgba(var(--desktop-accent-rgb), 0.14)"
+          : "rgba(var(--desktop-accent-rgb), 0.08)",
+        selectionFill: isDark
+          ? "rgba(var(--desktop-accent-rgb), 0.18)"
+          : "rgba(var(--desktop-accent-rgb), 0.12)",
       };
     }
 
@@ -680,13 +971,11 @@
       return {
         panelBackground: isDark
           ? `color-mix(in srgb, ${surfaceStrong} 82%, rgba(var(--desktop-accent-rgb), 0.14))`
-          : `color-mix(in srgb, ${surfaceStrong} 88%, rgba(var(--desktop-accent-rgb), 0.06))`,
-        textareaBackground: isDark
-          ? `color-mix(in srgb, ${fieldStrong} 82%, rgba(var(--desktop-accent-rgb), 0.14))`
-          : `color-mix(in srgb, ${surface} 86%, rgba(var(--desktop-accent-rgb), 0.05))`,
+          : `color-mix(in srgb, ${surfaceStrong} 88%, rgba(var(--desktop-accent-rgb), 0.05))`,
+        surfaceLow: isDark ? "rgba(255, 255, 255, 0.03)" : "#f8fafc",
         codeBackground: isDark
-          ? "color-mix(in srgb, rgba(14, 22, 38, 0.94) 74%, rgba(var(--desktop-accent-rgb), 0.24))"
-          : "color-mix(in srgb, #f7f5f1 86%, rgba(var(--desktop-accent-rgb), 0.1))",
+          ? "color-mix(in srgb, rgba(14, 22, 38, 0.94) 74%, rgba(var(--desktop-accent-rgb), 0.22))"
+          : "color-mix(in srgb, #f7f5f1 88%, rgba(var(--desktop-accent-rgb), 0.1))",
         codeBorder: isDark
           ? "rgba(var(--desktop-accent-rgb), 0.16)"
           : "rgba(99, 112, 138, 0.12)",
@@ -710,19 +999,23 @@
         softFill: isDark
           ? "rgba(var(--desktop-accent-rgb), 0.1)"
           : "rgba(99, 112, 138, 0.05)",
+        hoverFill: isDark
+          ? "rgba(var(--desktop-accent-rgb), 0.12)"
+          : "rgba(99, 112, 138, 0.08)",
+        selectionFill: isDark
+          ? "rgba(var(--desktop-accent-rgb), 0.18)"
+          : "rgba(99, 112, 138, 0.1)",
       };
     }
 
     return {
       panelBackground: isDark
         ? `color-mix(in srgb, ${surfaceStrong} 84%, rgba(var(--desktop-accent-rgb), 0.14))`
-        : `color-mix(in srgb, ${surfaceStrong} 88%, rgba(var(--desktop-accent-rgb), 0.06))`,
-      textareaBackground: isDark
-        ? `color-mix(in srgb, ${fieldStrong} 82%, rgba(var(--desktop-accent-rgb), 0.14))`
-        : `color-mix(in srgb, ${readRootToken("--desktop-surface-strong")} 90%, rgba(var(--desktop-accent-rgb), 0.06))`,
+        : `color-mix(in srgb, ${surfaceStrong} 90%, rgba(var(--desktop-accent-rgb), 0.06))`,
+      surfaceLow: isDark ? "rgba(255, 255, 255, 0.03)" : surface,
       codeBackground: isDark
         ? "color-mix(in srgb, rgba(10, 18, 34, 0.94) 72%, rgba(var(--desktop-accent-rgb), 0.28))"
-        : "color-mix(in srgb, white 82%, rgba(var(--desktop-accent-rgb), 0.12))",
+        : "color-mix(in srgb, white 84%, rgba(var(--desktop-accent-rgb), 0.12))",
       codeBorder: isDark
         ? "rgba(var(--desktop-accent-rgb), 0.18)"
         : "rgba(var(--desktop-accent-rgb), 0.12)",
@@ -746,7 +1039,19 @@
       softFill: isDark
         ? "rgba(var(--desktop-accent-rgb), 0.11)"
         : "rgba(var(--desktop-accent-rgb), 0.06)",
+      hoverFill: isDark
+        ? "rgba(var(--desktop-accent-rgb), 0.14)"
+        : "rgba(var(--desktop-accent-rgb), 0.08)",
+      selectionFill: isDark
+        ? "rgba(var(--desktop-accent-rgb), 0.18)"
+        : "rgba(var(--desktop-accent-rgb), 0.12)",
     };
+  }
+
+  function readRootToken(name: string, rootStyles?: CSSStyleDeclaration) {
+    const styles =
+      rootStyles ?? window.getComputedStyle(document.documentElement);
+    return styles.getPropertyValue(name).trim();
   }
 
   async function persistDraft(options?: {
@@ -755,14 +1060,12 @@
     mode?: "auto" | "manual";
   }) {
     const editor = editorRef.value;
-    const host = hostRef.value;
     const absolutePath =
       options?.absolutePath ?? currentDocAbsolutePath.value ?? "";
     const mode = options?.mode ?? "manual";
     const nextMarkdown =
-      options?.markdown ??
-      getEditorMarkdownForSave(editor, host, absolutePath) ??
-      draftMarkdown.value;
+      options?.markdown ?? editor?.getMarkdown() ?? draftMarkdown.value;
+
     if (
       !absolutePath ||
       isSaving.value ||
@@ -795,29 +1098,6 @@
     await persistDraft({ mode: "manual" });
   }
 
-  function getEditorMarkdownForSave(
-    editor: Vditor | null,
-    host: HTMLElement | null,
-    absolutePath: string,
-  ) {
-    if (!editor) {
-      return "";
-    }
-
-    if (!host || !absolutePath) {
-      return editor.getValue();
-    }
-
-    restorePreviewImages(host);
-
-    try {
-      return editor.getValue();
-    } finally {
-      rewritePreviewImages(host, absolutePath);
-      schedulePreviewEnhancements();
-    }
-  }
-
   function handleWindowKeydown(event: KeyboardEvent) {
     if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "s") {
       return;
@@ -835,8 +1115,6 @@
     event.preventDefault();
     void handleSave();
   }
-
-  const VDITOR_ZH_CN: Record<string, string> = {};
 </script>
 
 <template>
@@ -846,6 +1124,7 @@
       'desktop-doc-editor--dirty': isDirty && !isSaving && !saveError,
       'desktop-doc-editor--error': !!saveError,
       'desktop-doc-editor--readonly': !hasEditableSource,
+      'desktop-doc-editor--ready': isEditorMounted,
     }"
     :data-markdown-theme="props.markdownThemeId"
     :title="
@@ -854,13 +1133,16 @@
         ? '当前文档不可编辑'
         : isDirty
           ? '已修改，按 Ctrl/Cmd + S 保存'
-          : '所见即所得编辑')
+          : 'Markdown 所见即所得编辑')
     "
   >
     <div
       ref="host"
       class="desktop-doc-editor__editor"
       @click="handleEditorClick"
+      @focusin="handleEditorFocusIn"
+      @focusout="handleEditorFocusOut"
+      @pointerup="handleEditorPointerUp"
     />
   </div>
 
@@ -877,430 +1159,520 @@
   .desktop-doc-editor {
     position: relative;
     min-width: 0;
+    background: transparent;
   }
 
-  .desktop-doc-editor__editor,
-  .desktop-doc-editor__editor.vditor,
-  .desktop-doc-editor__editor.vditor.vditor--dark {
+  .desktop-doc-editor__editor {
     min-width: 0;
-    padding: 0;
-    border: 0 !important;
-    border-radius: 0;
-    background: transparent !important;
-    box-shadow: none !important;
-    --border-color: color-mix(
-      in srgb,
-      var(--desktop-line-strong) 34%,
-      var(--desktop-line)
-    );
-    --second-color: rgba(var(--desktop-accent-rgb), 0.16);
-    --panel-background-color: var(--desktop-surface-strong);
-    --panel-shadow: none;
-    --toolbar-background-color: transparent;
-    --toolbar-icon-color: var(--desktop-muted);
-    --toolbar-icon-hover-color: var(--desktop-accent);
-    --textarea-background-color: transparent;
-    --textarea-text-color: var(--desktop-ink);
-    --resize-icon-color: var(--desktop-muted);
-    --resize-background-color: transparent;
-    --resize-hover-icon-color: var(--desktop-accent);
-    --resize-hover-background-color: rgba(var(--desktop-accent-rgb), 0.1);
-    --count-background-color: rgba(var(--desktop-accent-rgb), 0.08);
-    --heading-border-color: color-mix(
-      in srgb,
-      var(--desktop-line-strong) 30%,
-      var(--desktop-line)
-    );
-    --blockquote-color: var(--desktop-muted);
-    --ir-heading-color: var(--desktop-accent);
-    --ir-title-color: var(--desktop-soft);
-    --ir-bi-color: var(--desktop-accent);
-    --ir-link-color: var(--desktop-accent);
-    --ir-bracket-color: var(--desktop-accent);
-    --ir-paren-color: var(--desktop-muted);
+    background: transparent;
   }
 
-  .desktop-doc-editor--error :deep(.vditor) {
-    outline: 1px solid rgba(215, 70, 70, 0.18);
-  }
-
-  .desktop-doc-editor__editor.vditor {
-    overflow: visible;
-  }
-
-  .desktop-doc-editor__editor.vditor > :deep(.vditor-content),
-  .desktop-doc-editor__editor.vditor > :deep(div),
-  .desktop-doc-editor__editor :deep(.vditor-content > div) {
-    border: 0 !important;
-    box-shadow: none !important;
-  }
-
-  .desktop-doc-editor--dirty .desktop-doc-editor__editor {
-    box-shadow: none !important;
+  .desktop-doc-editor--readonly {
+    opacity: 0.82;
   }
 
   .desktop-doc-editor--error .desktop-doc-editor__editor {
-    box-shadow: none !important;
+    outline: 1px solid rgba(215, 70, 70, 0.2);
+    outline-offset: -1px;
   }
 
-  .desktop-doc-editor--readonly .desktop-doc-editor__editor {
-    opacity: 0.76;
+  .desktop-doc-editor__editor :deep(.milkdown) {
+    background: transparent;
+    color: var(--desktop-ink);
   }
 
-  .desktop-doc-editor__editor :deep(.vditor-toolbar) {
-    display: none !important;
+  .desktop-doc-editor__editor :deep(.milkdown .editor) {
+    background: transparent;
   }
 
-  .desktop-doc-editor__editor :deep(.vditor-reset) {
+  .desktop-doc-editor__editor :deep(.milkdown .ProseMirror) {
+    min-height: 100%;
+    width: 100%;
+    max-width: none;
     color: var(--desktop-ink);
     font-family: var(--desktop-font-sans);
-    padding: 10px 50px !important;
+    font-size: 0.94rem;
+    line-height: 1.78;
+    letter-spacing: 0.002em;
+    background: var(--crepe-color-background);
+    overflow-anchor: none;
+    padding: 0 50px 36px;
   }
 
-  .desktop-doc-editor__editor :deep(.vditor-reset p),
-  .desktop-doc-editor__editor :deep(.vditor-reset li),
-  .desktop-doc-editor__editor :deep(.vditor-reset blockquote),
-  .desktop-doc-editor__editor :deep(.vditor-reset td),
-  .desktop-doc-editor__editor :deep(.vditor-reset th) {
-    color: var(--desktop-ink);
-  }
-
-  .desktop-doc-editor__editor :deep(.vditor-reset h1),
-  .desktop-doc-editor__editor :deep(.vditor-reset h2),
-  .desktop-doc-editor__editor :deep(.vditor-reset h3) {
-    color: var(--desktop-ink);
-  }
-
-  .desktop-doc-editor__editor
-    :deep(.vditor-wysiwyg > .vditor-reset > h1:before),
-  .desktop-doc-editor__editor
-    :deep(.vditor-wysiwyg > .vditor-reset > h2:before),
-  .desktop-doc-editor__editor
-    :deep(.vditor-wysiwyg > .vditor-reset > h3:before),
-  .desktop-doc-editor__editor
-    :deep(.vditor-wysiwyg > .vditor-reset > h4:before),
-  .desktop-doc-editor__editor
-    :deep(.vditor-wysiwyg > .vditor-reset > h5:before),
-  .desktop-doc-editor__editor
-    :deep(.vditor-wysiwyg > .vditor-reset > h6:before),
-  .desktop-doc-editor__editor
-    :deep(.vditor-wysiwyg div.vditor-wysiwyg__block:before),
-  .desktop-doc-editor__editor
-    :deep(.vditor-wysiwyg div[data-type="link-ref-defs-block"]:before),
-  .desktop-doc-editor__editor
-    :deep(.vditor-wysiwyg div[data-type="footnotes-block"]:before),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg .vditor-toc:before) {
-    color: rgba(var(--desktop-accent-rgb), 0.42);
-  }
-
-  .desktop-doc-editor__editor :deep(a) {
-    color: var(--desktop-accent);
-  }
-
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg span[data-type="link-ref"]),
-  .desktop-doc-editor__editor
-    :deep(.vditor-wysiwyg sup[data-type="footnotes-ref"]),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg span[data-type="toc-h"]),
-  .desktop-doc-editor__editor :deep(.vditor-ir__node[data-type="link-ref"]),
-  .desktop-doc-editor__editor
-    :deep(.vditor-ir__node[data-type="footnotes-ref"]) {
-    color: var(--desktop-accent) !important;
-  }
-
-  .desktop-doc-editor__editor :deep(.vditor-ir),
-  .desktop-doc-editor__editor :deep(.vditor-sv),
-  .desktop-doc-editor__editor :deep(.vditor-content),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview) {
-    border: 0 !important;
-    background: var(--panel-background-color) !important;
-    background-color: var(--panel-background-color) !important;
-  }
-
-  .desktop-doc-editor__editor :deep(.vditor-ir pre.vditor-reset),
-  .desktop-doc-editor__editor :deep(.vditor-sv),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg) {
-    min-height: 28rem;
-    padding: 1rem 1.08rem 1.18rem !important;
-    background: var(--textarea-background-color);
-    color: var(--desktop-ink);
-  }
-
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg) {
-    padding: 0 !important;
-  }
-
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg pre.vditor-reset),
-  .desktop-doc-editor__editor :deep(.vditor-ir pre.vditor-reset),
-  .desktop-doc-editor__editor :deep(.vditor-ir .vditor-reset),
-  .desktop-doc-editor__editor :deep(.vditor-sv),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview) {
-    /* background: var(--textarea-background-color) !important;
-    background-color: var(--textarea-background-color) !important; */
-  }
-
-  .desktop-doc-editor__editor :deep(.vditor-reset) {
-    /* background: var(--textarea-background-color) !important;
-    background-color: var(--textarea-background-color) !important; */
-    border-radius: 0 0 calc(var(--desktop-radius-lg) - 1px)
-      calc(var(--desktop-radius-lg) - 1px);
-  }
-
-  .desktop-doc-editor__editor :deep(.vditor-reset:focus) {
-    background-color: unset !important;
-  }
-
-  .desktop-doc-editor__editor
-    :deep(.vditor-wysiwyg div.vditor-wysiwyg__block[data-type="code-block"]),
-  .desktop-doc-editor__editor :deep(.vditor-ir__node[data-type="code-block"]),
-  .desktop-doc-editor__editor
-    :deep(
-      .vditor-wysiwyg__block[data-type="code-block"] .vditor-wysiwyg__preview
-    ) {
-    margin: 1rem 0;
-    border: 1px solid var(--editor-code-border);
-    border-radius: 14px;
-    background: var(--editor-code-bg) !important;
-    background-color: var(--editor-code-bg) !important;
-    box-shadow: none;
-    overflow: hidden;
-  }
-
-  .desktop-doc-editor__editor :deep(.vditor-reset pre > code) {
-    background-image: none !important;
-  }
-
-  .desktop-doc-editor__editor
-    :deep(.vditor-wysiwyg div.vditor-wysiwyg__block pre),
-  .desktop-doc-editor__editor
-    :deep(.vditor-ir__node[data-type="code-block"] pre),
-  .desktop-doc-editor__editor :deep(pre.vditor-reset[data-type="code-block"]),
-  .desktop-doc-editor__editor
-    :deep(
-      .vditor-wysiwyg__block[data-type="code-block"]
-        .vditor-wysiwyg__preview
-        pre
-    ),
-  .desktop-doc-editor__editor
-    :deep(
-      .vditor-wysiwyg__block[data-type="code-block"]
-        .vditor-wysiwyg__preview
-        .hljs
-    ) {
-    margin: 0 !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: var(--editor-code-bg) !important;
-    background-color: var(--editor-code-bg) !important;
-    color: var(--editor-code-text) !important;
-    font-family: var(--desktop-font-mono);
-    font-size: 0.86rem;
-    line-height: 1.7;
-  }
-
-  .desktop-doc-editor__editor
-    :deep(
-      .vditor-wysiwyg
-        div.vditor-wysiwyg__block[data-type="code-block"]
-        pre:first-child
-    ),
-  .desktop-doc-editor__editor
-    :deep(
-      .vditor-wysiwyg
-        div.vditor-wysiwyg__block[data-type="code-block"]
-        pre:last-child
-    ) {
-    margin: 0 !important;
-  }
-
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg pre code),
-  .desktop-doc-editor__editor :deep(.vditor-ir pre code),
-  .desktop-doc-editor__editor :deep(pre.vditor-reset code),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview code),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview .hljs) {
-    color: var(--editor-code-text) !important;
-    font-family: var(--desktop-font-mono);
-  }
-
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview .hljs),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview pre),
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview pre code) {
-    background: var(--editor-code-bg) !important;
-    background-color: var(--editor-code-bg) !important;
-  }
-
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview img),
-  .desktop-doc-editor__editor :deep(.vditor-reset img) {
-    display: block;
-    max-width: 100%;
-    height: auto;
-    border-radius: 12px;
-    border: 1px solid
-      color-mix(in srgb, var(--editor-code-border) 90%, transparent);
-    box-shadow: 0 12px 26px rgba(var(--desktop-shadow), 0.12);
-    cursor: zoom-in;
-  }
-
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg__preview svg) {
-    display: block;
-    max-width: 100%;
-    height: auto;
-  }
-
-  .desktop-doc-editor__editor :deep(code[data-marker="`"]),
-  .desktop-doc-editor__editor :deep(.vditor-reset p code[data-marker="`"]),
-  .desktop-doc-editor__editor :deep(.vditor-reset li code[data-marker="`"]),
-  .desktop-doc-editor__editor :deep(.vditor-reset td code[data-marker="`"]),
-  .desktop-doc-editor__editor
-    :deep(.vditor-reset blockquote code[data-marker="`"]) {
-    display: inline-block;
-    padding: 0.16rem 0.42rem !important;
-    border: 1px solid var(--editor-code-border);
-    border-radius: 8px;
-    background: var(--editor-inline-code-bg) !important;
-    color: var(--editor-inline-code-color) !important;
-    line-height: 1.35;
-  }
-
-  .desktop-doc-editor__editor :deep(.vditor-reset p code),
-  .desktop-doc-editor__editor :deep(.vditor-reset li code),
-  .desktop-doc-editor__editor :deep(.vditor-reset td code),
-  .desktop-doc-editor__editor :deep(.vditor-reset blockquote code) {
-    padding: 0.16rem 0.42rem;
-    border: 1px solid var(--editor-code-border);
-    border-radius: 8px;
-    background: var(--editor-inline-code-bg);
-    color: var(--editor-inline-code-color);
-    font-family: var(--desktop-font-mono);
-    font-size: 0.86em;
-  }
-
-  .desktop-doc-editor__editor :deep(blockquote) {
-    margin: 1rem 0;
-    padding: 0.9rem 1rem;
-    border-left: 3px solid rgba(var(--desktop-accent-rgb), 0.34);
-    border-radius: 0 14px 14px 0;
-    background: var(--editor-quote-bg);
-  }
-
-  .desktop-doc-editor__editor :deep(hr) {
-    border: 0;
-    border-top: 1px solid var(--editor-muted-line);
-  }
-
-  .desktop-doc-editor__editor :deep(table) {
-    display: table !important;
-    width: 100%;
-    table-layout: auto;
-    border-collapse: separate;
-    border-spacing: 0;
-    margin: 1rem 0;
-    border: 1px solid var(--editor-code-border);
-    border-radius: 12px;
-    overflow: hidden;
-    background: var(--panel-background-color);
-    background-color: var(--panel-background-color);
-  }
-
-  .desktop-doc-editor__editor :deep(thead tr) {
-    background: var(--editor-table-head-bg);
-    background-color: var(--editor-table-head-bg);
-  }
-
-  .desktop-doc-editor__editor :deep(th),
-  .desktop-doc-editor__editor :deep(td) {
-    width: auto;
-    padding: 0.68rem 0.8rem;
-    border: 1px solid var(--editor-code-border);
-    vertical-align: top;
-    background: transparent;
-    background-color: transparent;
-    white-space: normal;
-    word-break: break-word;
-  }
-
-  .desktop-doc-editor__editor :deep(thead),
-  .desktop-doc-editor__editor :deep(tbody) {
-    width: 100%;
-  }
-
-  .desktop-doc-editor__editor :deep(tbody tr) {
-    background: transparent;
-    background-color: transparent;
-  }
-
-  .desktop-doc-editor__editor :deep(tbody tr:nth-child(even)) {
-    background: var(--editor-table-zebra-bg);
-    background-color: var(--editor-table-zebra-bg);
-  }
-
-  .desktop-doc-editor__editor :deep(tbody tr:nth-child(odd)) {
-    background: transparent;
-    background-color: transparent;
-  }
-
-  .desktop-doc-editor__editor :deep(.desktop-doc-editor__diagram-preview) {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin: 1rem 0;
-    padding: 1rem;
-    border: 1px solid var(--editor-code-border);
-    border-radius: 16px;
-    background: color-mix(
-      in srgb,
-      var(--panel-background-color) 82%,
-      var(--editor-code-bg)
-    ) !important;
-    background-color: color-mix(
-      in srgb,
-      var(--panel-background-color) 82%,
-      var(--editor-code-bg)
-    ) !important;
-    text-align: -webkit-center;
-    text-align: center;
-  }
-
-  .desktop-doc-editor__editor :deep(.desktop-doc-editor__diagram-preview svg) {
-    margin-inline: auto;
-  }
-
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg:focus) {
+  .desktop-doc-editor__editor :deep(.milkdown .ProseMirror:focus) {
     outline: none;
   }
 
-  .desktop-doc-editor__editor :deep(.vditor-wysiwyg pre.vditor-reset) {
-    caret-color: var(--desktop-accent);
+  .desktop-doc-editor__editor :deep(.milkdown h1),
+  .desktop-doc-editor__editor :deep(.milkdown h2),
+  .desktop-doc-editor__editor :deep(.milkdown h3),
+  .desktop-doc-editor__editor :deep(.milkdown h4),
+  .desktop-doc-editor__editor :deep(.milkdown h5),
+  .desktop-doc-editor__editor :deep(.milkdown h6) {
+    font-family: var(--desktop-font-sans);
+    color: var(--desktop-ink);
+    line-height: 1.28;
+    letter-spacing: -0.022em;
+    font-weight: 650;
   }
 
-  .desktop-doc-editor__editor :deep(::selection) {
-    background: rgba(var(--desktop-accent-rgb), 0.18);
+  .desktop-doc-editor__editor :deep(.milkdown h1) {
+    font-size: 1.62rem;
   }
 
-  .desktop-doc-editor__editor[data-markdown-theme="github"]
-    :deep(.vditor-wysiwyg) {
-    max-width: min(100%, 94ch);
-    margin-inline: auto;
+  .desktop-doc-editor__editor :deep(.milkdown h2) {
+    font-size: 1.14rem;
+    border-bottom: 1px solid var(--docs-atlas-muted-line);
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown h3) {
+    font-size: 1rem;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown h4) {
     font-size: 0.94rem;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown h5),
+  .desktop-doc-editor__editor :deep(.milkdown h6) {
+    font-size: 0.9rem;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown p),
+  .desktop-doc-editor__editor :deep(.milkdown li),
+  .desktop-doc-editor__editor :deep(.milkdown td),
+  .desktop-doc-editor__editor :deep(.milkdown th),
+  .desktop-doc-editor__editor :deep(.milkdown blockquote) {
+    font-size: 0.94rem;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown a) {
+    color: var(--desktop-accent);
+    text-underline-offset: 0.18em;
+    text-decoration-thickness: 0.06em;
+    text-decoration-color: rgba(var(--desktop-accent-rgb), 0.34);
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown blockquote) {
+    border-left: 3px solid rgba(var(--desktop-accent-rgb), 0.36);
+    background: var(--docs-atlas-quote-bg);
+    color: var(--desktop-soft);
+    padding-left: 20px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown blockquote::before) {
+    display: none;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown hr) {
+    border-color: var(--docs-atlas-muted-line);
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown code) {
+    font-family: "SFMono-Regular", "JetBrains Mono", "Fira Code", monospace;
+    font-size: 0.835rem;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown :not(pre) > code) {
+    border: 1px solid var(--docs-atlas-code-border);
+    border-radius: 0.42rem;
+    background: var(--docs-atlas-inline-code-bg);
+    color: var(--docs-atlas-inline-code-color);
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown pre) {
+    margin: 0;
+    border-radius: 16px;
+    background: var(--docs-atlas-code-bg);
+    color: var(--docs-atlas-code-text);
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .milkdown-code-block) {
+    position: relative;
+    margin: 1.05rem 0 1.25rem;
+    border: 1px solid
+      color-mix(
+        in srgb,
+        var(--docs-atlas-code-border) 58%,
+        rgba(var(--desktop-accent-rgb), 0.34)
+      );
+    border-radius: 18px;
+    background: var(--docs-atlas-code-bg);
+    box-shadow:
+      0 12px 28px rgba(var(--desktop-shadow), 0.055),
+      inset 0 1px 0 rgba(255, 255, 255, 0.045);
+    overflow-anchor: none;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block-placeholder) {
+    margin: 0;
+    min-height: 0;
+    padding: calc(1.05rem + 2.7rem) 1.4rem 1.25rem;
+    border-radius: 0 0 18px 18px;
+    background: transparent;
+    color: var(--docs-atlas-code-text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    box-sizing: border-box;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block-placeholder code) {
+    display: block;
+    font-family: "SFMono-Regular", "JetBrains Mono", "Fira Code", monospace;
+    font-size: 0.82rem;
+    line-height: 1.7;
+    tab-size: 2;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .milkdown-code-block .tools) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.85rem;
+    min-height: 2.7rem;
+    /* padding: 0.48rem 1.05rem; */
+    border-bottom: 1px solid
+      color-mix(
+        in srgb,
+        var(--docs-atlas-code-border) 52%,
+        rgba(var(--desktop-accent-rgb), 0.3)
+      );
+    /* background: color-mix(
+      in srgb,
+      var(--docs-atlas-code-bg) 88%,
+      rgba(var(--desktop-accent-rgb), 0.08)
+    ); */
+    box-sizing: border-box;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .tools .language-button),
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .tools .tools-button-group button) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.34rem;
+    min-height: 1.72rem;
+    border: 1px solid rgba(var(--desktop-accent-rgb), 0.08);
+    padding: 0 0.68rem;
+    background: color-mix(in srgb, var(--docs-atlas-code-bg) 78%, white 8%);
+    color: var(--docs-atlas-code-text);
+    font-family: "SFMono-Regular", "JetBrains Mono", "Fira Code", monospace;
+    font-size: 0.73rem;
+    font-weight: 600;
+    line-height: 1;
+    border-radius: 10px;
+    cursor: pointer;
+    transition:
+      border-color 160ms ease,
+      background 160ms ease,
+      transform 160ms ease;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .tools .language-button) {
+    flex: 0 0 auto;
+    max-width: min(42%, 14rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .tools .tools-button-group) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+    margin-left: auto;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .tools .language-button:hover),
+  .desktop-doc-editor__editor
+    :deep(
+      .milkdown .milkdown-code-block .tools .tools-button-group button:hover
+    ) {
+    border-color: rgba(var(--desktop-accent-rgb), 0.2);
+    background: rgba(var(--desktop-accent-rgb), 0.11);
+    transform: translateY(-1px);
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .tools .language-button:focus-visible),
+  .desktop-doc-editor__editor
+    :deep(
+      .milkdown
+        .milkdown-code-block
+        .tools
+        .tools-button-group
+        button:focus-visible
+    ) {
+    outline: 2px solid rgba(var(--desktop-accent-rgb), 0.28);
+    outline-offset: 1px;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .milkdown-code-block .cm-editor),
+  .desktop-doc-editor__editor :deep(.milkdown .milkdown-code-block .cm-gutters),
+  .desktop-doc-editor__editor :deep(.milkdown .milkdown-code-block .preview) {
+    background: transparent;
+    color: var(--docs-atlas-code-text);
+    overflow-anchor: none;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .milkdown-code-block .cm-editor) {
+    font-size: 0.82rem;
     line-height: 1.7;
   }
 
-  .desktop-doc-editor__editor[data-markdown-theme="compact"]
-    :deep(.vditor-wysiwyg) {
-    max-width: min(100%, 108ch);
-    margin-inline: auto;
-    font-size: 0.88rem;
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .cm-gutters) {
+    display: none;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .cm-content) {
+    padding: 1.08rem 0 0;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .milkdown-code-block .cm-line) {
+    padding: 0;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .milkdown-code-block .cm-content),
+  .desktop-doc-editor__editor :deep(.milkdown .milkdown-code-block .preview),
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .preview code) {
+    font-family: "SFMono-Regular", "JetBrains Mono", "Fira Code", monospace;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .cm-activeLineGutter),
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .cm-activeLine) {
+    background: rgba(var(--desktop-accent-rgb), 0.08);
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .milkdown-code-block .preview) {
+    border-top: 0;
+    padding: 1.05rem 1.25rem 1.2rem;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .preview pre) {
+    white-space: pre-wrap;
+    background: transparent;
+    border-radius: 0;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .preview-panel) {
+    background: transparent;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .preview-label) {
+    display: none;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .preview-divider) {
+    display: none;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown img) {
+    display: block;
+    max-width: min(100%, 920px);
+    border: 1px solid rgba(var(--desktop-accent-rgb), 0.12);
+    border-radius: 14px;
+    box-shadow: 0 14px 30px rgba(var(--desktop-shadow), 0.12);
+    cursor: zoom-in;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown table) {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown th),
+  .desktop-doc-editor__editor :deep(.milkdown td) {
+    min-width: 7rem;
+    border: 1px solid var(--docs-atlas-muted-line);
+    text-align: left;
+    vertical-align: top;
+    word-break: break-word;
+    overflow-wrap: anywhere;
     line-height: 1.58;
   }
 
-  .desktop-doc-editor__editor[data-markdown-theme="reading"]
-    :deep(.vditor-wysiwyg) {
-    max-width: min(100%, 78ch);
-    margin-inline: auto;
-    font-size: 1rem;
-    line-height: 1.84;
+  .desktop-doc-editor__editor :deep(.milkdown th) {
+    background: var(--docs-atlas-table-head-bg);
+    font-weight: 600;
   }
-  :deep(.language-mermaid) {
-    text-align: -webkit-center !important;
+
+  .desktop-doc-editor__editor :deep(.milkdown tbody tr:nth-child(even) td) {
+    background: var(--docs-atlas-table-zebra-bg);
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .milkdown-table-block) {
+    overflow: visible;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .milkdown-table-block .handle),
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-table-block .line-handle .add-button),
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-table-block .cell-handle .button-group button) {
+    background: var(--crepe-color-background);
+    color: var(--desktop-muted);
+    border-color: var(--docs-atlas-muted-line);
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-table-block .selectedCell::after) {
+    background: rgba(var(--desktop-accent-rgb), 0.12);
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .search-box) {
+    background: var(--docs-atlas-soft-fill);
+    border: 1px solid var(--docs-atlas-muted-line);
+    min-height: 1.78rem;
+    border-radius: 0.55rem;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .search-box input) {
+    background: transparent;
+    color: var(--desktop-ink);
+    font-size: 0.76rem;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .search-box input:focus) {
+    outline: none;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .search-box .search-icon),
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .search-box .clear-icon) {
+    color: var(--desktop-muted);
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block-placeholder code.hljs),
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .preview code.hljs) {
+    background: transparent;
+    color: var(--docs-atlas-code-text);
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-comment),
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-quote) {
+    color: color-mix(in srgb, var(--docs-atlas-code-text) 42%, transparent);
+    font-style: italic;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-keyword),
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-selector-tag),
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-type) {
+    color: #d06df8;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-title),
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-title.function_),
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-section) {
+    color: #66b8ff;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-string),
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-attr),
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-template-tag) {
+    color: #75d7a8;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-number),
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-literal),
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-symbol),
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-bullet) {
+    color: #ffb36b;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-variable),
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-template-variable),
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-name) {
+    color: #ff8e8e;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-operator),
+  .desktop-doc-editor__editor :deep(.milkdown .hljs-punctuation) {
+    color: color-mix(in srgb, var(--docs-atlas-code-text) 78%, white 22%);
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .ProseMirror-selectednode) {
+    outline-color: rgba(var(--desktop-accent-rgb), 0.28);
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .ProseMirror ::selection) {
+    background: rgba(var(--desktop-accent-rgb), 0.22);
+    color: var(--desktop-ink);
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .cm-focused) {
+    outline: none;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .cm-selectionBackground),
+  .desktop-doc-editor__editor :deep(.milkdown .cm-content ::selection),
+  .desktop-doc-editor__editor :deep(.milkdown .cm-line ::selection) {
+    background: rgba(var(--desktop-accent-rgb), 0.24) !important;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .cm-cursor) {
+    border-left-color: var(--desktop-accent);
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .cm-panels) {
+    background: transparent;
+    color: var(--desktop-soft);
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .cm-panel input) {
+    background: var(--docs-atlas-soft-fill);
+    color: var(--desktop-ink);
+    border-color: var(--docs-atlas-muted-line);
+  }
+
+  .desktop-doc-editor__diagram-preview {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 140px;
+    width: 100%;
+    padding: 1.1rem 1rem;
+    color: var(--desktop-soft);
+    text-align: center;
+  }
+
+  .desktop-doc-editor__diagram-preview :deep(svg) {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .desktop-doc-editor__diagram-error {
+    color: rgb(210, 69, 69);
+    font-size: 0.86rem;
+  }
+
+  @media (max-width: 900px) {
+    .desktop-doc-editor__editor :deep(.milkdown .ProseMirror) {
+      max-width: none;
+    }
   }
 </style>
