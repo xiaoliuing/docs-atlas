@@ -1,5 +1,13 @@
 <script setup lang="ts">
-  import { computed, nextTick, onBeforeUnmount, shallowRef, useTemplateRef, watch } from "vue";
+  import {
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    shallowRef,
+    useTemplateRef,
+    watch,
+  } from "vue";
   import type { DesktopMarkdownThemeId } from "@/composables/useDesktopPreferences";
   import type { DocDetail } from "@/types/docs";
   import DesktopUiIcon from "@/components/ui/DesktopUiIcon.vue";
@@ -30,6 +38,7 @@
   const bodyScrollRef = useTemplateRef<HTMLElement>("bodyScroll");
   const currentModifiedAt = shallowRef(props.doc.modifiedAt ?? "");
   const saveFeedbackMessage = shallowRef("");
+  let stopScrollDiagnostics: (() => void) | null = null;
   let saveFeedbackTimer: number | null = null;
 
   const formattedModifiedAt = computed(() => {
@@ -65,9 +74,10 @@
         return;
       }
 
-      scrollElement.scrollTop = highlightQuery.trim()
-        ? 0
-        : Math.max(0, restoreScrollTop);
+      const nextTop = highlightQuery.trim() ? 0 : Math.max(0, restoreScrollTop);
+      if (Math.abs(scrollElement.scrollTop - nextTop) > 1) {
+        scrollElement.scrollTop = nextTop;
+      }
       emit("scrollTopChange", scrollElement.scrollTop);
     },
     { immediate: true },
@@ -97,6 +107,16 @@
     emit("scrollTopChange", target.scrollTop);
   }
 
+  function releaseEditorFocus() {
+    const activeElement = document.activeElement;
+    if (
+      activeElement instanceof HTMLElement &&
+      activeElement.closest(".desktop-doc-editor__editor")
+    ) {
+      activeElement.blur();
+    }
+  }
+
   function handleDocSaved(payload: { mode: "auto" | "manual"; modifiedAt: string }) {
     currentModifiedAt.value = payload.modifiedAt;
     if (payload.mode === "manual") {
@@ -123,7 +143,74 @@
     }
   }
 
+  function startScrollDiagnostics() {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    const scrollElement = bodyScrollRef.value;
+    if (!scrollElement) {
+      return;
+    }
+
+    let lastInteraction = "initial";
+    let lastTop = scrollElement.scrollTop;
+    const interactionListeners: Array<[keyof WindowEventMap, EventListener]> = [
+      ["wheel", () => (lastInteraction = "wheel")],
+      ["touchstart", () => (lastInteraction = "touchstart")],
+      ["keydown", () => (lastInteraction = "keydown")],
+      ["mousedown", () => (lastInteraction = "mousedown")],
+    ];
+
+    interactionListeners.forEach(([type, listener]) => {
+      window.addEventListener(type, listener, { passive: true });
+    });
+
+    const originalScrollTo = scrollElement.scrollTo.bind(scrollElement);
+    scrollElement.scrollTo = ((...args: Parameters<HTMLElement["scrollTo"]>) => {
+      console.debug("[DocsAtlas][scroll] scrollTo called", {
+        args,
+        lastInteraction,
+        slug: props.doc.slug,
+        from: scrollElement.scrollTop,
+      });
+      return originalScrollTo(...args);
+    }) as HTMLElement["scrollTo"];
+
+    const handleScroll = () => {
+      const nextTop = scrollElement.scrollTop;
+      console.debug("[DocsAtlas][scroll] scrollTop changed", {
+        delta: nextTop - lastTop,
+        lastInteraction,
+        nextTop,
+        slug: props.doc.slug,
+      });
+      lastTop = nextTop;
+      lastInteraction = "scroll";
+    };
+
+    scrollElement.addEventListener("scroll", handleScroll, { passive: true });
+
+    stopScrollDiagnostics = () => {
+      scrollElement.removeEventListener("scroll", handleScroll);
+      scrollElement.scrollTo = originalScrollTo as HTMLElement["scrollTo"];
+      interactionListeners.forEach(([type, listener]) => {
+        window.removeEventListener(type, listener);
+      });
+      stopScrollDiagnostics = null;
+    };
+
+    console.debug("[DocsAtlas][scroll] diagnostics attached", {
+      slug: props.doc.slug,
+    });
+  }
+
+  onMounted(() => {
+    startScrollDiagnostics();
+  });
+
   onBeforeUnmount(() => {
+    stopScrollDiagnostics?.();
     clearSaveFeedback();
   });
 </script>
@@ -176,7 +263,10 @@
 
       <div
         ref="bodyScroll"
+        id="desktop-doc-scroll"
         class="doc-content__body-scroll desktop-scroll"
+        @touchstart.passive="releaseEditorFocus"
+        @wheel.passive="releaseEditorFocus"
         @scroll="handleBodyScroll"
       >
         <DesktopDocEditor
@@ -241,6 +331,7 @@
     min-height: 0;
     flex: 1 1 auto;
     overflow-y: auto;
+    overflow-anchor: none;
   }
 
   .doc-content__header-top {

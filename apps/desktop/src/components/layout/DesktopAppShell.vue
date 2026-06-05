@@ -407,7 +407,11 @@
 
   async function handleSaveCurrentDoc(absolutePath: string, markdown: string) {
     workspaceDocs.pauseWatchRefresh();
-    await saveMarkdownDocument(absolutePath, markdown);
+    try {
+      await saveMarkdownDocument(absolutePath, markdown);
+    } finally {
+      workspaceDocs.resumeWatchRefresh({ suppressForMs: 2_500 });
+    }
   }
 
   function closeFloatingPanels() {
@@ -953,7 +957,7 @@
             :current-source-id="currentSourceId"
             :current-workspace-id="currentWorkspaceId"
             :current-workspace-unhealthy-source-count="
-              workspaceDocs.unhealthySourceCount
+              workspaceDocs.unhealthySourceCount.value
             "
             :current-workspace-source-count="sourceCount"
             :recent-count="recentEntries.length"
@@ -1059,7 +1063,7 @@
       :doc-count="docCount"
       :mode="workspaceDialogMode"
       :source-count="sourceCount"
-      :unhealthy-source-count="workspaceDocs.unhealthySourceCount"
+      :unhealthy-source-count="workspaceDocs.unhealthySourceCount.value"
       :workspace-count="workspaces.length"
       :workspace="workspaceDialogWorkspace"
       @close="isWorkspaceDialogOpen = false"

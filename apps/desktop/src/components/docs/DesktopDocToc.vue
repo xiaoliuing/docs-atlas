@@ -7,7 +7,7 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  select: [id: string]
+  select: [payload: { id: string; index: number }]
 }>()
 </script>
 
@@ -20,7 +20,7 @@ const emit = defineEmits<{
       <p class="doc-toc__eyebrow">Outline</p>
 
       <button
-        v-for="heading in headings"
+        v-for="(heading, index) in headings"
         :key="heading.id"
         :class="[
           'doc-toc__link',
@@ -28,7 +28,7 @@ const emit = defineEmits<{
           { 'doc-toc__link--active': heading.id === activeId },
         ]"
         type="button"
-        @click="emit('select', heading.id)"
+        @click="emit('select', { id: heading.id, index })"
       >
         {{ heading.text }}
       </button>
