@@ -61,7 +61,8 @@
   });
 
   watch(
-    () => [props.doc.slug, props.restoreScrollTop, props.highlightQuery] as const,
+    () =>
+      [props.doc.slug, props.restoreScrollTop, props.highlightQuery] as const,
     async ([slug, restoreScrollTop, highlightQuery]) => {
       if (!slug) {
         return;
@@ -117,7 +118,10 @@
     }
   }
 
-  function handleDocSaved(payload: { mode: "auto" | "manual"; modifiedAt: string }) {
+  function handleDocSaved(payload: {
+    mode: "auto" | "manual";
+    modifiedAt: string;
+  }) {
     currentModifiedAt.value = payload.modifiedAt;
     if (payload.mode === "manual") {
       showSaveFeedback("已保存");
@@ -167,7 +171,9 @@
     });
 
     const originalScrollTo = scrollElement.scrollTo.bind(scrollElement);
-    scrollElement.scrollTo = ((...args: Parameters<HTMLElement["scrollTo"]>) => {
+    scrollElement.scrollTo = ((
+      ...args: Parameters<HTMLElement["scrollTo"]>
+    ) => {
       console.debug("[DocsAtlas][scroll] scrollTo called", {
         args,
         lastInteraction,
@@ -249,12 +255,11 @@
 
         <div class="doc-content__meta">
           <span class="doc-content__meta-label">最后编辑</span>
-          <strong class="doc-content__meta-value">{{ formattedModifiedAt }}</strong>
+          <strong class="doc-content__meta-value">{{
+            formattedModifiedAt
+          }}</strong>
           <transition name="doc-content__save-feedback">
-            <span
-              v-if="saveFeedbackMessage"
-              class="doc-content__save-feedback"
-            >
+            <span v-if="saveFeedbackMessage" class="doc-content__save-feedback">
               {{ saveFeedbackMessage }}
             </span>
           </transition>
@@ -295,34 +300,32 @@
     border: 1px solid
       color-mix(in srgb, var(--desktop-line-strong) 38%, var(--desktop-line));
     border-radius: var(--desktop-radius-lg);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 18%),
-      var(--desktop-surface-strong);
-    box-shadow: 0 12px 28px rgba(var(--desktop-shadow), 0.065);
+    background: var(--desktop-surface-strong);
+    box-shadow:
+      0 14px 30px rgba(var(--desktop-shadow), 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
     overflow: hidden;
   }
 
   .doc-content__panel[data-markdown-theme="github"] {
-    background: var(--desktop-surface);
+    background: var(--desktop-surface-strong);
   }
 
   .doc-content__header {
     flex-shrink: 0;
     z-index: 4;
     padding: 0.82rem 0.96rem 0.72rem;
-    border-bottom: 1px solid rgba(var(--desktop-accent-rgb), 0.08);
-    background:
-      linear-gradient(
-        180deg,
-        rgba(var(--desktop-accent-rgb), 0.075),
-        transparent 88%
-      ),
+    border-bottom: 1px solid
       color-mix(
         in srgb,
-        var(--desktop-surface-strong) 94%,
-        rgba(var(--desktop-accent-rgb), 0.1)
+        rgba(var(--desktop-accent-rgb), 0.22) 72%,
+        var(--desktop-line-strong)
       );
-    backdrop-filter: blur(12px);
+    background: color-mix(
+      in srgb,
+      var(--desktop-surface-strong) 94%,
+      rgba(var(--desktop-accent-rgb), 0.06)
+    );
     border-radius: calc(var(--desktop-radius-lg) - 1px)
       calc(var(--desktop-radius-lg) - 1px) 0 0;
   }

@@ -1,11 +1,11 @@
 :root {
   color-scheme: light dark;
-  --desktop-bg: #eef3f9;
-  --desktop-surface: rgba(255, 255, 255, 0.78);
-  --desktop-surface-strong: rgba(255, 255, 255, 0.94);
+  --desktop-bg: #e9f0f8;
+  --desktop-surface: rgba(255, 255, 255, 0.9);
+  --desktop-surface-strong: rgba(255, 255, 255, 0.985);
   --desktop-surface-muted: #e7edf6;
-  --desktop-field-bg: rgba(255, 255, 255, 0.72);
-  --desktop-field-bg-strong: rgba(255, 255, 255, 0.9);
+  --desktop-field-bg: rgba(255, 255, 255, 0.82);
+  --desktop-field-bg-strong: rgba(255, 255, 255, 0.95);
   --desktop-line: rgba(19, 36, 77, 0.08);
   --desktop-line-strong: rgba(31, 84, 217, 0.18);
   --desktop-ink: #18263d;
@@ -81,11 +81,11 @@
   :root:not([data-theme-mode]),
   :root[data-theme-mode='system'] {
     --desktop-bg: #162031;
-    --desktop-surface: rgba(27, 38, 56, 0.88);
-    --desktop-surface-strong: rgba(31, 43, 63, 0.96);
+    --desktop-surface: rgba(25, 36, 54, 0.94);
+    --desktop-surface-strong: rgba(29, 41, 61, 0.985);
     --desktop-surface-muted: rgba(34, 47, 69, 0.94);
-    --desktop-field-bg: rgba(31, 43, 64, 0.82);
-    --desktop-field-bg-strong: rgba(36, 49, 72, 0.94);
+    --desktop-field-bg: rgba(28, 40, 60, 0.9);
+    --desktop-field-bg-strong: rgba(34, 47, 70, 0.96);
     --desktop-line: rgba(122, 153, 214, 0.12);
     --desktop-line-strong: rgba(95, 147, 255, 0.22);
     --desktop-ink: #edf3ff;
@@ -116,11 +116,11 @@
 
 :root[data-theme-mode='dark'] {
   --desktop-bg: #162031;
-  --desktop-surface: rgba(27, 38, 56, 0.88);
-  --desktop-surface-strong: rgba(31, 43, 63, 0.96);
+  --desktop-surface: rgba(25, 36, 54, 0.94);
+  --desktop-surface-strong: rgba(29, 41, 61, 0.985);
   --desktop-surface-muted: rgba(34, 47, 69, 0.94);
-  --desktop-field-bg: rgba(31, 43, 64, 0.82);
-  --desktop-field-bg-strong: rgba(36, 49, 72, 0.94);
+  --desktop-field-bg: rgba(28, 40, 60, 0.9);
+  --desktop-field-bg-strong: rgba(34, 47, 70, 0.96);
   --desktop-line: rgba(122, 153, 214, 0.12);
   --desktop-line-strong: rgba(95, 147, 255, 0.22);
   --desktop-ink: #edf3ff;

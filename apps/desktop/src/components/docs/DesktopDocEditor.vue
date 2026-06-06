@@ -593,6 +593,8 @@
       root.querySelectorAll<HTMLImageElement>("img[src]"),
     ).map((image, index) => {
       image.dataset.previewIndex = String(index);
+      image.dataset.docPreviewImage = "true";
+      image.draggable = false;
       return {
         alt: image.getAttribute("alt")?.trim() ?? "",
         src: image.currentSrc?.trim() || image.src?.trim() || "",
@@ -711,11 +713,14 @@
     }
 
     const image = target.closest(
-      "img[data-preview-index]",
+      'img[data-doc-preview-image="true"][data-preview-index]',
     ) as HTMLImageElement | null;
     if (!image) {
       return;
     }
+
+    event.preventDefault();
+    event.stopPropagation();
 
     const index = Number.parseInt(image.dataset.previewIndex ?? "-1", 10);
     if (Number.isNaN(index) || index < 0) {
@@ -758,11 +763,14 @@
     }
 
     const image = target.closest(
-      "img[data-preview-index]",
+      'img[data-doc-preview-image="true"][data-preview-index]',
     ) as HTMLImageElement | null;
     if (!image) {
       return;
     }
+
+    event.preventDefault();
+    event.stopPropagation();
 
     const index = Number.parseInt(image.dataset.previewIndex ?? "-1", 10);
     if (Number.isNaN(index) || index < 0) {
@@ -883,15 +891,12 @@
     const isDark = theme === "dark";
     const surfaceStrong = readRootToken("--desktop-surface-strong");
     const surface = readRootToken("--desktop-surface");
-    const fieldStrong = readRootToken("--desktop-field-bg-strong");
 
     if (markdownThemeId === "github") {
       return {
-        panelBackground: isDark ? fieldStrong : "#ffffff",
+        panelBackground: isDark ? surfaceStrong : "#ffffff",
         surfaceLow: isDark ? "rgba(110, 118, 129, 0.08)" : "#f8fafc",
-        codeBackground: isDark
-          ? "color-mix(in srgb, #161b22 78%, rgba(var(--desktop-accent-rgb), 0.22))"
-          : "color-mix(in srgb, #f6f8fa 92%, rgba(var(--desktop-accent-rgb), 0.08))",
+        codeBackground: isDark ? "#111a29" : "#f6f8fb",
         codeBorder: isDark
           ? "rgba(var(--desktop-accent-rgb), 0.22)"
           : "rgba(31, 35, 40, 0.12)",
@@ -926,15 +931,11 @@
 
     if (markdownThemeId === "compact") {
       return {
-        panelBackground: isDark
-          ? `color-mix(in srgb, ${surfaceStrong} 84%, rgba(var(--desktop-accent-rgb), 0.14))`
-          : `color-mix(in srgb, ${surfaceStrong} 90%, rgba(var(--desktop-accent-rgb), 0.06))`,
+        panelBackground: surfaceStrong,
         surfaceLow: isDark
           ? "rgba(var(--desktop-accent-rgb), 0.08)"
           : "rgba(var(--desktop-accent-rgb), 0.04)",
-        codeBackground: isDark
-          ? "color-mix(in srgb, rgba(11, 18, 32, 0.92) 74%, rgba(var(--desktop-accent-rgb), 0.24))"
-          : "color-mix(in srgb, white 86%, rgba(var(--desktop-accent-rgb), 0.12))",
+        codeBackground: isDark ? "#0f1a2a" : "#f7f9fc",
         codeBorder: isDark
           ? "rgba(var(--desktop-accent-rgb), 0.18)"
           : "rgba(var(--desktop-accent-rgb), 0.12)",
@@ -969,13 +970,9 @@
 
     if (markdownThemeId === "reading") {
       return {
-        panelBackground: isDark
-          ? `color-mix(in srgb, ${surfaceStrong} 82%, rgba(var(--desktop-accent-rgb), 0.14))`
-          : `color-mix(in srgb, ${surfaceStrong} 88%, rgba(var(--desktop-accent-rgb), 0.05))`,
+        panelBackground: surfaceStrong,
         surfaceLow: isDark ? "rgba(255, 255, 255, 0.03)" : "#f8fafc",
-        codeBackground: isDark
-          ? "color-mix(in srgb, rgba(14, 22, 38, 0.94) 74%, rgba(var(--desktop-accent-rgb), 0.22))"
-          : "color-mix(in srgb, #f7f5f1 88%, rgba(var(--desktop-accent-rgb), 0.1))",
+        codeBackground: isDark ? "#111b2c" : "#f8f6f2",
         codeBorder: isDark
           ? "rgba(var(--desktop-accent-rgb), 0.16)"
           : "rgba(99, 112, 138, 0.12)",
@@ -1009,13 +1006,9 @@
     }
 
     return {
-      panelBackground: isDark
-        ? `color-mix(in srgb, ${surfaceStrong} 84%, rgba(var(--desktop-accent-rgb), 0.14))`
-        : `color-mix(in srgb, ${surfaceStrong} 90%, rgba(var(--desktop-accent-rgb), 0.06))`,
+      panelBackground: surfaceStrong,
       surfaceLow: isDark ? "rgba(255, 255, 255, 0.03)" : surface,
-      codeBackground: isDark
-        ? "color-mix(in srgb, rgba(10, 18, 34, 0.94) 72%, rgba(var(--desktop-accent-rgb), 0.28))"
-        : "color-mix(in srgb, white 84%, rgba(var(--desktop-accent-rgb), 0.12))",
+      codeBackground: isDark ? "#0f1928" : "#f7f9fc",
       codeBorder: isDark
         ? "rgba(var(--desktop-accent-rgb), 0.18)"
         : "rgba(var(--desktop-accent-rgb), 0.12)",
@@ -1139,9 +1132,11 @@
     <div
       ref="host"
       class="desktop-doc-editor__editor"
+      @click.capture="handleEditorClick"
       @click="handleEditorClick"
       @focusin="handleEditorFocusIn"
       @focusout="handleEditorFocusOut"
+      @pointerup.capture="handleEditorPointerUp"
       @pointerup="handleEditorPointerUp"
     />
   </div>
@@ -1168,7 +1163,7 @@
   }
 
   .desktop-doc-editor--readonly {
-    opacity: 0.82;
+    opacity: 1;
   }
 
   .desktop-doc-editor--error .desktop-doc-editor__editor {
@@ -1194,9 +1189,9 @@
     font-size: 0.94rem;
     line-height: 1.78;
     letter-spacing: 0.002em;
-    background: var(--crepe-color-background);
+    background: transparent;
     overflow-anchor: none;
-    padding: 0 50px 36px;
+    padding: 28px 50px 36px;
   }
 
   .desktop-doc-editor__editor :deep(.milkdown .ProseMirror:focus) {
@@ -1209,6 +1204,7 @@
   .desktop-doc-editor__editor :deep(.milkdown h4),
   .desktop-doc-editor__editor :deep(.milkdown h5),
   .desktop-doc-editor__editor :deep(.milkdown h6) {
+    margin: 1.45rem 0 0.72rem;
     font-family: var(--desktop-font-sans);
     color: var(--desktop-ink);
     line-height: 1.28;
@@ -1216,25 +1212,45 @@
     font-weight: 650;
   }
 
+  .desktop-doc-editor__editor :deep(.milkdown > :first-child) {
+    margin-top: 0;
+  }
+
   .desktop-doc-editor__editor :deep(.milkdown h1) {
+    margin-top: 0.2rem;
+    margin-bottom: 0.9rem;
     font-size: 1.62rem;
   }
 
   .desktop-doc-editor__editor :deep(.milkdown h2) {
+    margin-top: 1.8rem;
+    margin-bottom: 0.82rem;
+    padding-bottom: 0.42rem;
     font-size: 1.14rem;
-    border-bottom: 1px solid var(--docs-atlas-muted-line);
+    border-bottom: 1px solid
+      color-mix(
+        in srgb,
+        var(--docs-atlas-muted-line) 52%,
+        rgba(var(--desktop-accent-rgb), 0.28)
+      );
   }
 
   .desktop-doc-editor__editor :deep(.milkdown h3) {
+    margin-top: 1.35rem;
+    margin-bottom: 0.56rem;
     font-size: 1rem;
   }
 
   .desktop-doc-editor__editor :deep(.milkdown h4) {
+    margin-top: 1.1rem;
+    margin-bottom: 0.48rem;
     font-size: 0.94rem;
   }
 
   .desktop-doc-editor__editor :deep(.milkdown h5),
   .desktop-doc-editor__editor :deep(.milkdown h6) {
+    margin-top: 1rem;
+    margin-bottom: 0.42rem;
     font-size: 0.9rem;
   }
 
@@ -1256,7 +1272,7 @@
   .desktop-doc-editor__editor :deep(.milkdown blockquote) {
     border-left: 3px solid rgba(var(--desktop-accent-rgb), 0.36);
     background: var(--docs-atlas-quote-bg);
-    color: var(--desktop-soft);
+    color: var(--desktop-muted);
     padding-left: 20px;
     padding-top: 8px;
     padding-bottom: 8px;
@@ -1267,7 +1283,11 @@
   }
 
   .desktop-doc-editor__editor :deep(.milkdown hr) {
-    border-color: var(--docs-atlas-muted-line);
+    border-color: color-mix(
+      in srgb,
+      var(--docs-atlas-muted-line) 58%,
+      rgba(var(--desktop-accent-rgb), 0.24)
+    );
   }
 
   .desktop-doc-editor__editor :deep(.milkdown code) {
@@ -1280,6 +1300,7 @@
     border-radius: 0.42rem;
     background: var(--docs-atlas-inline-code-bg);
     color: var(--docs-atlas-inline-code-color);
+    padding: 0.14rem 0.38rem;
   }
 
   .desktop-doc-editor__editor :deep(.milkdown pre) {
@@ -1299,11 +1320,12 @@
         rgba(var(--desktop-accent-rgb), 0.34)
       );
     border-radius: 18px;
-    background: var(--docs-atlas-code-bg);
+    background: white;
     box-shadow:
-      0 12px 28px rgba(var(--desktop-shadow), 0.055),
-      inset 0 1px 0 rgba(255, 255, 255, 0.045);
+      0 10px 24px rgba(var(--desktop-shadow), 0.07),
+      inset 0 1px 0 rgba(255, 255, 255, 0.03);
     overflow-anchor: none;
+    padding: 0;
   }
 
   .desktop-doc-editor__editor
@@ -1335,18 +1357,16 @@
     justify-content: space-between;
     gap: 0.85rem;
     min-height: 2.7rem;
-    /* padding: 0.48rem 1.05rem; */
+    padding: 0.5rem 0.95rem 0.48rem;
+    opacity: 1;
+    visibility: visible;
     border-bottom: 1px solid
       color-mix(
         in srgb,
         var(--docs-atlas-code-border) 52%,
         rgba(var(--desktop-accent-rgb), 0.3)
       );
-    /* background: color-mix(
-      in srgb,
-      var(--docs-atlas-code-bg) 88%,
-      rgba(var(--desktop-accent-rgb), 0.08)
-    ); */
+    background: transparent;
     box-sizing: border-box;
   }
 
@@ -1359,8 +1379,14 @@
     gap: 0.34rem;
     min-height: 1.72rem;
     border: 1px solid rgba(var(--desktop-accent-rgb), 0.08);
-    padding: 0 0.68rem;
-    background: color-mix(in srgb, var(--docs-atlas-code-bg) 78%, white 8%);
+    margin: 0;
+    opacity: 1;
+    visibility: visible;
+    background: color-mix(
+      in srgb,
+      var(--docs-atlas-code-bg) 82%,
+      rgba(255, 255, 255, 0.08)
+    );
     color: var(--docs-atlas-code-text);
     font-family: "SFMono-Regular", "JetBrains Mono", "Fira Code", monospace;
     font-size: 0.73rem;
@@ -1389,6 +1415,8 @@
     align-items: center;
     gap: 0.42rem;
     margin-left: auto;
+    opacity: 1;
+    visibility: visible;
   }
 
   .desktop-doc-editor__editor
@@ -1436,7 +1464,7 @@
 
   .desktop-doc-editor__editor
     :deep(.milkdown .milkdown-code-block .cm-content) {
-    padding: 1.08rem 0 0;
+    padding: 1.02rem 1.2rem 1.16rem;
   }
 
   .desktop-doc-editor__editor :deep(.milkdown .milkdown-code-block .cm-line) {
@@ -1454,12 +1482,21 @@
     :deep(.milkdown .milkdown-code-block .cm-activeLineGutter),
   .desktop-doc-editor__editor
     :deep(.milkdown .milkdown-code-block .cm-activeLine) {
+    background: transparent;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(
+      .milkdown .milkdown-code-block .cm-editor.cm-focused .cm-activeLineGutter
+    ),
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .cm-editor.cm-focused .cm-activeLine) {
     background: rgba(var(--desktop-accent-rgb), 0.08);
   }
 
   .desktop-doc-editor__editor :deep(.milkdown .milkdown-code-block .preview) {
     border-top: 0;
-    padding: 1.05rem 1.25rem 1.2rem;
+    padding: 1.05rem 1.2rem 1.2rem;
   }
 
   .desktop-doc-editor__editor
@@ -1571,11 +1608,12 @@
     :deep(.milkdown .milkdown-code-block .preview code.hljs) {
     background: transparent;
     color: var(--docs-atlas-code-text);
+    opacity: 1;
   }
 
   .desktop-doc-editor__editor :deep(.milkdown .hljs-comment),
   .desktop-doc-editor__editor :deep(.milkdown .hljs-quote) {
-    color: color-mix(in srgb, var(--docs-atlas-code-text) 42%, transparent);
+    color: color-mix(in srgb, var(--docs-atlas-code-text) 62%, transparent);
     font-style: italic;
   }
 
@@ -1612,7 +1650,7 @@
 
   .desktop-doc-editor__editor :deep(.milkdown .hljs-operator),
   .desktop-doc-editor__editor :deep(.milkdown .hljs-punctuation) {
-    color: color-mix(in srgb, var(--docs-atlas-code-text) 78%, white 22%);
+    color: color-mix(in srgb, var(--docs-atlas-code-text) 90%, white 10%);
   }
 
   .desktop-doc-editor__editor :deep(.milkdown .ProseMirror-selectednode) {
