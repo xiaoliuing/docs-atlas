@@ -15,6 +15,7 @@
     "preview:web": "pnpm --filter @docs-atlas/web preview",
     "preview:desktop": "pnpm --filter @docs-atlas/desktop preview",
     "check:shared-types": "pnpm --filter @docs-atlas/shared-types check",
-    "check:workspace-db": "pnpm --filter @docs-atlas/workspace-db check"
+    "check:workspace-db": "pnpm --filter @docs-atlas/workspace-db check",
+    "release:desktop": "node scripts/release/publish-desktop-release.mjs"
   }
 }

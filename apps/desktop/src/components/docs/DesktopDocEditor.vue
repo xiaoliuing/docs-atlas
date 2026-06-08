@@ -1312,6 +1312,39 @@
     return styles.getPropertyValue(name).trim();
   }
 
+  function normalizeSerializedMarkdown(markdown: string) {
+    const lines = markdown.split("\n");
+    const normalized: string[] = [];
+    const listItemPattern = /^(\s*)(?:[-+*]|\d+[.)])\s+/;
+
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index] ?? "";
+      const previousLine = normalized[normalized.length - 1] ?? "";
+      const nextLine = lines[index + 1] ?? "";
+
+      if (
+        line.trim() === "" &&
+        previousLine.trim() !== "" &&
+        nextLine.trim() !== ""
+      ) {
+        const previousMatch = previousLine.match(listItemPattern);
+        const nextMatch = nextLine.match(listItemPattern);
+
+        if (
+          previousMatch &&
+          nextMatch &&
+          previousMatch[1] === nextMatch[1]
+        ) {
+          continue;
+        }
+      }
+
+      normalized.push(line);
+    }
+
+    return normalized.join("\n");
+  }
+
   async function persistDraft(options?: {
     absolutePath?: string;
     markdown?: string;
@@ -1321,8 +1354,9 @@
     const absolutePath =
       options?.absolutePath ?? currentDocAbsolutePath.value ?? "";
     const mode = options?.mode ?? "manual";
-    const nextMarkdown =
-      options?.markdown ?? editor?.getMarkdown() ?? draftMarkdown.value;
+    const nextMarkdown = normalizeSerializedMarkdown(
+      options?.markdown ?? editor?.getMarkdown() ?? draftMarkdown.value,
+    );
 
     if (
       !absolutePath ||

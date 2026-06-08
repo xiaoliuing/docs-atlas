@@ -46,6 +46,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Verify desktop version consistency
+        run: node scripts/release/verify-desktop-version.mjs
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
 
@@ -116,8 +119,12 @@ jobs:
       - name: Resolve release tag
         id: release_meta
         run: |
-          version=$(node -p 'JSON.parse(require("node:fs").readFileSync("apps/desktop/package.json", "utf8")).version')
-          echo "tag=desktop-v${version}" >> "$GITHUB_OUTPUT"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" == desktop-v* ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            version=$(node -p 'JSON.parse(require("node:fs").readFileSync("apps/desktop/src-tauri/tauri.conf.json", "utf8")).version')
+            echo "tag=desktop-v${version}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Generate and upload latest.json
         env:
