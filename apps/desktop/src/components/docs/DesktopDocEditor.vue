@@ -9,8 +9,9 @@
     watch,
   } from "vue";
   import { languages as codeMirrorLanguages } from "@codemirror/language-data";
-  import { oneDark } from "@codemirror/theme-one-dark";
+  import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
   import { convertFileSrc } from "@tauri-apps/api/core";
+  import { remarkStringifyOptionsCtx } from "@milkdown/kit/core";
   import { Crepe } from "@milkdown/crepe";
   import { replaceAll } from "@milkdown/kit/utils";
   import mermaid from "mermaid";
@@ -55,6 +56,7 @@
   );
 
   const emit = defineEmits<{
+    copied: [message: string];
     saved: [payload: { mode: "auto" | "manual"; modifiedAt: string }];
   }>();
 
@@ -76,12 +78,16 @@
   const mermaidPreviewCache = new Map<string, Promise<string> | string>();
   const mermaidPreviewModeByKey = new Map<string, boolean>();
   let debugResizeObserver: ResizeObserver | null = null;
+  let imageMutationObserver: MutationObserver | null = null;
   let themeObserver: MutationObserver | null = null;
   let previewEnhancementTimer: number | null = null;
+  let outlineSyncTimer: number | null = null;
   let mermaidSequence = 0;
   let pendingHeadingSync = false;
   let pendingImageSync = false;
   let pendingOutlineSync = false;
+  let removeImagePreviewListeners: (() => void) | null = null;
+  let isUnmounted = false;
 
   const hasEditableSource = computed(() =>
     Boolean(props.doc.absolutePath && typeof props.doc.markdown === "string"),
@@ -158,6 +164,7 @@
   });
 
   onMounted(async () => {
+    isUnmounted = false;
     await nextTick();
     syncTheme();
     await createEditor(draftMarkdown.value);
@@ -166,15 +173,24 @@
   });
 
   onBeforeUnmount(() => {
+    isUnmounted = true;
     window.removeEventListener("keydown", handleWindowKeydown, true);
+    removeImagePreviewListeners?.();
+    removeImagePreviewListeners = null;
     themeObserver?.disconnect();
     themeObserver = null;
+    imageMutationObserver?.disconnect();
+    imageMutationObserver = null;
     debugResizeObserver?.disconnect();
     debugResizeObserver = null;
     mermaidPreviewCache.clear();
     if (previewEnhancementTimer !== null) {
       window.clearTimeout(previewEnhancementTimer);
       previewEnhancementTimer = null;
+    }
+    if (outlineSyncTimer !== null) {
+      window.clearTimeout(outlineSyncTimer);
+      outlineSyncTimer = null;
     }
     void persistDraft({
       absolutePath: currentDocAbsolutePath.value,
@@ -206,13 +222,15 @@
           copyText: "复制代码",
           languages: codeMirrorLanguages,
           noResultText: "未找到语言",
-          onCopy: () => {},
+          onCopy: () => {
+            emit("copied", "代码已复制");
+          },
           previewToggleText: (previewOnlyMode) =>
             previewOnlyMode ? "编辑" : "预览",
           previewOnlyByDefault: true,
           renderPreview: renderCodePreview,
           searchPlaceholder: "搜索语言",
-          theme: resolvedThemeName.value === "dark" ? oneDark : [],
+          theme: resolvedThemeName.value === "dark" ? githubDark : githubLight,
         },
         [Crepe.Feature.Placeholder]: {
           text: "开始编写 Markdown 文档",
@@ -226,6 +244,14 @@
       },
     });
 
+    nextEditor.editor.config((ctx) => {
+      ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+        ...prev,
+        bullet: "-",
+        bulletOther: "*",
+      }));
+    });
+
     nextEditor.on((listener) => {
       listener.markdownUpdated((_, markdown) => {
         if (markdown === draftMarkdown.value) {
@@ -236,11 +262,7 @@
         if (saveError.value) {
           saveError.value = "";
         }
-        schedulePreviewEnhancements({
-          syncHeadings: true,
-          syncImages: true,
-          syncOutline: true,
-        });
+        scheduleOutlineSync();
       });
 
       listener.mounted(() => {
@@ -262,6 +284,7 @@
     }
     nextEditor.setReadonly(!hasEditableSource.value);
     applyEditorTheme();
+    bindImagePreviewListeners();
   }
 
   function installStableCodeBlockObserver() {
@@ -331,6 +354,10 @@
 
   async function destroyEditor() {
     isEditorMounted.value = false;
+    removeImagePreviewListeners?.();
+    removeImagePreviewListeners = null;
+    imageMutationObserver?.disconnect();
+    imageMutationObserver = null;
     const editor = editorRef.value;
     editorRef.value = null;
     if (editor) {
@@ -482,9 +509,32 @@
     }
 
     previewEnhancementTimer = window.setTimeout(() => {
+      if (isUnmounted) {
+        previewEnhancementTimer = null;
+        return;
+      }
       previewEnhancementTimer = null;
       applyPreviewEnhancements();
     }, 80);
+  }
+
+  function scheduleOutlineSync() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (outlineSyncTimer !== null) {
+      window.clearTimeout(outlineSyncTimer);
+    }
+
+    outlineSyncTimer = window.setTimeout(() => {
+      if (isUnmounted) {
+        outlineSyncTimer = null;
+        return;
+      }
+      outlineSyncTimer = null;
+      notifyOutlineSync();
+    }, 180);
   }
 
   function applyPreviewEnhancements() {
@@ -506,6 +556,7 @@
     }
     if (shouldSyncImages) {
       collectPreviewImages(host);
+      bindImageMutationObserver(host);
     }
     if (shouldSyncOutline) {
       notifyOutlineSync();
@@ -592,9 +643,59 @@
     const nextImages = Array.from(
       root.querySelectorAll<HTMLImageElement>("img[src]"),
     ).map((image, index) => {
+      const openPreview = (event: Event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        activePreviewImageIndex.value = index;
+      };
+
       image.dataset.previewIndex = String(index);
       image.dataset.docPreviewImage = "true";
       image.draggable = false;
+      image.style.pointerEvents = "auto";
+      image.onmousedown = openPreview;
+      image.onclick = openPreview;
+      image.onpointerdown = openPreview;
+      image.onpointerup = openPreview;
+
+      const imageBlock = image.closest(
+        ".milkdown-image-block",
+      ) as HTMLElement | null;
+      if (imageBlock) {
+        imageBlock.draggable = false;
+        imageBlock.style.pointerEvents = "auto";
+        imageBlock.onmousedown = openPreview;
+        imageBlock.onclick = openPreview;
+        imageBlock.onpointerdown = openPreview;
+        imageBlock.onpointerup = openPreview;
+      }
+
+      const imageWrapper = image.closest(
+        ".image-wrapper",
+      ) as HTMLElement | null;
+      if (imageWrapper) {
+        imageWrapper.style.pointerEvents = "auto";
+        imageWrapper.onmousedown = openPreview;
+        imageWrapper.onclick = openPreview;
+        imageWrapper.onpointerdown = openPreview;
+        imageWrapper.onpointerup = openPreview;
+
+        const existingHitbox = imageWrapper.querySelector<HTMLElement>(
+          ".docs-atlas-image-preview-hitbox",
+        );
+        existingHitbox?.remove();
+
+        const hitbox = document.createElement("button");
+        hitbox.type = "button";
+        hitbox.className = "docs-atlas-image-preview-hitbox";
+        hitbox.setAttribute("aria-label", "预览图片");
+        hitbox.onmousedown = openPreview;
+        hitbox.onclick = openPreview;
+        hitbox.onpointerdown = openPreview;
+        hitbox.onpointerup = openPreview;
+        imageWrapper.appendChild(hitbox);
+      }
+
       return {
         alt: image.getAttribute("alt")?.trim() ?? "",
         src: image.currentSrc?.trim() || image.src?.trim() || "",
@@ -606,6 +707,108 @@
     if (activePreviewImageIndex.value >= nextImages.length) {
       activePreviewImageIndex.value = -1;
     }
+  }
+
+  function bindImageMutationObserver(root: HTMLElement) {
+    if (typeof MutationObserver === "undefined") {
+      return;
+    }
+
+    imageMutationObserver?.disconnect();
+
+    imageMutationObserver = new MutationObserver((mutations) => {
+      let shouldRefreshImages = false;
+
+      for (const mutation of mutations) {
+        if (mutation.type === "childList") {
+          const hasImageNode =
+            Array.from(mutation.addedNodes).some(
+              (node) =>
+                node instanceof HTMLImageElement ||
+                (node instanceof HTMLElement && node.querySelector("img[src]")),
+            ) ||
+            Array.from(mutation.removedNodes).some(
+              (node) =>
+                node instanceof HTMLImageElement ||
+                (node instanceof HTMLElement && node.querySelector("img[src]")),
+            );
+
+          if (hasImageNode) {
+            shouldRefreshImages = true;
+            break;
+          }
+        }
+
+        if (
+          mutation.type === "attributes" &&
+          mutation.target instanceof HTMLImageElement
+        ) {
+          shouldRefreshImages = true;
+          break;
+        }
+      }
+
+      if (!shouldRefreshImages) {
+        return;
+      }
+
+      collectPreviewImages(root);
+    });
+
+    imageMutationObserver.observe(root, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["src"],
+    });
+  }
+
+  function bindImagePreviewListeners() {
+    removeImagePreviewListeners?.();
+    removeImagePreviewListeners = null;
+
+    const host = hostRef.value;
+    if (!host) {
+      return;
+    }
+
+    const openImagePreviewFromEvent = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+
+      const imageBlock = target.closest(".milkdown-image-block");
+      const image =
+        target.closest(
+          'img[data-doc-preview-image="true"][data-preview-index]',
+        ) ??
+        imageBlock?.querySelector(
+          'img[data-doc-preview-image="true"][data-preview-index]',
+        );
+      if (!(image instanceof HTMLImageElement)) {
+        return;
+      }
+
+      const index = Number.parseInt(image.dataset.previewIndex ?? "-1", 10);
+      if (Number.isNaN(index) || index < 0) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      activePreviewImageIndex.value = index;
+    };
+
+    host.addEventListener("pointerdown", openImagePreviewFromEvent, true);
+    host.addEventListener("mousedown", openImagePreviewFromEvent, true);
+    host.addEventListener("click", openImagePreviewFromEvent, true);
+
+    removeImagePreviewListeners = () => {
+      host.removeEventListener("pointerdown", openImagePreviewFromEvent, true);
+      host.removeEventListener("mousedown", openImagePreviewFromEvent, true);
+      host.removeEventListener("click", openImagePreviewFromEvent, true);
+    };
   }
 
   function resolvePreviewAssetSource(src: string, absolutePath: string) {
@@ -698,6 +901,10 @@
   }
 
   function handleEditorClick(event: MouseEvent) {
+    if (isUnmounted) {
+      return;
+    }
+
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
       return;
@@ -708,7 +915,21 @@
     ) as HTMLButtonElement | null;
     if (previewToggleButton) {
       window.setTimeout(() => {
+        if (isUnmounted) {
+          return;
+        }
         syncMermaidPreviewModeState(previewToggleButton);
+      }, 0);
+    }
+
+    const copyButton = target.closest(
+      ".tools-button-group button",
+    ) as HTMLButtonElement | null;
+    if (copyButton && /复制/.test(copyButton.textContent ?? "")) {
+      window.setTimeout(() => {
+        if (!isUnmounted) {
+          emit("copied", "代码已复制");
+        }
       }, 0);
     }
 
@@ -716,6 +937,7 @@
       'img[data-doc-preview-image="true"][data-preview-index]',
     ) as HTMLImageElement | null;
     if (!image) {
+      scheduleSelectedImagePreview();
       return;
     }
 
@@ -757,6 +979,10 @@
   }
 
   function handleEditorPointerUp(event: PointerEvent) {
+    if (isUnmounted) {
+      return;
+    }
+
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
       return;
@@ -766,6 +992,7 @@
       'img[data-doc-preview-image="true"][data-preview-index]',
     ) as HTMLImageElement | null;
     if (!image) {
+      scheduleSelectedImagePreview();
       return;
     }
 
@@ -773,6 +1000,44 @@
     event.stopPropagation();
 
     const index = Number.parseInt(image.dataset.previewIndex ?? "-1", 10);
+    if (Number.isNaN(index) || index < 0) {
+      return;
+    }
+
+    activePreviewImageIndex.value = index;
+  }
+
+  function scheduleSelectedImagePreview() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      if (isUnmounted) {
+        return;
+      }
+      openSelectedImagePreview();
+    });
+  }
+
+  function openSelectedImagePreview() {
+    const host = hostRef.value;
+    if (!host) {
+      return;
+    }
+
+    const selectedImage = host.querySelector<HTMLImageElement>(
+      '.milkdown-image-block.ProseMirror-selectednode img[data-doc-preview-image="true"][data-preview-index]',
+    );
+
+    if (!selectedImage) {
+      return;
+    }
+
+    const index = Number.parseInt(
+      selectedImage.dataset.previewIndex ?? "-1",
+      10,
+    );
     if (Number.isNaN(index) || index < 0) {
       return;
     }
@@ -896,7 +1161,7 @@
       return {
         panelBackground: isDark ? surfaceStrong : "#ffffff",
         surfaceLow: isDark ? "rgba(110, 118, 129, 0.08)" : "#f8fafc",
-        codeBackground: isDark ? "#111a29" : "#f6f8fb",
+        codeBackground: isDark ? "#111a29" : "#ffffff",
         codeBorder: isDark
           ? "rgba(var(--desktop-accent-rgb), 0.22)"
           : "rgba(31, 35, 40, 0.12)",
@@ -935,7 +1200,7 @@
         surfaceLow: isDark
           ? "rgba(var(--desktop-accent-rgb), 0.08)"
           : "rgba(var(--desktop-accent-rgb), 0.04)",
-        codeBackground: isDark ? "#0f1a2a" : "#f7f9fc",
+        codeBackground: isDark ? "#0f1a2a" : "#ffffff",
         codeBorder: isDark
           ? "rgba(var(--desktop-accent-rgb), 0.18)"
           : "rgba(var(--desktop-accent-rgb), 0.12)",
@@ -972,7 +1237,7 @@
       return {
         panelBackground: surfaceStrong,
         surfaceLow: isDark ? "rgba(255, 255, 255, 0.03)" : "#f8fafc",
-        codeBackground: isDark ? "#111b2c" : "#f8f6f2",
+        codeBackground: isDark ? "#111b2c" : "#ffffff",
         codeBorder: isDark
           ? "rgba(var(--desktop-accent-rgb), 0.16)"
           : "rgba(99, 112, 138, 0.12)",
@@ -1008,7 +1273,7 @@
     return {
       panelBackground: surfaceStrong,
       surfaceLow: isDark ? "rgba(255, 255, 255, 0.03)" : surface,
-      codeBackground: isDark ? "#0f1928" : "#f7f9fc",
+      codeBackground: isDark ? "#0f1928" : "#ffffff",
       codeBorder: isDark
         ? "rgba(var(--desktop-accent-rgb), 0.18)"
         : "rgba(var(--desktop-accent-rgb), 0.12)",
@@ -1132,11 +1397,9 @@
     <div
       ref="host"
       class="desktop-doc-editor__editor"
-      @click.capture="handleEditorClick"
       @click="handleEditorClick"
       @focusin="handleEditorFocusIn"
       @focusout="handleEditorFocusOut"
-      @pointerup.capture="handleEditorPointerUp"
       @pointerup="handleEditorPointerUp"
     />
   </div>
@@ -1320,7 +1583,7 @@
         rgba(var(--desktop-accent-rgb), 0.34)
       );
     border-radius: 18px;
-    background: white;
+    background: var(--docs-atlas-code-bg);
     box-shadow:
       0 10px 24px rgba(var(--desktop-shadow), 0.07),
       inset 0 1px 0 rgba(255, 255, 255, 0.03);
@@ -1368,6 +1631,19 @@
       );
     background: transparent;
     box-sizing: border-box;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(
+      .milkdown .milkdown-code-block .tools .language-picker .list-wrapper
+    ) {
+    background-color: var(--docs-atlas-code-bg);
+    border: 1px solid
+      color-mix(
+        in srgb,
+        var(--docs-atlas-code-border) 58%,
+        rgba(var(--desktop-accent-rgb), 0.34)
+      );
   }
 
   .desktop-doc-editor__editor
@@ -1530,6 +1806,61 @@
     cursor: zoom-in;
   }
 
+  .desktop-doc-editor__editor :deep(.milkdown .milkdown-image-block) {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    margin: 1rem 0 1.3rem;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    user-select: none;
+  }
+
+  .desktop-doc-editor__editor :deep(.milkdown .milkdown-image-block::before),
+  .desktop-doc-editor__editor :deep(.milkdown .milkdown-image-block::after),
+  .desktop-doc-editor__editor :deep(.milkdown .milkdown-image-block .operation),
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-image-block .image-resize-handle),
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-image-block .caption-input) {
+    display: none !important;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-image-block .image-wrapper) {
+    position: relative;
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    pointer-events: none;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-image-block img[data-type="image-block"]) {
+    height: auto !important;
+    pointer-events: auto;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .docs-atlas-image-preview-hitbox) {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: block;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    cursor: zoom-in;
+  }
+
   .desktop-doc-editor__editor :deep(.milkdown table) {
     width: 100%;
     border-collapse: collapse;
@@ -1577,15 +1908,30 @@
 
   .desktop-doc-editor__editor
     :deep(.milkdown .milkdown-code-block .search-box) {
-    background: var(--docs-atlas-soft-fill);
-    border: 1px solid var(--docs-atlas-muted-line);
+    display: grid;
+    gap: 0.38rem;
+    min-width: 13rem;
+    background: var(--desktop-surface-strong);
     min-height: 1.78rem;
-    border-radius: 0.55rem;
+    border-radius: 0.78rem;
+    box-shadow: 0 14px 28px rgba(var(--desktop-shadow), 0.08);
+    outline: none;
+    padding: 0;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .search-box:has(input:focus)) {
+    outline: none;
   }
 
   .desktop-doc-editor__editor
     :deep(.milkdown .milkdown-code-block .search-box input) {
-    background: transparent;
+    width: 100%;
+    min-height: 2rem;
+    padding: 0 0.78rem;
+    border: 1px solid var(--docs-atlas-muted-line);
+    border-radius: 0.62rem;
+    background: var(--desktop-field-bg-strong);
     color: var(--desktop-ink);
     font-size: 0.76rem;
   }
@@ -1593,6 +1939,8 @@
   .desktop-doc-editor__editor
     :deep(.milkdown .milkdown-code-block .search-box input:focus) {
     outline: none;
+    border-color: rgba(var(--desktop-accent-rgb), 0.2);
+    background: rgba(var(--desktop-accent-rgb), 0.06);
   }
 
   .desktop-doc-editor__editor
@@ -1603,54 +1951,72 @@
   }
 
   .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .search-box ul) {
+    display: grid;
+    gap: 0.18rem;
+    max-height: 15rem;
+    margin: 0;
+    padding: 0;
+    overflow: auto;
+    list-style: none;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .search-box ul::-webkit-scrollbar) {
+    width: 8px;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(
+      .milkdown .milkdown-code-block .search-box ul::-webkit-scrollbar-thumb
+    ) {
+    background: rgba(var(--desktop-accent-rgb), 0.22);
+    border-radius: 999px;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .search-box button),
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .search-box li),
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .search-box [role="option"]) {
+    display: flex;
+    align-items: center;
+    min-height: 2rem;
+    padding: 0 0.72rem;
+    border-radius: 0.62rem;
+    color: var(--desktop-ink);
+    background: transparent;
+    transition:
+      background 140ms ease,
+      color 140ms ease;
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .search-box button:hover),
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .search-box li:hover),
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .search-box [role="option"]:hover) {
+    background: rgba(var(--desktop-accent-rgb), 0.08);
+    color: var(--desktop-ink);
+  }
+
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .search-box .active),
+  .desktop-doc-editor__editor
+    :deep(.milkdown .milkdown-code-block .search-box [aria-selected="true"]) {
+    background: rgba(var(--desktop-accent-rgb), 0.12);
+    color: var(--desktop-ink);
+  }
+
+  .desktop-doc-editor__editor
     :deep(.milkdown .milkdown-code-block-placeholder code.hljs),
   .desktop-doc-editor__editor
     :deep(.milkdown .milkdown-code-block .preview code.hljs) {
     background: transparent;
     color: var(--docs-atlas-code-text);
     opacity: 1;
-  }
-
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-comment),
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-quote) {
-    color: color-mix(in srgb, var(--docs-atlas-code-text) 62%, transparent);
-    font-style: italic;
-  }
-
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-keyword),
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-selector-tag),
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-type) {
-    color: #d06df8;
-  }
-
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-title),
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-title.function_),
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-section) {
-    color: #66b8ff;
-  }
-
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-string),
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-attr),
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-template-tag) {
-    color: #75d7a8;
-  }
-
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-number),
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-literal),
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-symbol),
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-bullet) {
-    color: #ffb36b;
-  }
-
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-variable),
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-template-variable),
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-name) {
-    color: #ff8e8e;
-  }
-
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-operator),
-  .desktop-doc-editor__editor :deep(.milkdown .hljs-punctuation) {
-    color: color-mix(in srgb, var(--docs-atlas-code-text) 90%, white 10%);
   }
 
   .desktop-doc-editor__editor :deep(.milkdown .ProseMirror-selectednode) {

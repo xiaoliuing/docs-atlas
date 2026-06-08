@@ -348,7 +348,6 @@ function handleWindowKeydown(event: KeyboardEvent) {
 
 <template>
   <Teleport to="body">
-    <Transition name="fade">
       <div
         v-if="currentImage"
         class="image-preview-mask"
@@ -472,7 +471,6 @@ function handleWindowKeydown(event: KeyboardEvent) {
           {{ currentTitle }}
         </div>
       </div>
-    </Transition>
   </Teleport>
 </template>
 

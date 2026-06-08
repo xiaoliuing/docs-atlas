@@ -163,6 +163,9 @@
   const isRecentView = computed(() => primaryView.value === "recent");
   const isFavoritesView = computed(() => primaryView.value === "favorites");
   const isSettingsView = computed(() => primaryView.value === "settings");
+  const isReaderLoading = computed(
+    () => workspaceDocs.isLoading.value && !currentDoc.value,
+  );
   const floatingPanelVisible = computed(() => isOpen.value);
   const searchQuery = computed({
     get: () => query.value,
@@ -320,14 +323,29 @@
   }
 
   function closeSettingsView() {
-    restoreCurrentDocScrollTop();
     primaryView.value = "reader";
+    closeSearch();
+    const workspaceId = currentWorkspaceId.value;
+    const slug = selectedDocSlug.value;
+    const savedScrollTop =
+      workspaceId && slug ? readingState.getDocScrollTop(workspaceId, slug) : 0;
+
+    restoredScrollTop.value = -1;
+    currentReaderScrollTop.value = savedScrollTop;
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        restoredScrollTop.value = savedScrollTop;
+      });
+    });
     clearSettingsActionMessage();
   }
 
   function openReaderView() {
-    restoreCurrentDocScrollTop();
     primaryView.value = "reader";
+    void nextTick(() => {
+      restoreCurrentDocScrollTop();
+    });
     closeSearch();
   }
 
@@ -823,7 +841,11 @@
     }
 
     const savedScrollTop = readingState.getDocScrollTop(workspaceId, slug);
-    restoredScrollTop.value = currentReaderScrollTop.value || savedScrollTop;
+    restoredScrollTop.value = -1;
+    void nextTick(() => {
+      restoredScrollTop.value = savedScrollTop;
+      currentReaderScrollTop.value = savedScrollTop;
+    });
   }
 
   function waitForDocAvailability(slug: string, timeoutMs = 5000) {
@@ -979,12 +1001,13 @@
             'desktop-workbench__main--reader': isReaderView,
             'desktop-workbench__main--page': !isReaderView,
             'desktop-workbench__main--with-toc':
-              headings.length > 0 && isReaderView,
+              (headings.length > 0 || isReaderLoading) && isReaderView,
           }"
         >
           <template v-if="isReaderView">
             <DesktopDocReader
               :doc="currentDoc"
+              :is-loading="isReaderLoading"
               :is-favorite="currentDocIsFavorite"
               :highlight-query="query"
               :next-doc="nextDoc"
@@ -997,8 +1020,28 @@
               @toggle-favorite="handleToggleCurrentDocFavorite"
             />
 
-            <aside v-if="headings.length > 0" class="desktop-workbench__toc">
+            <aside
+              v-if="headings.length > 0 || isReaderLoading"
+              class="desktop-workbench__toc"
+            >
+              <div
+                v-if="isReaderLoading"
+                class="desktop-workbench__toc-loading"
+                aria-hidden="true"
+              >
+                <span class="desktop-workbench__toc-loading-title" />
+                <div class="desktop-workbench__toc-loading-list">
+                  <span class="desktop-workbench__toc-loading-line desktop-workbench__toc-loading-line--wide" />
+                  <span class="desktop-workbench__toc-loading-line" />
+                  <span class="desktop-workbench__toc-loading-line desktop-workbench__toc-loading-line--child" />
+                  <span class="desktop-workbench__toc-loading-line desktop-workbench__toc-loading-line--soft" />
+                  <span class="desktop-workbench__toc-loading-line desktop-workbench__toc-loading-line--child" />
+                  <span class="desktop-workbench__toc-loading-line desktop-workbench__toc-loading-line--wide" />
+                </div>
+              </div>
+
               <DesktopDocToc
+                v-else
                 :active-id="activeId"
                 :headings="headings"
                 @select="scrollToHeading"
@@ -1340,18 +1383,80 @@
   }
 
   .desktop-workbench__main--with-toc {
-    grid-template-columns: minmax(0, 1fr) 220px;
-    gap: 0.88rem;
+    grid-template-columns: minmax(0, 1fr) minmax(224px, 236px);
+    align-items: stretch;
+    gap: 1.12rem;
   }
 
   .desktop-workbench__toc {
     min-height: 0;
+    margin-left: 0.12rem;
     border: 1px solid
       color-mix(in srgb, var(--desktop-line-strong) 54%, var(--desktop-line));
     border-radius: var(--desktop-radius-lg);
     background: var(--desktop-surface);
     box-shadow: var(--desktop-card-shadow-soft);
     overflow: hidden;
+  }
+
+  .desktop-workbench__toc-loading,
+  .desktop-workbench__toc-loading-list {
+    display: grid;
+    gap: 0.72rem;
+  }
+
+  .desktop-workbench__toc-loading {
+    align-content: start;
+    min-height: 100%;
+    padding: 0.96rem 0.92rem;
+  }
+
+  .desktop-workbench__toc-loading-title,
+  .desktop-workbench__toc-loading-line {
+    display: block;
+    border-radius: 999px;
+    background: linear-gradient(
+      90deg,
+      rgba(var(--desktop-accent-rgb), 0.08),
+      rgba(var(--desktop-accent-rgb), 0.16),
+      rgba(var(--desktop-accent-rgb), 0.08)
+    );
+    background-size: 220% 100%;
+    animation: desktop-doc-reader-loading 1.25s linear infinite;
+  }
+
+  .desktop-workbench__toc-loading-title {
+    width: 6.8rem;
+    height: 0.82rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .desktop-workbench__toc-loading-line {
+    width: 100%;
+    height: 0.74rem;
+  }
+
+  .desktop-workbench__toc-loading-line--wide {
+    width: 88%;
+  }
+
+  .desktop-workbench__toc-loading-line--soft {
+    width: 76%;
+  }
+
+  .desktop-workbench__toc-loading-line--child {
+    width: 72%;
+    margin-left: 0.92rem;
+  }
+
+  @keyframes desktop-doc-reader-loading {
+    0% {
+      background-position: 200% 0;
+    }
+
+    100% {
+      background-position: -40% 0;
+    }
   }
 
   @media (max-width: 1320px) {

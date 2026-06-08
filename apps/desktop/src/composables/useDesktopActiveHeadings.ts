@@ -86,20 +86,21 @@ export function useDesktopActiveHeadings(headings: MaybeRefOrGetter<DocHeading[]
       return
     }
 
-    let currentId = renderedHeadings[0]?.id ?? ''
     const scrollContainer = getScrollContainer()
-    const containerTop = scrollContainer?.getBoundingClientRect().top ?? 0
+    if (!scrollContainer) {
+      activeId.value = renderedHeadings[0]?.id ?? ''
+      return
+    }
+
+    const threshold = scrollContainer.scrollTop + HEADING_OFFSET + 2
+    let currentId = renderedHeadings[0]?.id ?? ''
 
     for (const heading of renderedHeadings) {
-      const top = scrollContainer
-        ? heading.element.getBoundingClientRect().top - containerTop
-        : heading.element.getBoundingClientRect().top
-
-      if (top <= HEADING_OFFSET) {
+      if (heading.element.offsetTop <= threshold) {
         currentId = heading.id
-      } else {
-        break
+        continue
       }
+      break
     }
 
     activeId.value = currentId
@@ -128,12 +129,8 @@ export function useDesktopActiveHeadings(headings: MaybeRefOrGetter<DocHeading[]
 
     const scrollContainer = getScrollContainer()
     if (scrollContainer) {
-      const containerTop = scrollContainer.getBoundingClientRect().top
-      const nextTop =
-        scrollContainer.scrollTop + element.getBoundingClientRect().top - containerTop - HEADING_OFFSET
-
       scrollContainer.scrollTo({
-        top: Math.max(0, nextTop),
+        top: Math.max(0, element.offsetTop - HEADING_OFFSET),
         behavior: 'smooth',
       })
       return

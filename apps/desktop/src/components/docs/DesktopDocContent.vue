@@ -37,8 +37,10 @@
 
   const bodyScrollRef = useTemplateRef<HTMLElement>("bodyScroll");
   const currentModifiedAt = shallowRef(props.doc.modifiedAt ?? "");
+  const toastMessage = shallowRef("");
   const saveFeedbackMessage = shallowRef("");
   let stopScrollDiagnostics: (() => void) | null = null;
+  let toastTimer: number | null = null;
   let saveFeedbackTimer: number | null = null;
 
   const formattedModifiedAt = computed(() => {
@@ -95,6 +97,7 @@
   watch(
     () => props.doc.slug,
     () => {
+      clearToast();
       clearSaveFeedback();
     },
   );
@@ -128,6 +131,10 @@
     }
   }
 
+  function handleCopied(message: string) {
+    showToast(message);
+  }
+
   function showSaveFeedback(message: string) {
     saveFeedbackMessage.value = message;
     if (saveFeedbackTimer !== null) {
@@ -144,6 +151,24 @@
     if (saveFeedbackTimer !== null) {
       window.clearTimeout(saveFeedbackTimer);
       saveFeedbackTimer = null;
+    }
+  }
+
+  function showToast(message: string) {
+    toastMessage.value = message;
+    if (toastTimer !== null) {
+      window.clearTimeout(toastTimer);
+    }
+    toastTimer = window.setTimeout(() => {
+      clearToast();
+    }, 1800);
+  }
+
+  function clearToast() {
+    toastMessage.value = "";
+    if (toastTimer !== null) {
+      window.clearTimeout(toastTimer);
+      toastTimer = null;
     }
   }
 
@@ -217,12 +242,17 @@
 
   onBeforeUnmount(() => {
     stopScrollDiagnostics?.();
+    clearToast();
     clearSaveFeedback();
   });
 </script>
 
 <template>
   <article class="doc-content">
+    <div v-if="toastMessage" class="doc-content__toast">
+      {{ toastMessage }}
+    </div>
+
     <div
       class="doc-content__panel"
       :data-markdown-theme="props.markdownThemeId"
@@ -258,11 +288,9 @@
           <strong class="doc-content__meta-value">{{
             formattedModifiedAt
           }}</strong>
-          <transition name="doc-content__save-feedback">
-            <span v-if="saveFeedbackMessage" class="doc-content__save-feedback">
-              {{ saveFeedbackMessage }}
-            </span>
-          </transition>
+          <span v-if="saveFeedbackMessage" class="doc-content__save-feedback">
+            {{ saveFeedbackMessage }}
+          </span>
         </div>
       </header>
 
@@ -279,6 +307,7 @@
           :highlight-query="props.highlightQuery"
           :markdown-theme-id="props.markdownThemeId"
           :save-doc="props.saveDoc"
+          @copied="handleCopied"
           @saved="handleDocSaved"
         />
       </div>
@@ -290,6 +319,29 @@
   .doc-content {
     min-width: 0;
     min-height: 0;
+  }
+
+  .doc-content__toast {
+    position: fixed;
+    top: 5rem;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 40;
+    width: fit-content;
+    padding: 0.62rem 0.84rem;
+    border: 1px solid rgba(var(--desktop-accent-rgb), 0.18);
+    border-radius: 0.9rem;
+    background: color-mix(
+      in srgb,
+      var(--desktop-surface-strong) 94%,
+      rgba(var(--desktop-accent-rgb), 0.08)
+    );
+    box-shadow: 0 14px 28px rgba(var(--desktop-shadow), 0.12);
+    color: var(--desktop-ink);
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1.3;
+    pointer-events: none;
   }
 
   .doc-content__panel {
